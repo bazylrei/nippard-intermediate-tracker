@@ -88,7 +88,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               type="number"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              step={unit === "lbs" ? "2.5" : "1.25"}
+              step="any"
               min="0"
               className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-100 text-center text-lg font-semibold focus:outline-none focus:border-orange-500"
               placeholder="—"
