@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase";
 import {
   createSession,
   getIncompleteSession,
-  getNextSession,
   updateSessionProgress,
   completeSession,
   logSet,
@@ -19,10 +18,10 @@ import type { WorkoutSession, SetLog, UserPreferences, Exercise } from "@/lib/ty
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
 import RestTimer from "@/components/RestTimer";
-import { ArrowLeft, ChevronRight, Repeat2, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2 } from "lucide-react";
 import { Suspense } from "react";
 
-type Phase = "warmup" | "sets" | "rest";
+type Phase = "overview" | "warmup" | "sets" | "rest";
 
 function WorkoutContent() {
   const router = useRouter();
@@ -32,7 +31,7 @@ function WorkoutContent() {
   const [prefs, setPrefs] = useState<UserPreferences>({ unit: "kg", alternateSelections: {} });
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [setIndex, setSetIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>("warmup");
+  const [phase, setPhase] = useState<Phase>("overview");
   const [sessionSets, setSessionSets] = useState<SetLog[]>([]);
   const [prevSets, setPrevSets] = useState<SetLog[]>([]);
   const [showRestTimer, setShowRestTimer] = useState(false);
@@ -40,6 +39,7 @@ function WorkoutContent() {
   const [useAlternate, setUseAlternate] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showExerciseList, setShowExerciseList] = useState(false);
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
@@ -81,6 +81,7 @@ function WorkoutContent() {
       } else {
         const dayType = workoutDay?.dayType ?? "upper-a";
         sess = await createSession(user.id, week, dayIndex, dayType);
+        setPhase("overview");
       }
       setSession(sess);
 
@@ -108,6 +109,13 @@ function WorkoutContent() {
     return ex.earlySetCount + ex.lastSetCount;
   }
 
+  function isExerciseDone(exIdx: number): boolean {
+    const ex = resolvedExercises[exIdx];
+    if (!ex) return false;
+    const logged = sessionSets.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
+    return logged.length >= totalSetsForExercise(ex);
+  }
+
   async function handleSetLogged(
     weight: number,
     reps: number,
@@ -133,7 +141,6 @@ function WorkoutContent() {
     const updated = await getSessionSets(session.id);
     setSessionSets(updated);
 
-    // Start rest timer
     const [restMin, restMax] = currentExercise.restSeconds;
     const mid = Math.round((restMin + restMax) / 2);
     setRestDuration(mid);
@@ -216,6 +223,54 @@ function WorkoutContent() {
     );
   }
 
+  // ── Overview screen ──────────────────────────────────────────────────────────
+  if (phase === "overview") {
+    return (
+      <div className="min-h-screen flex flex-col max-w-lg mx-auto">
+        <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
+          <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <p className="text-xs text-zinc-500">Week {week}</p>
+            <h1 className="text-sm font-semibold text-zinc-200">{DAY_LABELS[workoutDay.dayType]}</h1>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <h2 className="text-lg font-bold text-zinc-100">Today&apos;s Workout</h2>
+          <div className="space-y-2">
+            {resolvedExercises.map((ex, i) => (
+              <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 shrink-0">
+                  {i + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-zinc-200 truncate">{ex.name}</p>
+                  <p className="text-xs text-zinc-500">
+                    {ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps
+                  </p>
+                </div>
+                <span className="text-xs text-zinc-600 capitalize shrink-0">{ex.muscleGroup}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-zinc-800">
+          <button
+            onClick={() => setPhase("warmup")}
+            className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-4 rounded-xl transition-colors"
+          >
+            <Play size={18} fill="currentColor" />
+            Begin Workout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Active workout ───────────────────────────────────────────────────────────
   const totalSets = totalSetsForExercise(currentExercise);
   const isLastSet = setIndex === totalSets - 1;
   const warmupSteps = WARMUP_PROTOCOLS[currentExercise.warmupProtocol];
@@ -223,11 +278,66 @@ function WorkoutContent() {
   const setsForExercise = sessionSets.filter((s) => s.exerciseId === currentExercise.id && s.setIndex >= 0);
 
   return (
-    <div className="min-h-screen flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen flex flex-col max-w-lg mx-auto relative">
+      {/* Exercise list overlay */}
+      {showExerciseList && (
+        <div className="absolute inset-0 z-20 bg-zinc-950 flex flex-col">
+          <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
+            <button onClick={() => setShowExerciseList(false)} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+              <X size={20} />
+            </button>
+            <h2 className="text-sm font-semibold text-zinc-200">Exercises</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {resolvedExercises.map((ex, i) => {
+              const done = isExerciseDone(i);
+              const isCurrent = i === exerciseIndex;
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    advanceTo(i, 0);
+                    setPhase("warmup");
+                    setShowExerciseList(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
+                    isCurrent
+                      ? "bg-orange-500/10 border border-orange-500/20"
+                      : "bg-zinc-900 hover:bg-zinc-800"
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    done
+                      ? "bg-green-800/60 text-green-400"
+                      : isCurrent
+                      ? "bg-orange-500/20 text-orange-400"
+                      : "bg-zinc-800 text-zinc-500"
+                  }`}>
+                    {done ? <CheckCircle2 size={14} /> : i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium truncate ${
+                      isCurrent ? "text-zinc-100" : done ? "text-zinc-500" : "text-zinc-300"
+                    }`}>
+                      {ex.name}
+                    </p>
+                    <p className="text-xs text-zinc-600">
+                      {ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps
+                    </p>
+                  </div>
+                  {done && <span className="text-xs text-green-500 shrink-0">Done</span>}
+                  {isCurrent && !done && <span className="text-xs text-orange-400 shrink-0">Current</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-        <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
-          <ArrowLeft size={20} />
+        <button onClick={() => setShowExerciseList(true)} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+          <List size={20} />
         </button>
         <div className="flex-1 min-w-0">
           <p className="text-xs text-zinc-500">Week {week} · {DAY_LABELS[workoutDay.dayType]}</p>
@@ -235,17 +345,19 @@ function WorkoutContent() {
             Exercise {exerciseIndex + 1} of {resolvedExercises.length}
           </p>
         </div>
-        {/* Progress dots */}
         <div className="flex gap-1">
           {resolvedExercises.map((_, i) => (
             <div
               key={i}
               className={`h-1.5 w-1.5 rounded-full ${
-                i < exerciseIndex ? "bg-orange-500" : i === exerciseIndex ? "bg-orange-400" : "bg-zinc-700"
+                isExerciseDone(i) ? "bg-orange-500" : i === exerciseIndex ? "bg-orange-400" : "bg-zinc-700"
               }`}
             />
           ))}
         </div>
+        <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+          <ArrowLeft size={20} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5">

@@ -112,7 +112,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between text-sm">
           <span className="text-zinc-400">Program Progress</span>
           <span className="text-zinc-300 font-medium">
-            Session {sessionNum - 1} / {totalSessions}
+            Session {Math.max(0, sessionNum - 1)} / {totalSessions}
           </span>
         </div>
         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">

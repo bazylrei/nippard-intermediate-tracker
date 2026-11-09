@@ -2,6 +2,36 @@ import { createClient } from "./supabase";
 import type { SetLog, WorkoutSession, UserPreferences } from "./types";
 import { estimateOneRm } from "./program-data";
 
+function mapSession(row: Record<string, unknown>): WorkoutSession {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    week: row.week as number,
+    dayIndex: row.day_index as number,
+    dayType: row.day_type as WorkoutSession["dayType"],
+    startedAt: row.started_at as string,
+    completedAt: row.completed_at as string | null,
+    currentExerciseIndex: (row.current_exercise_index as number) ?? 0,
+    currentSetIndex: (row.current_set_index as number) ?? 0,
+  };
+}
+
+function mapSetLog(row: Record<string, unknown>): SetLog {
+  return {
+    id: row.id as string,
+    sessionId: row.session_id as string,
+    userId: row.user_id as string,
+    exerciseId: row.exercise_id as string,
+    setIndex: row.set_index as number,
+    isLastSet: row.is_last_set as boolean,
+    weight: row.weight_kg as number,
+    reps: row.reps as number,
+    rpe: row.rpe as number | null,
+    failureHit: row.failure_hit as boolean | null,
+    loggedAt: row.logged_at as string,
+  };
+}
+
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
 export async function getPreferences(userId: string): Promise<UserPreferences> {
@@ -42,7 +72,7 @@ export async function getIncompleteSession(
     .order("started_at", { ascending: false })
     .limit(1)
     .single();
-  return data as WorkoutSession | null;
+  return data ? mapSession(data as Record<string, unknown>) : null;
 }
 
 export async function getNextSession(
@@ -78,7 +108,7 @@ export async function createSession(
     .select()
     .single();
   if (error) throw error;
-  return data as WorkoutSession;
+  return mapSession(data as Record<string, unknown>);
 }
 
 export async function updateSessionProgress(
@@ -128,7 +158,7 @@ export async function getSessionSets(sessionId: string): Promise<SetLog[]> {
     .select("*")
     .eq("session_id", sessionId)
     .order("logged_at");
-  return (data ?? []) as unknown as SetLog[];
+  return (data ?? []).map((r: Record<string, unknown>) => mapSetLog(r));
 }
 
 export async function getLastSessionSetsForExercise(
@@ -152,7 +182,7 @@ export async function getLastSessionSetsForExercise(
       .eq("exercise_id", exerciseId)
       .gte("set_index", 0)
       .order("set_index");
-    if (sets && sets.length > 0) return sets as unknown as SetLog[];
+    if (sets && sets.length > 0) return sets.map((r: Record<string, unknown>) => mapSetLog(r));
   }
   return [];
 }
