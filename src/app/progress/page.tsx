@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getExerciseHistory, getWeeklyVolume, getPersonalRecords } from "@/lib/db";
 import { PROGRAM } from "@/lib/program-data";
-import { ArrowLeft, TrendingUp, Trophy, BarChart3 } from "lucide-react";
+import { ArrowLeft, TrendingUp, BarChart3 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
-type Tab = "prs" | "volume" | "exercise";
+type Tab = "exercise" | "volume";
 
 // Collect all unique exercises from the program
 const ALL_EXERCISES = (() => {
@@ -32,11 +32,11 @@ const ALL_EXERCISES = (() => {
 
 export default function ProgressPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("prs");
+  const [tab, setTab] = useState<Tab>("exercise");
   const [userId, setUserId] = useState<string | null>(null);
-  const [prs, setPrs] = useState<{ exerciseId: string; weight: number; reps: number; estimatedOneRm: number; date: string }[]>([]);
+  const [exercisesWithData, setExercisesWithData] = useState<string[]>([]);
   const [volume, setVolume] = useState<{ week: number; volume: number }[]>([]);
-  const [selectedExercise, setSelectedExercise] = useState(ALL_EXERCISES[0]?.id ?? "");
+  const [selectedExercise, setSelectedExercise] = useState("");
   const [history, setHistory] = useState<{ date: string; weight: number; reps: number; estimatedOneRm: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,8 +51,11 @@ export default function ProgressPage() {
         getPersonalRecords(user.id),
         getWeeklyVolume(user.id),
       ]);
-      setPrs(prData);
+      const ids = prData.map((pr) => pr.exerciseId);
+      setExercisesWithData(ids);
       setVolume(volData.sort((a, b) => a.week - b.week));
+      const firstWithData = ALL_EXERCISES.find((ex) => ids.includes(ex.id));
+      if (firstWithData) setSelectedExercise(firstWithData.id);
       setLoading(false);
     }
     init();
@@ -63,7 +66,7 @@ export default function ProgressPage() {
     getExerciseHistory(userId, selectedExercise).then(setHistory);
   }, [userId, selectedExercise]);
 
-  const getExerciseName = (id: string) => ALL_EXERCISES.find((e) => e.id === id)?.name ?? id;
+  const exercisesInDropdown = ALL_EXERCISES.filter((ex) => exercisesWithData.includes(ex.id));
 
   if (loading) {
     return (
@@ -86,9 +89,8 @@ export default function ProgressPage() {
       {/* Tabs */}
       <div className="flex border-b border-zinc-800">
         {([
-          { key: "prs", label: "PRs", icon: Trophy },
-          { key: "volume", label: "Volume", icon: BarChart3 },
           { key: "exercise", label: "Exercise", icon: TrendingUp },
+          { key: "volume", label: "Volume", icon: BarChart3 },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -106,29 +108,56 @@ export default function ProgressPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {/* PRs tab */}
-        {tab === "prs" && (
-          <div className="space-y-3">
-            <p className="text-xs text-zinc-500">Estimated 1RM = Epley formula (weight × (1 + reps/30))</p>
-            {prs.length === 0 ? (
-              <EmptyState message="No PRs yet — complete your first workout to start tracking." />
+        {/* Exercise history tab */}
+        {tab === "exercise" && (
+          <div className="space-y-4">
+            {exercisesInDropdown.length === 0 ? (
+              <EmptyState message="No exercise data yet — complete your first workout to start tracking." />
             ) : (
-              prs
-                .sort((a, b) => b.estimatedOneRm - a.estimatedOneRm)
-                .map((pr) => (
-                  <div key={pr.exerciseId} className="bg-zinc-900 rounded-xl p-4 flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-zinc-200 truncate">{getExerciseName(pr.exerciseId)}</p>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {pr.weight}kg × {pr.reps} reps · {pr.date}
-                      </p>
+              <>
+                <select
+                  value={selectedExercise}
+                  onChange={(e) => setSelectedExercise(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-orange-500 text-base"
+                >
+                  {exercisesInDropdown.map((ex) => (
+                    <option key={ex.id} value={ex.id}>{ex.name}</option>
+                  ))}
+                </select>
+
+                {history.length === 0 ? (
+                  <EmptyState message="No data for this exercise yet." />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="w-full" style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                        <LineChart data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                          <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                          <YAxis tick={{ fill: "#71717a", fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, color: "#e4e4e7" }}
+                            formatter={(v) => [`${Number(v)} kg`, "e1RM"]}
+                          />
+                          <Line type="monotone" dataKey="estimatedOneRm" stroke="#f97316" strokeWidth={2} dot={{ fill: "#f97316", r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                    <div className="text-right ml-4 shrink-0">
-                      <p className="text-lg font-bold text-orange-400">{pr.estimatedOneRm}</p>
-                      <p className="text-xs text-zinc-500">e1RM kg</p>
+
+                    <div className="space-y-2">
+                      {[...history].reverse().map((h, i) => (
+                        <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-zinc-300 font-medium">{h.weight}kg × {h.reps} reps</p>
+                            <p className="text-xs text-zinc-500">{h.date}</p>
+                          </div>
+                          <p className="text-sm font-bold text-orange-400">{h.estimatedOneRm} e1RM</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))
+                )}
+              </>
             )}
           </div>
         )}
@@ -140,64 +169,20 @@ export default function ProgressPage() {
             {volume.length === 0 ? (
               <EmptyState message="No volume data yet — complete a workout first." />
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={volume} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis dataKey="week" tick={{ fill: "#71717a", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
-                  <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, color: "#e4e4e7" }}
-                    formatter={(v) => [`${Number(v).toLocaleString()} kg`, "Volume"]}
-                    labelFormatter={(l) => `Week ${l}`}
-                  />
-                  <Bar dataKey="volume" fill="#f97316" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        )}
-
-        {/* Exercise history tab */}
-        {tab === "exercise" && (
-          <div className="space-y-4">
-            <select
-              value={selectedExercise}
-              onChange={(e) => setSelectedExercise(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-orange-500 text-sm"
-            >
-              {ALL_EXERCISES.map((ex) => (
-                <option key={ex.id} value={ex.id}>{ex.name}</option>
-              ))}
-            </select>
-
-            {history.length === 0 ? (
-              <EmptyState message="No data for this exercise yet." />
-            ) : (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+              <div className="w-full" style={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                  <BarChart data={volume} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                    <YAxis tick={{ fill: "#71717a", fontSize: 11 }} />
+                    <XAxis dataKey="week" tick={{ fill: "#71717a", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
+                    <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
                       contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, color: "#e4e4e7" }}
-                      formatter={(v) => [`${Number(v)} kg`, "e1RM"]}
+                      formatter={(v) => [`${Number(v).toLocaleString()} kg`, "Volume"]}
+                      labelFormatter={(l) => `Week ${l}`}
                     />
-                    <Line type="monotone" dataKey="estimatedOneRm" stroke="#f97316" strokeWidth={2} dot={{ fill: "#f97316", r: 4 }} />
-                  </LineChart>
+                    <Bar dataKey="volume" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
-
-                <div className="space-y-2">
-                  {[...history].reverse().map((h, i) => (
-                    <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-zinc-300 font-medium">{h.weight}kg × {h.reps} reps</p>
-                        <p className="text-xs text-zinc-500">{h.date}</p>
-                      </div>
-                      <p className="text-sm font-bold text-orange-400">{h.estimatedOneRm} e1RM</p>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
