@@ -36,7 +36,7 @@ function WorkoutContent() {
   const [prevSets, setPrevSets] = useState<SetLog[]>([]);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(120);
-  const [useAlternate, setUseAlternate] = useState<Record<string, boolean>>({});
+  const [useAlternate, setUseAlternate] = useState<Record<string, number>>({});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showExerciseList, setShowExerciseList] = useState(false);
@@ -45,9 +45,12 @@ function WorkoutContent() {
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
   const workoutDay = getWorkoutDay(week, dayIndex);
 
-  const resolvedExercises = workoutDay?.exercises.map((ex) =>
-    useAlternate[ex.id] ? { ...ex, name: ex.alternateName } : ex
-  ) ?? [];
+  const resolvedExercises = workoutDay?.exercises.map((ex) => {
+    const idx = useAlternate[ex.id] ?? 0;
+    if (idx === 1) return { ...ex, name: ex.alternates[0] };
+    if (idx === 2) return { ...ex, name: ex.alternates[1] };
+    return ex;
+  }) ?? [];
 
   const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
 
@@ -168,7 +171,8 @@ function WorkoutContent() {
   }
 
   async function toggleAlternate(exId: string) {
-    const next = { ...useAlternate, [exId]: !useAlternate[exId] };
+    const current = useAlternate[exId] ?? 0;
+    const next = { ...useAlternate, [exId]: (current + 1) % 3 };
     setUseAlternate(next);
     if (userId) {
       const sb = createClient();
@@ -365,13 +369,21 @@ function WorkoutContent() {
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-zinc-100">{currentExercise.name}</h2>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => toggleAlternate(currentExercise.id)}
-              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors"
-            >
-              <Repeat2 size={13} />
-              Swap to: {useAlternate[currentExercise.id] ? workoutDay.exercises[exerciseIndex].name : currentExercise.alternateName}
-            </button>
+            {(() => {
+              const origEx = workoutDay.exercises[exerciseIndex];
+              const idx = useAlternate[currentExercise.id] ?? 0;
+              const nextIdx = (idx + 1) % 3;
+              const names = [origEx.name, origEx.alternates[0], origEx.alternates[1]];
+              return (
+                <button
+                  onClick={() => toggleAlternate(currentExercise.id)}
+                  className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors"
+                >
+                  <Repeat2 size={13} />
+                  Swap to: {names[nextIdx]}
+                </button>
+              );
+            })()}
           </div>
         </div>
 

@@ -10,7 +10,7 @@ export type WarmupProtocol = "none" | "1-set" | "2-set" | "3-set" | "4-set";
 export interface Exercise {
   id: string;
   name: string;
-  alternateName: string;
+  alternates: [string, string];
   muscleGroup: MuscleGroup;
   restSeconds: [number, number]; // [min, max]
   warmupProtocol: WarmupProtocol;
@@ -52,7 +52,7 @@ export interface WeekSchedule {
 
 export interface UserPreferences {
   unit: "kg" | "lbs";
-  alternateSelections: Record<string, boolean>; // exerciseId -> useAlternate
+  alternateSelections: Record<string, number>; // exerciseId -> 0 (main) | 1 (alt1) | 2 (alt2)
 }
 
 export interface SetLog {

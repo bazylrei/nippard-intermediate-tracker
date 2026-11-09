@@ -1,13 +1,67 @@
 import type { Exercise, WorkoutDay, WeekSchedule, WarmupProtocol } from "./types";
 
-// ─── Exercise catalogue ────────────────────────────────────────────────────────
-// Exercises are defined once; sets/reps/RPE targets are per-week overlays.
-// The catalogue only carries properties that never change across weeks.
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function estimateOneRm(weight: number, reps: number): number {
+  return Math.round(weight * (1 + reps / 30));
+}
+
+export function getSessionNumber(week: number, dayIndex: number): number {
+  return (week - 1) * 5 + dayIndex + 1;
+}
+
+export function getTotalSessions(): number {
+  return 60; // 12 weeks × 5 days
+}
+
+export const DAY_LABELS: Record<string, string> = {
+  "upper-a": "Upper — Strength",
+  "lower-a": "Lower — Strength",
+  "back-biceps": "Pull — Hypertrophy",
+  push: "Push — Hypertrophy",
+  "lower-b": "Legs — Hypertrophy",
+};
+
+export const FAILURE_TECHNIQUE_LABELS: Record<string, { label: string; description: string }> = {
+  failure: {
+    label: "Take to Failure",
+    description: "Push until you can't complete another rep with good form.",
+  },
+  "failure+llps": {
+    label: "Failure + Lengthened Partials",
+    description: "After reaching failure, continue with partial reps in the most stretched position.",
+  },
+  "myo-reps": {
+    label: "Myo-Reps",
+    description: "After reaching failure, rest 3–5 breaths and do mini-sets of 3–5 reps until form breaks.",
+  },
+  "static-stretch": {
+    label: "Static Stretch",
+    description: "On the last set, hold the stretched position for 30 seconds instead of doing extra reps.",
+  },
+  rpe: {
+    label: "RPE Target",
+    description: "Stop when you hit the target RPE — do not push to full failure on this set.",
+  },
+};
+
+export const WARMUP_PROTOCOLS: Record<WarmupProtocol, string[]> = {
+  none: [],
+  "1-set": ["~60% × 6–10 reps"],
+  "2-set": ["~50% × 6–10 reps", "~70% × 4–6 reps"],
+  "3-set": ["~45% × 6–10 reps", "~65% × 4–6 reps", "~85% × 3–4 reps"],
+  "4-set": [
+    "~45% × 6–10 reps",
+    "~60% × 4–6 reps",
+    "~75% × 3–5 reps",
+    "~85% × 2–4 reps",
+  ],
+};
 
 function ex(
   id: string,
   name: string,
-  alternateName: string,
+  alternates: [string, string],
   muscleGroup: Exercise["muscleGroup"],
   restSeconds: [number, number],
   warmupProtocol: WarmupProtocol,
@@ -22,7 +76,7 @@ function ex(
   return {
     id,
     name,
-    alternateName,
+    alternates,
     muscleGroup,
     restSeconds,
     warmupProtocol,
@@ -36,746 +90,582 @@ function ex(
   };
 }
 
-// ─── Block 1 exercises (Weeks 1–5) ────────────────────────────────────────────
-
-// Day A – Upper A (Push/Pull)
-const b1_inclineMachinePress = (early: number, last: number): Exercise =>
-  ex("b1-incline-machine-press", "45° Incline Machine Press", "45° Incline DB Press",
-    "chest", [180, 300], "3-set", [6, 8], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "1 second pause at the bottom of each rep while maintaining tension on the pecs.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_bottomHalfFlyeA = (early: number, last: number): Exercise =>
-  ex("b1-bottom-half-flye", "Bottom-Half DB Flye", "Pec Deck",
-    "chest", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Only lower the DBs halfway down — focus on peak contraction at the top.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dualHandleLatPulldown = (early: number, last: number): Exercise =>
-  ex("b1-dual-handle-lat-pulldown", "Dual-Handle Lat Pulldown", "Wide-Grip Lat Pulldown",
-    "back", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Pull the handle more out in front of you, like a cross between a pullover and a pulldown. Focus on feeling your lats.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_leanInLateralRaise = (early: number, last: number): Exercise =>
-  ex("b1-lean-in-lateral-raise", "Lean-In DB Lateral Raise", "High-Cable Lateral Raise",
-    "shoulders", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lean into a rack or cable at an angle to pre-stretch the delt. Lead with the elbow.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_singleArmDbRow = (early: number, last: number): Exercise =>
-  ex("b1-single-arm-db-row", "Single-Arm DB Row", "Smith Machine Row",
-    "back", [120, 180], "1-set", [6, 8], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Drive elbow behind your hip. Full ROM — let shoulder blade protract at bottom.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dbSkullCrusher = (early: number, last: number): Exercise =>
-  ex("b1-db-skull-crusher", "DB Skull Crusher", "Overhead Cable Triceps Extension (Bar)",
-    "triceps", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lower DBs to sides of head, not forehead. Keep elbows pointing straight up.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_inclineDbStretchCurl = (early: number, last: number): Exercise =>
-  ex("b1-incline-db-stretch-curl", "Incline DB Stretch Curl", "Bayesian Cable Curl",
-    "biceps", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lie back on 45–60° incline. Let arms hang fully behind torso for maximum stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day B – Lower A
-const b1_nordicHamCurl = (early: number, last: number): Exercise =>
-  ex("b1-nordic-ham-curl", "Nordic Ham Curl", "Lying Leg Curl",
-    "hamstrings", [60, 120], "2-set", [8, 10], [7, 8],
-    early === 0 ? "rpe" : "failure+llps",
-    early, last,
-    "Set machine for maximum stretch. Prevent your butt from popping up as you curl.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_highBarBackSquat = (early: number, last: number): Exercise =>
-  ex("b1-high-bar-back-squat", "High-Bar Back Squat", "Smith Machine Squat",
-    "quads", [180, 300], "4-set", [6, 8], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Set feet 3–6 inches forward under the bar. Upright torso, more quad emphasis. Control the negative.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_snatchGripRdl = (early: number, last: number): Exercise =>
-  ex("b1-snatch-grip-rdl", "Snatch-Grip RDL", "Barbell RDL",
-    "hamstrings", [120, 180], "2-set", [6, 8], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Wide grip forces more forward lean, increasing hamstring stretch.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_sissySquat = (early: number, last: number): Exercise =>
-  ex("b1-sissy-squat", "Sissy Squat", "Leg Extension",
-    "quads", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Hold something for balance. Lean back and let knees travel far forward.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_legPressCalf = (early: number, last: number): Exercise =>
-  ex("b1-leg-press-calf", "Leg Press Calf Press", "Standing Calf Raise",
-    "calves", [60, 120], "none", [6, 8], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full ROM — heels drop below platform level at bottom, full extension at top.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_machineCrunch = (early: number, last: number): Exercise =>
-  ex("b1-machine-crunch", "Machine Crunch", "Cable Crunch",
-    "abs", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Round the spine — don't just fold at the hips.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day C – Back/Biceps
-const b1_dualHandleLatPulldownC = (early: number, last: number): Exercise =>
-  ex("b1-dual-handle-lat-pulldown-c", "Dual-Handle Lat Pulldown", "Neutral-Grip Lat Pulldown",
-    "back", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Pull handle out in front like a pullover-pulldown hybrid. Feel the lats.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_inclineChestSupportedRow = (early: number, last: number): Exercise =>
-  ex("b1-incline-chest-supported-row", "Incline Chest-Supported DB Row", "Chest-Supported Machine Row",
-    "back", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Flare elbows out at ~45° and squeeze shoulder blades hard at the top.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_meadowsRow = (early: number, last: number): Exercise =>
-  ex("b1-meadows-row", "Meadows Row", "Neutral-Grip Seated Cable Row",
-    "back", [120, 180], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure+llps",
-    early, last,
-    "Perpendicular to barbell, row to hip. Big stretch at bottom.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_reversePecDeck = (early: number, last: number): Exercise =>
-  ex("b1-reverse-pec-deck", "Reverse Pec Deck", "1-Arm 45° Cable Rear Delt Flye",
-    "shoulders", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Lead with elbows, don't let traps take over.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dbShrug = (early: number, last: number): Exercise =>
-  ex("b1-db-shrug", "DB Shrug", "Machine Shrug",
-    "back", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full ROM — let traps fully stretch at bottom, squeeze hard at top.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dbCurl = (early: number, last: number): Exercise =>
-  ex("b1-db-curl", "DB Curl", "EZ-Bar Cable Curl",
-    "biceps", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Supinate wrist at the top. Full extension at bottom.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dbPreacherCurl = (early: number, last: number): Exercise =>
-  ex("b1-db-preacher-curl", "DB Preacher Curl", "Machine Preacher Curl",
-    "biceps", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Full stretch at bottom — do not short the ROM.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day D – Push
-const b1_dbBenchPress = (early: number, last: number): Exercise =>
-  ex("b1-db-bench-press", "DB Bench Press", "Barbell Bench Press",
-    "chest", [180, 300], "3-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Set up a comfortable arch, quick pause on chest, explode up each rep.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_seatedDbShoulderPress = (early: number, last: number): Exercise =>
-  ex("b1-seated-db-shoulder-press", "Seated DB Shoulder Press", "Machine Shoulder Press",
-    "shoulders", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Ensure elbows break at least 90°. Mind-muscle connection with delts.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_lowToHighCableCrossover = (early: number, last: number): Exercise =>
-  ex("b1-low-to-high-crossover", "Low-to-High Cable Crossover", "Bottom-Half DB Flye",
-    "chest", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Drive arms up and across — peak contraction above shoulder height.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_highCableLateralRaise = (early: number, last: number): Exercise =>
-  ex("b1-high-cable-cuffed-lateral", "High-Cable Cuffed Lateral Raise", "High-Cable Lateral Raise",
-    "shoulders", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Cable cuff on wrist. Cross-body pull for peak delt stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_dbSkullCrusherD = (early: number, last: number): Exercise =>
-  ex("b1-db-skull-crusher-d", "DB Skull Crusher", "Overhead Cable Triceps Extension (Bar)",
-    "triceps", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lower DBs to sides of head. Keep elbows pointing straight up.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_benchDip = (early: number, last: number): Exercise =>
-  ex("b1-bench-dip", "Bench Dip", "Cable Triceps Kickback",
-    "triceps", [60, 120], "none", [12, 15], [7, 8], "failure",
-    early, last,
-    "Feet elevated. Full depth — upper arms parallel to floor at bottom.");
-
-const b1_modifiedCandlestick = (early: number, last: number): Exercise =>
-  ex("b1-modified-candlestick", "Modified Candlestick", "Roman Chair Leg Raise",
-    "abs", [60, 120], "none", [10, 20], [7, 8], "failure",
-    early, last,
-    "Controlled lowering. Feel the abs the entire way.");
-
-// Day E – Lower B
-const b1_dbWalkingLunge = (early: number, last: number): Exercise =>
-  ex("b1-db-walking-lunge", "DB Walking Lunge", "Leg Press",
-    "quads", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Feet lower on the platform for more quad focus. Control negative, slight pause at bottom.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_nordicHamCurlE = (early: number, last: number): Exercise =>
-  ex("b1-nordic-ham-curl-e", "Nordic Ham Curl", "Seated Leg Curl",
-    "hamstrings", [60, 120], "1-set", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lean forward over the machine for maximum hamstring stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_gobletSquat = (early: number, last: number): Exercise =>
-  ex("b1-goblet-squat", "Goblet Squat", "DB Bulgarian Split Squat",
-    "quads", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Hold DB at chest. Upright torso. Lower all the way down until front thigh is parallel.",
-    early === 0 ? [7, 8] : undefined);
-
-const b1_sissySquatE = (early: number, last: number): Exercise =>
-  ex("b1-sissy-squat-e", "Sissy Squat", "Leg Extension",
-    "quads", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Hold something for balance. Lean back and let knees travel far forward.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_copenhagenHipAdduction = (early: number, last: number): Exercise =>
-  ex("b1-copenhagen-hip-adduction", "Copenhagen Hip Adduction", "Cable Hip Adduction",
-    "hips", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Side plank with top leg on bench. Drive inner thigh toward bench.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_lateralBandWalk = (early: number, last: number): Exercise =>
-  ex("b1-lateral-band-walk", "Lateral Band Walk", "Cable Hip Abduction",
-    "hips", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Band above knees. Keep tension throughout — don't let knees cave.",
-    early === 0 ? [8, 9] : undefined);
-
-const b1_legPressCalfE = (early: number, last: number): Exercise =>
-  ex("b1-leg-press-calf-e", "Leg Press Calf Press", "Seated Calf Raise",
-    "calves", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "static-stretch",
-    early, last,
-    "Full ROM. Static stretch 30s after last set.",
-    early === 0 ? [8, 9] : undefined);
-
-// ─── Block 2 exercises (Weeks 6–12) ────────────────────────────────────────────
-
-// Day A – Upper A (Block 2 — same slot, different exercises for some)
-const b2_inclineMachinePress = (early: number, last: number): Exercise =>
-  ex("b2-incline-machine-press", "45° Incline Machine Press", "45° Incline Barbell Press",
-    "chest", [180, 300], "3-set", [8, 10],
-    [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "1 second pause at the bottom of each rep.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_bottomHalfFlye = (early: number, last: number): Exercise =>
-  ex("b2-bottom-half-flye", "Bottom-Half DB Flye", "Cable Crossover Ladder",
-    "chest", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Only lower halfway. For Cable Crossover Ladder: one set low, one medium, one high.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_wideGripPullUp = (early: number, last: number): Exercise =>
-  ex("b2-wide-grip-pull-up", "Wide-Grip Pull-Up", "Wide-Grip Lat Pulldown",
-    "back", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full dead hang at bottom. Lead with chest, not chin.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_leanInLateralRaise = (early: number, last: number): Exercise =>
-  ex("b2-lean-in-lateral-raise", "Lean-In DB Lateral Raise", "High-Cable Lateral Raise",
-    "shoulders", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lean into rack to pre-stretch delt. Lead with elbow.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_singleArmDbRow = (early: number, last: number): Exercise =>
-  ex("b2-single-arm-db-row", "Single-Arm DB Row", "Pendlay Deficit Row",
-    "back", [120, 180], "1-set", [8, 10], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full stretch at bottom. Drive elbow behind hip at top.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_dbSkullCrusher = (early: number, last: number): Exercise =>
-  ex("b2-db-skull-crusher", "DB Skull Crusher", "Overhead Cable Triceps Extension (Rope)",
-    "triceps", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Lower DBs to sides of head. Elbows pointing straight up.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_inclineDbStretchCurl = (early: number, last: number): Exercise =>
-  ex("b2-incline-db-stretch-curl", "Incline DB Stretch Curl", "Seated Super-Bayesian High Cable Curl",
-    "biceps", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full shoulder extension at bottom for maximum stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day B – Lower A (Block 2)
-const b2_nordicHamCurl = (early: number, last: number): Exercise =>
-  ex("b2-nordic-ham-curl", "Nordic Ham Curl", "Lying Leg Curl",
-    "hamstrings", [60, 120], "2-set", [10, 12], [7, 8], early === 0 ? "rpe" : "failure+llps",
-    early, last,
-    "Set machine for max stretch. Prevent hips from rising.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_highBarBackSquat = (early: number, last: number): Exercise =>
-  ex("b2-high-bar-back-squat", "High-Bar Back Squat", "Smith Machine Static Lunge w/ Elevated Front Foot",
-    "quads", [180, 300], "4-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Feet forward for more quad emphasis. Controlled negative.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_cablePullThrough = (early: number, last: number): Exercise =>
-  ex("b2-cable-pull-through", "Cable Pull-Through", "45° Hyperextension",
-    "glutes", [120, 180], "2-set", [8, 10], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Hip hinge pattern. Full hip extension at top — squeeze glutes hard.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_sissySquat = (early: number, last: number): Exercise =>
-  ex("b2-sissy-squat", "Sissy Squat", "Leg Extension",
-    "quads", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Knees travel forward. Controlled descent.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_standingCalfRaise = (early: number, last: number): Exercise =>
-  ex("b2-standing-calf-raise", "Standing Calf Raise", "Leg Press Calf Press",
-    "calves", [60, 120], "none", [8, 10], [7, 8], early === 0 ? "rpe" : "static-stretch",
-    early, last,
-    "Full ROM. Static stretch 30s after last set.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_cableCrunch = (early: number, last: number): Exercise =>
-  ex("b2-cable-crunch", "Cable Crunch", "Machine Crunch",
-    "abs", [60, 120], "none", [10, 12], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Round the spine — elbows to knees. Don't just fold at hips.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day C – Back/Biceps (Block 2)
-const b2_pullUp = (early: number, last: number): Exercise =>
-  ex("b2-pull-up", "Pull-Up", "Lean-Back Machine Pulldown",
-    "back", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Initiate with straight posture. As you pull, lean back slightly and chest to bar.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_inclineChestSupportedRow = (early: number, last: number): Exercise =>
-  ex("b2-incline-chest-supported-row", "Incline Chest-Supported DB Row", "Chest-Supported Machine Row",
-    "back", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Flare elbows ~45°. Squeeze shoulder blades at top.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_meadowsRow = (early: number, last: number): Exercise =>
-  ex("b2-meadows-row", "Meadows Row", "Dual-Handle Elbows-Out Cable Row",
-    "back", [120, 180], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure+llps",
-    early, last,
-    "Full stretch at bottom. Drive elbow to ceiling.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_reversePecDeck = (early: number, last: number): Exercise =>
-  ex("b2-reverse-pec-deck", "Reverse Pec Deck", "1-Arm 45° Cable Rear Delt Flye",
-    "shoulders", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Lead with elbows. No traps.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_dbShrug = (early: number, last: number): Exercise =>
-  ex("b2-db-shrug", "DB Shrug", "Cable Paused Shrug-In",
-    "back", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Pause at top 1–2 sec. Full stretch at bottom.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_hammerPreacherCurl = (early: number, last: number): Exercise =>
-  ex("b2-hammer-preacher-curl", "Hammer Preacher Curl", "Cable Rope Hammer Curl",
-    "biceps", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Neutral grip. Full ROM — squeeze brachialis at top.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_dbPreacherCurl = (early: number, last: number): Exercise =>
-  ex("b2-db-preacher-curl", "DB Preacher Curl", "DB Concentration Curl",
-    "biceps", [60, 120], "none", [15, 20], [7, 8], "myo-reps",
-    early, last,
-    "Full extension at bottom. No swinging.");
-
-// Day D – Push (Block 2)
-const b2_dbBenchPress = (early: number, last: number): Exercise =>
-  ex("b2-db-bench-press", "DB Bench Press", "Machine Chest Press",
-    "chest", [180, 300], "3-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Comfortable arch, pause on chest, explode up.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_machineShoulderPress = (early: number, last: number): Exercise =>
-  ex("b2-machine-shoulder-press", "Machine Shoulder Press", "Seated DB Shoulder Press",
-    "shoulders", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Full ROM. Mind-muscle connection with delts.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_lowToHighCrossover = (early: number, last: number): Exercise =>
-  ex("b2-low-to-high-crossover", "Low-to-High Cable Crossover", "Bottom-Half Seated Cable Flye",
-    "chest", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Drive arms upward and across. Peak contraction above shoulder.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_leanInLateralRaiseD = (early: number, last: number): Exercise =>
-  ex("b2-lean-in-lateral-raise-d", "Lean-In DB Lateral Raise", "High-Cable Cuffed Lateral Raise",
-    "shoulders", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Lean into rack. Lead with elbow for peak delt stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_katanaTricepsExt = (early: number, last: number): Exercise =>
-  ex("b2-katana-triceps-ext", "Katana Triceps Extension", "EZ-Bar Skull Crusher",
-    "triceps", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Arc the bar like a katana swing — full overhead stretch to lockout.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_dbTricepsKickback = (early: number, last: number): Exercise =>
-  ex("b2-db-triceps-kickback", "DB Triceps Kickback", "Triceps Pressdown (Bar)",
-    "triceps", [60, 120], "none", [15, 20], [7, 8], "myo-reps",
-    early, last,
-    "Full extension. Hinge at elbow only — upper arm stays parallel to floor.");
-
-const b2_longLeverPlank = (early: number, last: number): Exercise =>
-  ex("b2-long-lever-plank", "Long-Lever Plank", "Swiss Ball Rollout",
-    "abs", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Elbows forward of shoulders. Maintain neutral spine.",
-    early === 0 ? [8, 9] : undefined);
-
-// Day E – Lower B (Block 2)
-const b2_dbWalkingLunge = (early: number, last: number): Exercise =>
-  ex("b2-db-walking-lunge", "DB Walking Lunge", "Hack Squat",
-    "quads", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Long stride. Controlled descent. Drive through front heel.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_nordicHamCurlE = (early: number, last: number): Exercise =>
-  ex("b2-nordic-ham-curl-e", "Nordic Ham Curl", "Seated Leg Curl",
-    "hamstrings", [60, 120], "1-set", [12, 15], [7, 8], early === 0 ? "rpe" : "failure+llps",
-    early, last,
-    "Lean forward for hamstring stretch.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_dbStaticLunge = (early: number, last: number): Exercise =>
-  ex("b2-db-static-lunge", "DB Static Lunge", "Walking Lunge",
-    "quads", [120, 180], "2-set", [10, 12], [6, 7], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Front foot elevated for deeper range. Drive through heel.",
-    early === 0 ? [7, 8] : undefined);
-
-const b2_sissySquatE = (early: number, last: number): Exercise =>
-  ex("b2-sissy-squat-e", "Sissy Squat", "Leg Extension",
-    "quads", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "myo-reps",
-    early, last,
-    "Full ROM. Control the negative.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_copenhagenHipAdduction = (early: number, last: number): Exercise =>
-  ex("b2-copenhagen-hip-adduction", "Copenhagen Hip Adduction", "Machine Hip Adduction",
-    "hips", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Drive inner thigh toward bench. Full ROM.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_lateralBandWalk = (early: number, last: number): Exercise =>
-  ex("b2-lateral-band-walk", "Lateral Band Walk", "Machine Hip Abduction",
-    "hips", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "failure",
-    early, last,
-    "Band above knees. Maintain tension throughout.",
-    early === 0 ? [8, 9] : undefined);
-
-const b2_seatedCalfRaise = (early: number, last: number): Exercise =>
-  ex("b2-seated-calf-raise", "Seated Calf Raise", "Standing Calf Raise",
-    "calves", [60, 120], "none", [12, 15], [7, 8], early === 0 ? "rpe" : "static-stretch",
-    early, last,
-    "Full ROM. Static stretch 30s after last set.",
-    early === 0 ? [8, 9] : undefined);
-
-// ─── Day builders ──────────────────────────────────────────────────────────────
-
-function block1DayA(isIntroWeek: boolean): WorkoutDay {
-  const e = isIntroWeek ? 0 : 2;
-  const l = 1;
+// ─── Foundation Block (Weeks 1–5) ─────────────────────────────────────────────
+
+function foundationUpperA(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "upper-a",
     exercises: [
-      b1_inclineMachinePress(isIntroWeek ? 0 : 2, l),
-      b1_bottomHalfFlyeA(isIntroWeek ? 0 : 1, l),
-      b1_dualHandleLatPulldown(isIntroWeek ? 0 : 2, l),
-      b1_leanInLateralRaise(isIntroWeek ? 0 : 1, l),
-      b1_singleArmDbRow(isIntroWeek ? 0 : 1, l),
-      b1_dbSkullCrusher(isIntroWeek ? 0 : 1, l),
-      b1_inclineDbStretchCurl(isIntroWeek ? 0 : 1, l),
+      ex("f-incline-barbell", "45° Incline Barbell Press",
+        ["45° Incline DB Press", "45° Incline Machine Press"],
+        "chest", [180, 300], "3-set", [6, 8], [6, 7],
+        t, e, l,
+        "1-second pause at the bottom while maintaining tension on the pecs.",
+        intro ? [7, 8] : undefined),
+      ex("f-cable-crossover", "Cable Crossover Ladder",
+        ["Pec Deck", "Bottom-Half DB Flye"],
+        "chest", [60, 120], "1-set", [8, 10], [8, 9],
+        t, Math.max(e - 1, 0), l,
+        "One set each at low, mid, and high cable positions. Focus on elbows together, not hands.",
+        intro ? rpe : undefined),
+      ex("f-wide-grip-pullup", "Wide-Grip Pull-Up",
+        ["Wide-Grip Lat Pulldown", "Dual-Handle Lat Pulldown"],
+        "back", [120, 180], "2-set", [8, 10], [6, 7],
+        t, e, l,
+        "1.5× shoulder-width overhand grip. 2–3 second negative. Feel lats pulling apart on the way down.",
+        intro ? [7, 8] : undefined),
+      ex("f-high-cable-lateral-ua", "High-Cable Lateral Raise",
+        ["High-Cable Cuffed Lateral Raise", "Lean-In DB Lateral Raise"],
+        "shoulders", [60, 120], "none", [8, 10], [8, 9],
+        t, Math.max(e - 1, 0), l,
+        "Focus on squeezing your lateral delt to move the weight.",
+        intro ? rpe : undefined),
+      ex("f-pendlay-row", "Pendlay Deficit Row",
+        ["Smith Machine Row", "Single-Arm DB Row"],
+        "back", [120, 180], "2-set", [6, 8], [8, 9],
+        llps, Math.max(e - 1, 0), l,
+        "Stand on a bumper plate. Focus on a big stretch — touch your stomach/chest each rep.",
+        intro ? rpe : undefined),
+      ex("f-ohc-triceps-bar-ua", "Overhead Cable Triceps Extension (Bar)",
+        ["Overhead Cable Triceps Extension (Rope)", "DB Skull Crusher"],
+        "triceps", [60, 120], "1-set", [8, 10], [8, 9],
+        t, Math.max(e - 1, 0), l,
+        "Optionally pause 0.5–1 second in the stretched position each rep.",
+        intro ? rpe : undefined),
+      ex("f-bayesian-curl-ua", "Bayesian Cable Curl",
+        ["Bayesian High Cable Curl", "Incline DB Stretch Curl"],
+        "biceps", [60, 120], "1-set", [8, 10], [8, 9],
+        t, Math.max(e - 1, 0), l,
+        "If one arm is weaker, train it first — then match reps with the stronger arm.",
+        intro ? rpe : undefined),
     ],
   };
-  void e;
 }
 
-function block1DayB(isIntroWeek: boolean): WorkoutDay {
-  const l = 1;
+function foundationLowerA(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const ss = intro ? ("rpe" as const) : ("static-stretch" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "lower-a",
     exercises: [
-      b1_nordicHamCurl(isIntroWeek ? 0 : 1, l),
-      b1_highBarBackSquat(isIntroWeek ? 0 : 2, l),
-      b1_snatchGripRdl(isIntroWeek ? 0 : 2, l),
-      b1_sissySquat(isIntroWeek ? 0 : 1, l),
-      b1_legPressCalf(isIntroWeek ? 0 : 1, l),
-      b1_machineCrunch(isIntroWeek ? 0 : 1, l),
+      ex("f-lying-leg-curl", "Lying Leg Curl",
+        ["Seated Leg Curl", "Nordic Ham Curl"],
+        "hamstrings", [60, 120], "2-set", [8, 10], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Set machine for maximum stretch at the bottom. Prevent your butt from popping up.",
+        intro ? rpe : undefined),
+      ex("f-smith-squat", "Smith Machine Squat",
+        ["DB Bulgarian Split Squat", "High-Bar Back Squat"],
+        "quads", [180, 300], "4-set", [6, 8], [6, 7],
+        t, e, l,
+        "Feet 3–6 inches forward for more upright squat. Heels rising? Move feet further forward.",
+        intro ? [7, 8] : undefined),
+      ex("f-barbell-rdl", "Barbell RDL",
+        ["DB RDL", "Snatch-Grip RDL"],
+        "hamstrings", [120, 180], "3-set", [6, 8], [6, 7],
+        t, e, l,
+        "Stop ~75% of the way to lockout to maintain hamstring tension (bottom 3/4 ROM).",
+        intro ? [7, 8] : undefined),
+      ex("f-leg-ext-la", "Leg Extension",
+        ["Reverse Nordic", "Sissy Squat"],
+        "quads", [60, 120], "2-set", [8, 10], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Seat all the way back. Grab handles to pull hips down. 2–3 second negative.",
+        intro ? rpe : undefined),
+      ex("f-standing-calf-la", "Standing Calf Raise",
+        ["Seated Calf Raise", "Leg Press Calf Press"],
+        "calves", [60, 120], "1-set", [6, 8], [7, 8],
+        ss, Math.max(e - 1, 0), l,
+        "1–2 second pause at the bottom. Roll your ankle on the balls of your feet.",
+        intro ? rpe : undefined),
+      ex("f-cable-crunch", "Cable Crunch",
+        ["Decline Weighted Crunch", "Machine Crunch"],
+        "abs", [60, 120], "1-set", [8, 10], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Round your lower back as you crunch. Maintain mind-muscle connection with your abs.",
+        intro ? rpe : undefined),
     ],
   };
-  void l;
 }
 
-function block1DayC(isIntroWeek: boolean): WorkoutDay {
+function foundationBackBiceps(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "back-biceps",
     exercises: [
-      b1_dualHandleLatPulldownC(isIntroWeek ? 0 : 1, 1),
-      b1_inclineChestSupportedRow(isIntroWeek ? 0 : 2, 1),
-      b1_meadowsRow(isIntroWeek ? 0 : 1, 1),
-      b1_reversePecDeck(isIntroWeek ? 0 : 1, 1),
-      b1_dbShrug(isIntroWeek ? 0 : 1, 1),
-      b1_dbCurl(isIntroWeek ? 0 : 1, 1),
-      b1_dbPreacherCurl(isIntroWeek ? 0 : 0, 1),
+      ex("f-neutral-lat-pulldown", "Neutral-Grip Lat Pulldown",
+        ["Neutral-Grip Pull-Up", "Dual-Handle Lat Pulldown"],
+        "back", [120, 180], "3-set", [8, 10], [6, 7],
+        t, e, l,
+        "Handle more out in front — like a cross between pullover and pulldown. Feel the lats.",
+        intro ? [7, 8] : undefined),
+      ex("f-cs-machine-row", "Chest-Supported Machine Row",
+        ["Chest-Supported T-Bar Row", "Incline Chest-Supported DB Row"],
+        "back", [120, 180], "3-set", [8, 10], [6, 7],
+        t, e, l,
+        "Flare elbows ~45°. Squeeze shoulder blades together hard at the top.",
+        intro ? [7, 8] : undefined),
+      ex("f-seated-cable-row", "Neutral-Grip Seated Cable Row",
+        ["Helms Row", "Meadows Row"],
+        "back", [120, 180], "2-set", [10, 12], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Squeeze shoulder blades together, driving elbows down and back.",
+        intro ? rpe : undefined),
+      ex("f-rear-delt-flye", "1-Arm 45° Cable Rear Delt Flye",
+        ["Rope Face Pull", "Reverse Pec Deck"],
+        "shoulders", [60, 120], "1-set", [10, 12], [7, 8],
+        myo, Math.max(e - 1, 0), l,
+        "Pause 1–2 seconds in the squeeze. Contract the rear delts hard!",
+        intro ? rpe : undefined),
+      ex("f-machine-shrug", "Machine Shrug",
+        ["Cable Paused Shrug-In", "DB Shrug"],
+        "back", [60, 120], "2-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Brief pause at the top. Think about pulling your shoulders up to your ears!",
+        intro ? rpe : undefined),
+      ex("f-ez-cable-curl", "EZ-Bar Cable Curl",
+        ["EZ-Bar Curl", "DB Curl"],
+        "biceps", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Cable at the lowest position. Maintain constant tension. Slow, controlled reps!",
+        intro ? rpe : undefined),
+      ex("f-machine-preacher", "Machine Preacher Curl",
+        ["EZ-Bar Preacher Curl", "DB Preacher Curl"],
+        "biceps", [60, 120], "1-set", [12, 15], [8, 9],
+        myo, 0, 1,
+        "Smooth, controlled reps. Mind-muscle connection with the biceps.",
+        intro ? [8, 9] : undefined),
     ],
   };
 }
 
-function block1DayD(isIntroWeek: boolean): WorkoutDay {
+function foundationPush(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "push",
     exercises: [
-      b1_dbBenchPress(isIntroWeek ? 0 : 2, 1),
-      b1_seatedDbShoulderPress(isIntroWeek ? 0 : 1, 1),
-      b1_lowToHighCableCrossover(isIntroWeek ? 0 : 1, 1),
-      b1_highCableLateralRaise(isIntroWeek ? 0 : 1, 1),
-      b1_dbSkullCrusherD(isIntroWeek ? 0 : 1, 1),
-      b1_benchDip(0, 1),
-      b1_modifiedCandlestick(isIntroWeek ? 0 : 1, 1),
+      ex("f-bench-press", "Barbell Bench Press",
+        ["Machine Chest Press", "DB Bench Press"],
+        "chest", [180, 300], "4-set", [8, 10], [6, 7],
+        t, e, l,
+        "Set up a comfortable arch; quick pause on the chest and explode up.",
+        intro ? [7, 8] : undefined),
+      ex("f-machine-shoulder-press", "Machine Shoulder Press",
+        ["Cable Shoulder Press", "Seated DB Shoulder Press"],
+        "shoulders", [120, 180], "3-set", [8, 10], [6, 7],
+        t, Math.max(e - 1, 0), l,
+        "Elbows break at least 90°. Mind-muscle connection with your delts. Smooth, controlled.",
+        intro ? [7, 8] : undefined),
+      ex("f-bottom-half-flye", "Bottom-Half DB Flye",
+        ["Bottom-Half Seated Cable Flye", "Low-to-High Cable Crossover"],
+        "chest", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "All reps in the bottom half of ROM. Focus on a deep pec stretch at the bottom.",
+        intro ? rpe : undefined),
+      ex("f-high-cable-lateral-push", "High-Cable Lateral Raise",
+        ["High-Cable Cuffed Lateral Raise", "Lean-In DB Lateral Raise"],
+        "shoulders", [60, 120], "none", [10, 12], [8, 9],
+        myo, Math.max(e - 1, 0), l,
+        "Focus on squeezing your lateral delt to move the weight.",
+        intro ? rpe : undefined),
+      ex("f-ohc-triceps-bar-push", "Overhead Cable Triceps Extension (Bar)",
+        ["Overhead Cable Triceps Extension (Rope)", "DB Skull Crusher"],
+        "triceps", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Optionally pause 0.5–1 second in the stretched position.",
+        intro ? rpe : undefined),
+      ex("f-cable-kickback", "Cable Triceps Kickback",
+        ["DB Triceps Kickback", "Bench Dip"],
+        "triceps", [60, 120], "none", [12, 15], [8, 9],
+        myo, 0, 1,
+        "Upright or bent over — either works. At full squeeze, shoulder should be behind torso.",
+        intro ? [8, 9] : undefined),
+      ex("f-roman-chair-raise", "Roman Chair Leg Raise",
+        ["Hanging Leg Raise", "Modified Candlestick"],
+        "abs", [60, 120], "1-set", [10, 20], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Round your lower back as you curl your legs up. 10–20 reps — go until you hit the target RPE.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-function block1DayE(isIntroWeek: boolean): WorkoutDay {
+function foundationLowerB(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const ss = intro ? ("rpe" as const) : ("static-stretch" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "lower-b",
     exercises: [
-      b1_dbWalkingLunge(isIntroWeek ? 0 : 2, 1),
-      b1_nordicHamCurlE(isIntroWeek ? 0 : 1, 1),
-      b1_gobletSquat(isIntroWeek ? 0 : 1, 1),
-      b1_sissySquatE(isIntroWeek ? 0 : 1, 1),
-      b1_copenhagenHipAdduction(isIntroWeek ? 0 : 1, 1),
-      b1_lateralBandWalk(isIntroWeek ? 0 : 1, 1),
-      b1_legPressCalfE(isIntroWeek ? 0 : 1, 1),
+      ex("f-leg-press", "Leg Press",
+        ["Smith Machine Static Lunge", "DB Walking Lunge"],
+        "quads", [120, 180], "4-set", [8, 10], [6, 7],
+        t, e, l,
+        "Feet lower for quad focus. Deep as possible, control the negative, slight pause at bottom.",
+        intro ? [7, 8] : undefined),
+      ex("f-seated-leg-curl", "Seated Leg Curl",
+        ["Lying Leg Curl", "Nordic Ham Curl"],
+        "hamstrings", [60, 120], "1-set", [10, 12], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Lean forward over the machine for maximum hamstring stretch.",
+        intro ? rpe : undefined),
+      ex("f-bulgarian-split-squat", "DB Bulgarian Split Squat",
+        ["DB Step-Up", "Goblet Squat"],
+        "quads", [120, 180], "2-set", [8, 10], [6, 7],
+        t, Math.max(e - 1, 0), l,
+        "Front thigh parallel to the floor at the bottom. Drive through your front heel on the way up.",
+        intro ? [7, 8] : undefined),
+      ex("f-leg-ext-lb", "Leg Extension",
+        ["Reverse Nordic", "Sissy Squat"],
+        "quads", [60, 120], "1-set", [10, 12], [7, 8],
+        myo, Math.max(e - 1, 0), l,
+        "Seat all the way back. Grab handles to pull hips down. 2–3 second negative.",
+        intro ? rpe : undefined),
+      ex("f-hip-adduction", "Machine Hip Adduction",
+        ["Cable Hip Adduction", "Copenhagen Hip Adduction"],
+        "hips", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Mind-muscle with inner thighs. Great for adding thigh mass from the front!",
+        intro ? rpe : undefined),
+      ex("f-hip-abduction", "Machine Hip Abduction",
+        ["Cable Hip Abduction", "Lateral Band Walk"],
+        "hips", [60, 120], "1-set", [10, 12], [8, 9],
+        t, Math.max(e - 1, 0), l,
+        "Use pads to increase ROM if possible. Lean forward to stretch the glutes.",
+        intro ? rpe : undefined),
+      ex("f-calf-raise-lb", "Standing Calf Raise",
+        ["Seated Calf Raise", "Leg Press Calf Press"],
+        "calves", [60, 120], "1-set", [10, 12], [7, 8],
+        ss, Math.max(e - 1, 0), l,
+        "1–2 second pause at the bottom. Roll your ankle on the balls of your feet.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-function block2DayA(isIntroWeek: boolean): WorkoutDay {
+// ─── Ramping / Growth Block (Weeks 6–12) ──────────────────────────────────────
+
+function rampingUpperA(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "upper-a",
     exercises: [
-      b2_inclineMachinePress(isIntroWeek ? 0 : 2, 1),
-      b2_bottomHalfFlye(isIntroWeek ? 0 : 1, 1),
-      b2_wideGripPullUp(isIntroWeek ? 0 : 2, 1),
-      b2_leanInLateralRaise(isIntroWeek ? 0 : 1, 1),
-      b2_singleArmDbRow(isIntroWeek ? 0 : 2, 1),
-      b2_dbSkullCrusher(isIntroWeek ? 0 : 1, 1),
-      b2_inclineDbStretchCurl(isIntroWeek ? 0 : 1, 1),
+      ex("r-incline-db-press", "45° Incline DB Press",
+        ["45° Incline Barbell Press", "45° Incline Machine Press"],
+        "chest", [180, 300], "3-set", [8, 10], [6, 7],
+        t, e, l,
+        "1-second pause at the bottom while maintaining tension on the pecs.",
+        intro ? [7, 8] : undefined),
+      ex("r-pec-deck", "Pec Deck",
+        ["Cable Crossover Ladder", "Bottom-Half DB Flye"],
+        "chest", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Focus on bringing your elbows together — not your hands.",
+        intro ? rpe : undefined),
+      ex("r-dual-handle-pulldown", "Dual-Handle Lat Pulldown",
+        ["Wide-Grip Lat Pulldown", "Wide-Grip Pull-Up"],
+        "back", [120, 180], "2-set", [10, 12], [6, 7],
+        t, Math.max(e - 1, 0), l,
+        "Lean back ~15° and drive elbows down — feel like a mix of lats and mid-traps.",
+        intro ? [7, 8] : undefined),
+      ex("r-high-cable-lateral-ua", "High-Cable Lateral Raise",
+        ["High-Cable Cuffed Lateral Raise", "Lean-In DB Lateral Raise"],
+        "shoulders", [60, 120], "none", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Focus on squeezing your lateral delt to move the weight.",
+        intro ? rpe : undefined),
+      ex("r-smith-row", "Smith Machine Row",
+        ["Pendlay Deficit Row", "Single-Arm DB Row"],
+        "back", [120, 180], "2-set", [8, 10], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Keep elbows at ~45°. Squeeze shoulder blades, control the negative.",
+        intro ? rpe : undefined),
+      ex("r-ohc-triceps-bar-ua", "Overhead Cable Triceps Extension (Bar)",
+        ["Overhead Cable Triceps Extension (Rope)", "DB Skull Crusher"],
+        "triceps", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Optionally pause 0.5–1 second in the stretched position.",
+        intro ? rpe : undefined),
+      ex("r-bayesian-curl-ua", "Bayesian Cable Curl",
+        ["Bayesian High Cable Curl", "Incline DB Stretch Curl"],
+        "biceps", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "If one arm is weaker, train it first — then match reps with the stronger arm.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-function block2DayB(isIntroWeek: boolean): WorkoutDay {
+function rampingLowerA(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const ss = intro ? ("rpe" as const) : ("static-stretch" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "lower-a",
     exercises: [
-      b2_nordicHamCurl(isIntroWeek ? 0 : 1, 1),
-      b2_highBarBackSquat(isIntroWeek ? 0 : 2, 1),
-      b2_cablePullThrough(isIntroWeek ? 0 : 1, 1),
-      b2_sissySquat(isIntroWeek ? 0 : 1, 1),
-      b2_standingCalfRaise(isIntroWeek ? 0 : 1, 1),
-      b2_cableCrunch(isIntroWeek ? 0 : 1, 1),
+      ex("r-lying-leg-curl", "Lying Leg Curl",
+        ["Seated Leg Curl", "Nordic Ham Curl"],
+        "hamstrings", [60, 120], "2-set", [10, 12], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Set machine for maximum stretch. Prevent your butt from popping up as you curl.",
+        intro ? rpe : undefined),
+      ex("r-sm-static-lunge", "Smith Machine Static Lunge w/ Elevated Front Foot",
+        ["DB Bulgarian Split Squat", "High-Bar Back Squat"],
+        "quads", [180, 300], "4-set", [8, 10], [6, 7],
+        t, e, l,
+        "Elevate front foot on a small box. Minimize contribution from the back leg.",
+        intro ? [7, 8] : undefined),
+      ex("r-hyperextension", "45° Hyperextension",
+        ["Glute-Ham Raise", "Cable Pull-Through"],
+        "hamstrings", [120, 180], "3-set", [8, 10], [6, 7],
+        t, e, l,
+        "Squeeze glutes hard at the top. Slow controlled negative, explosive positive.",
+        intro ? [7, 8] : undefined),
+      ex("r-leg-ext-la", "Leg Extension",
+        ["Reverse Nordic", "Sissy Squat"],
+        "quads", [60, 120], "2-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Seat all the way back. Grab handles to pull hips down. 2–3 second negative.",
+        intro ? rpe : undefined),
+      ex("r-leg-press-calf", "Leg Press Calf Press",
+        ["Seated Calf Raise", "Standing Calf Raise"],
+        "calves", [60, 120], "1-set", [8, 10], [7, 8],
+        ss, Math.max(e - 1, 0), l,
+        "1–2 second pause at the bottom. Roll your ankle on the balls of your feet.",
+        intro ? rpe : undefined),
+      ex("r-machine-crunch", "Machine Crunch",
+        ["Decline Weighted Crunch", "Cable Crunch"],
+        "abs", [60, 120], "1-set", [10, 12], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Round your lower back as you crunch. Mind-muscle connection with your abs.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-function block2DayC(isIntroWeek: boolean): WorkoutDay {
+function rampingBackBiceps(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "back-biceps",
     exercises: [
-      b2_pullUp(isIntroWeek ? 0 : 1, 1),
-      b2_inclineChestSupportedRow(isIntroWeek ? 0 : 2, 1),
-      b2_meadowsRow(isIntroWeek ? 0 : 1, 1),
-      b2_reversePecDeck(isIntroWeek ? 0 : 1, 1),
-      b2_dbShrug(isIntroWeek ? 0 : 1, 1),
-      b2_hammerPreacherCurl(isIntroWeek ? 0 : 1, 1),
-      b2_dbPreacherCurl(0, 1),
+      ex("r-lean-back-pulldown", "Lean-Back Lat Pulldown",
+        ["Lean-Back Machine Pulldown", "Pull-Up"],
+        "back", [120, 180], "3-set", [10, 12], [6, 7],
+        t, e, l,
+        "Start upright, lean back 15–30° as you pull. Softly touch bar to chest. Control the weight.",
+        intro ? [7, 8] : undefined),
+      ex("r-cs-tbar-row", "Chest-Supported T-Bar Row",
+        ["Chest-Supported Machine Row", "Incline Chest-Supported DB Row"],
+        "back", [120, 180], "3-set", [10, 12], [6, 7],
+        t, e, l,
+        "Flare elbows ~45°. Squeeze shoulder blades hard at the top.",
+        intro ? [7, 8] : undefined),
+      ex("r-elbows-out-row", "Dual-Handle Elbows-Out Cable Row",
+        ["Arm-Out Single-Arm DB Row", "Meadows Row"],
+        "back", [120, 180], "2-set", [12, 15], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Flare elbows out ~45°. Smooth, controlled reps.",
+        intro ? rpe : undefined),
+      ex("r-rear-delt-flye", "1-Arm 45° Cable Rear Delt Flye",
+        ["Rope Face Pull", "Reverse Pec Deck"],
+        "shoulders", [60, 120], "1-set", [12, 15], [7, 8],
+        myo, Math.max(e - 1, 0), l,
+        "Pause 1–2 seconds in the squeeze. Contract rear delts hard!",
+        intro ? rpe : undefined),
+      ex("r-cable-shrug", "Cable Paused Shrug-In",
+        ["Machine Shrug", "DB Shrug"],
+        "back", [60, 120], "2-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Shrug up and in — 'up to your ears.' 1–2 second pause at top AND at the bottom.",
+        intro ? rpe : undefined),
+      ex("r-rope-hammer-curl", "Cable Rope Hammer Curl",
+        ["DB Hammer Curl", "Hammer Preacher Curl"],
+        "biceps", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Squeeze the rope hard as you curl up. Smooth, controlled reps.",
+        intro ? rpe : undefined),
+      ex("r-db-concentration-curl", "DB Concentration Curl",
+        ["Concentration Cable Curl", "DB Preacher Curl"],
+        "biceps", [60, 120], "1-set", [15, 20], [8, 9],
+        myo, 0, 1,
+        "Smooth, controlled reps. Mind-muscle connection with the biceps.",
+        intro ? [8, 9] : undefined),
     ],
   };
 }
 
-function block2DayD(isIntroWeek: boolean): WorkoutDay {
+function rampingPush(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "push",
     exercises: [
-      b2_dbBenchPress(isIntroWeek ? 0 : 2, 1),
-      b2_machineShoulderPress(isIntroWeek ? 0 : 1, 1),
-      b2_lowToHighCrossover(isIntroWeek ? 0 : 1, 1),
-      b2_leanInLateralRaiseD(isIntroWeek ? 0 : 1, 1),
-      b2_katanaTricepsExt(isIntroWeek ? 0 : 1, 1),
-      b2_dbTricepsKickback(0, 1),
-      b2_longLeverPlank(isIntroWeek ? 0 : 1, 1),
+      ex("r-machine-chest-press", "Machine Chest Press",
+        ["Barbell Bench Press", "DB Bench Press"],
+        "chest", [180, 300], "4-set", [10, 12], [6, 7],
+        t, e, l,
+        "1-second pause at the bottom. Maintain tension on the pecs.",
+        intro ? [7, 8] : undefined),
+      ex("r-seated-db-shoulder", "Seated DB Shoulder Press",
+        ["Cable Shoulder Press", "Machine Shoulder Press"],
+        "shoulders", [120, 180], "3-set", [10, 12], [6, 7],
+        t, Math.max(e - 1, 0), l,
+        "Elbows break at least 90°. Mind-muscle connection. Smooth, controlled.",
+        intro ? [7, 8] : undefined),
+      ex("r-bottom-half-cable-flye", "Bottom-Half Seated Cable Flye",
+        ["Bottom-Half DB Flye", "Low-to-High Cable Crossover"],
+        "chest", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "All reps in the bottom half of ROM. Focus on deep pec stretch at the bottom.",
+        intro ? rpe : undefined),
+      ex("r-high-cable-lateral-push", "High-Cable Lateral Raise",
+        ["High-Cable Cuffed Lateral Raise", "Lean-In DB Lateral Raise"],
+        "shoulders", [60, 120], "none", [12, 15], [7, 8],
+        myo, Math.max(e - 1, 0), l,
+        "Focus on squeezing your lateral delt to move the weight.",
+        intro ? rpe : undefined),
+      ex("r-ez-skull-crusher", "EZ-Bar Skull Crusher",
+        ["DB Skull Crusher", "Katana Triceps Extension"],
+        "triceps", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Optionally pause 0.5–1 second in the stretched position.",
+        intro ? rpe : undefined),
+      ex("r-triceps-pressdown", "Triceps Pressdown (Bar)",
+        ["Triceps Pressdown (Rope)", "DB Triceps Kickback"],
+        "triceps", [60, 120], "none", [15, 20], [8, 9],
+        myo, 0, 1,
+        "Focus on squeezing your triceps to move the weight.",
+        intro ? [8, 9] : undefined),
+      ex("r-ab-wheel", "Ab Wheel Rollout",
+        ["Swiss Ball Rollout", "Long-Lever Plank"],
+        "abs", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Use your abs to lower yourself — don't just bend at the hips. Progressively extend ROM each week.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-function block2DayE(isIntroWeek: boolean): WorkoutDay {
+function rampingLowerB(e: number, l: number, intro = false): WorkoutDay {
+  const t = intro ? ("rpe" as const) : ("failure" as const);
+  const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
+  const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
+  const ss = intro ? ("rpe" as const) : ("static-stretch" as const);
+  const rpe: [number, number] = intro ? [7, 8] : [8, 9];
   return {
     dayType: "lower-b",
     exercises: [
-      b2_dbWalkingLunge(isIntroWeek ? 0 : 2, 1),
-      b2_nordicHamCurlE(isIntroWeek ? 0 : 1, 1),
-      b2_dbStaticLunge(isIntroWeek ? 0 : 1, 1),
-      b2_sissySquatE(isIntroWeek ? 0 : 1, 1),
-      b2_copenhagenHipAdduction(isIntroWeek ? 0 : 1, 1),
-      b2_lateralBandWalk(isIntroWeek ? 0 : 1, 1),
-      b2_seatedCalfRaise(isIntroWeek ? 0 : 1, 1),
+      ex("r-hack-squat", "Hack Squat",
+        ["Leg Press", "DB Walking Lunge"],
+        "quads", [120, 180], "4-set", [10, 12], [6, 7],
+        t, e, l,
+        "Controlled negative — don't free fall — then explode on the positive.",
+        intro ? [7, 8] : undefined),
+      ex("r-seated-leg-curl", "Seated Leg Curl",
+        ["Lying Leg Curl", "Nordic Ham Curl"],
+        "hamstrings", [60, 120], "1-set", [12, 15], [7, 8],
+        llps, Math.max(e - 1, 0), l,
+        "Lean forward for maximum hamstring stretch.",
+        intro ? rpe : undefined),
+      ex("r-walking-lunge", "Walking Lunge",
+        ["Smith Machine Static Lunge", "DB Static Lunge"],
+        "quads", [120, 180], "2-set", [10, 12], [6, 7],
+        t, Math.max(e - 1, 0), l,
+        "Medium strides. Minimize contribution from the back leg.",
+        intro ? [7, 8] : undefined),
+      ex("r-leg-ext-lb", "Leg Extension",
+        ["Reverse Nordic", "Sissy Squat"],
+        "quads", [60, 120], "1-set", [12, 15], [7, 8],
+        myo, Math.max(e - 1, 0), l,
+        "Seat all the way back. Grab handles to pull hips down. 2–3 second negative.",
+        intro ? rpe : undefined),
+      ex("r-hip-adduction", "Machine Hip Adduction",
+        ["Cable Hip Adduction", "Copenhagen Hip Adduction"],
+        "hips", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Mind-muscle with inner thighs. Great for adding thigh mass from the front!",
+        intro ? rpe : undefined),
+      ex("r-hip-abduction", "Machine Hip Abduction",
+        ["Cable Hip Abduction", "Lateral Band Walk"],
+        "hips", [60, 120], "1-set", [12, 15], [7, 8],
+        t, Math.max(e - 1, 0), l,
+        "Use pads to increase ROM. Lean forward to stretch the glutes.",
+        intro ? rpe : undefined),
+      ex("r-calf-raise-lb", "Standing Calf Raise",
+        ["Seated Calf Raise", "Leg Press Calf Press"],
+        "calves", [60, 120], "1-set", [12, 15], [7, 8],
+        ss, Math.max(e - 1, 0), l,
+        "1–2 second pause at the bottom. Roll your ankle on the balls of your feet.",
+        intro ? rpe : undefined),
     ],
   };
 }
 
-// ─── Full 12-week schedule ─────────────────────────────────────────────────────
+// ─── Program schedule ─────────────────────────────────────────────────────────
+
+function foundationWeek(week: number, e: number, l: number, intro = false): WeekSchedule {
+  return {
+    week,
+    days: [
+      foundationUpperA(e, l, intro),
+      foundationLowerA(e, l, intro),
+      foundationBackBiceps(e, l, intro),
+      foundationPush(e, l, intro),
+      foundationLowerB(e, l, intro),
+    ],
+  };
+}
+
+function rampingWeek(week: number, e: number, l: number, intro = false): WeekSchedule {
+  return {
+    week,
+    days: [
+      rampingUpperA(e, l, intro),
+      rampingLowerA(e, l, intro),
+      rampingBackBiceps(e, l, intro),
+      rampingPush(e, l, intro),
+      rampingLowerB(e, l, intro),
+    ],
+  };
+}
 
 export const PROGRAM: WeekSchedule[] = [
-  // Week 1 — Block 1 intro/deload
-  { week: 1, days: [block1DayA(true), block1DayB(true), block1DayC(true), block1DayD(true), block1DayE(true)] },
-  // Weeks 2–5 — Block 1 working
-  { week: 2, days: [block1DayA(false), block1DayB(false), block1DayC(false), block1DayD(false), block1DayE(false)] },
-  { week: 3, days: [block1DayA(false), block1DayB(false), block1DayC(false), block1DayD(false), block1DayE(false)] },
-  { week: 4, days: [block1DayA(false), block1DayB(false), block1DayC(false), block1DayD(false), block1DayE(false)] },
-  { week: 5, days: [block1DayA(false), block1DayB(false), block1DayC(false), block1DayD(false), block1DayE(false)] },
-  // Week 6 — Block 2 intro/deload
-  { week: 6, days: [block2DayA(true), block2DayB(true), block2DayC(true), block2DayD(true), block2DayE(true)] },
-  // Weeks 7–12 — Block 2 working
-  { week: 7, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
-  { week: 8, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
-  { week: 9, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
-  { week: 10, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
-  { week: 11, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
-  { week: 12, days: [block2DayA(false), block2DayB(false), block2DayC(false), block2DayD(false), block2DayE(false)] },
+  // Foundation Block (Weeks 1–5)
+  foundationWeek(1, 1, 1, true), // intro / deload week
+  foundationWeek(2, 2, 1),
+  foundationWeek(3, 2, 1),
+  foundationWeek(4, 2, 1),
+  foundationWeek(5, 2, 1),
+  // Ramping Block (Weeks 6–9)
+  rampingWeek(6, 1, 1, true),    // intro / deload week
+  rampingWeek(7, 2, 1),
+  rampingWeek(8, 2, 1),
+  rampingWeek(9, 2, 1),
+  // Growth Block (Weeks 10–12) — same exercises, higher volume
+  rampingWeek(10, 2, 1),
+  rampingWeek(11, 2, 1),
+  rampingWeek(12, 2, 1),
 ];
 
-export const DAY_LABELS: Record<string, string> = {
-  "upper-a": "Upper A",
-  "lower-a": "Lower A",
-  "back-biceps": "Back & Biceps",
-  push: "Push",
-  "lower-b": "Lower B",
-};
-
-export const WARMUP_PROTOCOLS: Record<string, string[]> = {
-  "none": [],
-  "1-set": ["~60% × 6–10 reps (feel warm and loose)"],
-  "2-set": [
-    "Set 1: ~50% × 6–10 reps",
-    "Set 2: ~75% × 4–6 reps",
-  ],
-  "3-set": [
-    "Set 1: ~45% × 6–10 reps",
-    "Set 2: ~65% × 4–6 reps",
-    "Set 3: ~85% × 3–4 reps",
-  ],
-  "4-set": [
-    "Set 1: ~45% × 6–10 reps",
-    "Set 2: ~60% × 4–6 reps",
-    "Set 3: ~75% × 3–5 reps",
-    "Set 4: ~85% × 2–4 reps",
-  ],
-};
-
-export const FAILURE_TECHNIQUE_LABELS: Record<string, { label: string; description: string }> = {
-  failure: {
-    label: "To Failure",
-    description: "Push until you cannot complete another rep with good form. Rack the bar or set down the weight safely.",
-  },
-  "failure+llps": {
-    label: "Failure + LLPs",
-    description: "After reaching failure, immediately continue with Lengthened Partial Reps — short partials in the bottom/stretched portion of the movement until you cannot move the weight at all.",
-  },
-  "myo-reps": {
-    label: "Myo-Reps",
-    description: "Do your activation set to near-failure. Rest 3–5 breaths, then do clusters of 3–5 reps, resting 3–5 breaths between each cluster, until you can no longer complete 3 reps.",
-  },
-  "static-stretch": {
-    label: "Static Stretch (30s)",
-    description: "After the last set, hold the stretched position of the movement for 30 seconds.",
-  },
-  rpe: {
-    label: "RPE Target",
-    description: "Stop when the target RPE is reached — not to failure.",
-  },
-};
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
 export function getWorkoutDay(week: number, dayIndex: number): WorkoutDay | null {
-  const weekData = PROGRAM.find((w) => w.week === week);
-  return weekData?.days[dayIndex] ?? null;
-}
-
-export function getTotalSessions(): number {
-  return PROGRAM.reduce((acc, w) => acc + w.days.length, 0);
-}
-
-export function getSessionNumber(week: number, dayIndex: number): number {
-  let count = 0;
-  for (const w of PROGRAM) {
-    if (w.week === week) {
-      count += dayIndex;
-      break;
-    }
-    count += w.days.length;
-  }
-  return count + 1;
-}
-
-/** Estimate 1RM using the Epley formula */
-export function estimateOneRm(weight: number, reps: number): number {
-  if (reps === 1) return weight;
-  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+  return PROGRAM.find((w) => w.week === week)?.days[dayIndex] ?? null;
 }
