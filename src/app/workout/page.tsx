@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import {
@@ -44,7 +44,7 @@ function WorkoutContent() {
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
-  const workoutDay = getWorkoutDay(week, dayIndex);
+  const workoutDay = useMemo(() => getWorkoutDay(week, dayIndex), [week, dayIndex]);
 
   const resolvedExercises = workoutDay?.exercises.map((ex) => {
     const idx = useAlternate[ex.id] ?? 0;
@@ -61,6 +61,10 @@ function WorkoutContent() {
   }, []);
 
   useEffect(() => {
+    setDone(false);
+    setLoading(true);
+    setSessionSets([]);
+
     async function init() {
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
@@ -74,8 +78,12 @@ function WorkoutContent() {
       setPrefs(p);
       setUseAlternate(p.alternateSelections);
 
+      const exerciseCount = workoutDay?.exercises.length ?? 0;
       let sess: WorkoutSession;
-      if (existing && existing.week === week && existing.dayIndex === dayIndex) {
+      const matchesThisWorkout = existing && existing.week === week && existing.dayIndex === dayIndex;
+      const hasValidProgress = matchesThisWorkout && existing.currentExerciseIndex < exerciseCount;
+
+      if (hasValidProgress) {
         sess = existing;
         const sets = await getSessionSets(existing.id);
         setSessionSets(sets);
@@ -100,7 +108,7 @@ function WorkoutContent() {
   useEffect(() => {
     if (!userId || !currentExercise) return;
     loadPrevSets(userId, currentExercise.id);
-  }, [exerciseIndex, userId, currentExercise, loadPrevSets]);
+  }, [exerciseIndex, userId, currentExercise?.id, loadPrevSets]);
 
   async function advanceTo(exIdx: number, sIdx: number) {
     if (!session) return;
