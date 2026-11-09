@@ -40,7 +40,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
     e.preventDefault();
     const w = parseFloat(weight);
     const r = parseInt(reps, 10);
-    if (isNaN(w) || isNaN(r) || w <= 0 || r <= 0) return;
+    if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
     onLog(toKg(w, unit), r, rpe ? parseFloat(rpe) : null, isLastSet ? failureHit : null);
   }
 
