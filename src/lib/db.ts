@@ -151,6 +151,11 @@ export async function logSet(set: Omit<SetLog, "id" | "loggedAt">): Promise<void
   });
 }
 
+export async function deleteSetLog(setId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("set_logs").delete().eq("id", setId);
+}
+
 export async function getSessionSets(sessionId: string): Promise<SetLog[]> {
   const sb = createClient();
   const { data } = await sb

@@ -10,6 +10,7 @@ import {
   completeSession,
   logSet,
   getSessionSets,
+  deleteSetLog,
   getLastSessionSetsForExercise,
   getPreferences,
 } from "@/lib/db";
@@ -160,6 +161,20 @@ function WorkoutContent() {
     } else {
       await advanceTo(exerciseIndex, setIndex + 1);
     }
+  }
+
+  async function handleGoBack() {
+    if (!session) return;
+    const workingSets = sessionSets.filter((s) => s.setIndex >= 0);
+    if (workingSets.length === 0) return;
+    const lastSet = workingSets[workingSets.length - 1];
+    await deleteSetLog(lastSet.id);
+    const updated = await getSessionSets(session.id);
+    setSessionSets(updated);
+    const exIdx = resolvedExercises.findIndex((ex) => ex.id === lastSet.exerciseId);
+    if (exIdx === -1) return;
+    await advanceTo(exIdx, lastSet.setIndex);
+    setPhase("sets");
   }
 
   function handleWarmupComplete() {
@@ -395,25 +410,35 @@ function WorkoutContent() {
         )}
 
         {/* Sets progress */}
-        <div className="flex gap-1.5">
-          {Array.from({ length: totalSets }).map((_, i) => {
-            const logged = setsForExercise[i];
-            const isLast = i === totalSets - 1;
-            return (
-              <div
-                key={i}
-                className={`flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-medium ${
-                  logged
-                    ? isLast ? "bg-orange-500/20 text-orange-400 border border-orange-500/40" : "bg-green-900/30 text-green-400 border border-green-700/40"
-                    : i === setIndex && phase === "sets"
-                    ? isLast ? "bg-orange-500/30 border border-orange-500 text-orange-300" : "bg-zinc-700 border border-zinc-500 text-zinc-200"
-                    : "bg-zinc-900 border border-zinc-800 text-zinc-600"
-                }`}
-              >
-                {logged ? `${logged.reps}r` : isLast ? "●" : i + 1}
-              </div>
-            );
-          })}
+        <div className="space-y-1.5">
+          <div className="flex gap-1.5">
+            {Array.from({ length: totalSets }).map((_, i) => {
+              const logged = setsForExercise[i];
+              const isLast = i === totalSets - 1;
+              return (
+                <div
+                  key={i}
+                  className={`flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-medium ${
+                    logged
+                      ? isLast ? "bg-orange-500/20 text-orange-400 border border-orange-500/40" : "bg-green-900/30 text-green-400 border border-green-700/40"
+                      : i === setIndex && phase === "sets"
+                      ? isLast ? "bg-orange-500/30 border border-orange-500 text-orange-300" : "bg-zinc-700 border border-zinc-500 text-zinc-200"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-600"
+                  }`}
+                >
+                  {logged ? `${logged.reps}r` : isLast ? "●" : i + 1}
+                </div>
+              );
+            })}
+          </div>
+          {sessionSets.filter((s) => s.setIndex >= 0).length > 0 && (
+            <button
+              onClick={handleGoBack}
+              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              ← Undo last set
+            </button>
+          )}
         </div>
 
         {/* Phase content */}
