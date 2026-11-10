@@ -401,17 +401,18 @@ export async function updateProgram(
   await sb.from("programs").update(fields).eq("id", programId);
 }
 
-export async function getAllExercises(): Promise<{ id: string; name: string; muscleGroup: string }[]> {
+export async function getAllExercises(): Promise<{ id: string; name: string; muscleGroup: string; warmupProtocol: string }[]> {
   const sb = createClient();
   const { data } = await sb
     .from("exercises")
-    .select("id, name, muscle_group")
+    .select("id, name, muscle_group, warmup_protocol")
     .order("muscle_group")
     .order("name");
   return (data ?? []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
     name: r.name as string,
     muscleGroup: r.muscle_group as string,
+    warmupProtocol: r.warmup_protocol as string,
   }));
 }
 
@@ -530,4 +531,160 @@ export async function getBuilderProgram(programId: string): Promise<BuilderProgr
     days,
     userCount,
   };
+}
+
+export async function addProgramWeek(programId: string, totalWeeks: number): Promise<void> {
+  const sb = createClient();
+  await sb.from("programs").update({ total_weeks: totalWeeks }).eq("id", programId);
+}
+
+export async function addProgramDay(
+  programId: string, week: number, dayIndex: number, dayType: string
+): Promise<BuilderDay> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from("program_days")
+    .insert({ program_id: programId, week, day_index: dayIndex, day_type: dayType })
+    .select("id, week, day_index, day_type")
+    .single();
+  if (error) throw error;
+  return { pdId: data.id, week: data.week, dayIndex: data.day_index, dayType: data.day_type, exercises: [] };
+}
+
+export async function addExerciseToDay(
+  pdId: string, exerciseId: string, exerciseName: string, warmupProtocol: string, position: number
+): Promise<BuilderExercise> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from("program_day_exercises")
+    .insert({
+      program_day_id: pdId,
+      exercise_id: exerciseId,
+      position,
+      rep_range_min: 8,
+      rep_range_max: 12,
+      early_set_count: 3,
+      last_set_count: 1,
+      early_set_rpe_min: 7,
+      early_set_rpe_max: 8,
+      last_set_rpe_min: null,
+      last_set_rpe_max: null,
+      last_set_target: "failure",
+    })
+    .select("id, position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target")
+    .single();
+  if (error) throw error;
+  const r = data as Record<string, unknown>;
+  return {
+    pdeId: r.id as string,
+    exerciseId,
+    name: exerciseName,
+    position: r.position as number,
+    repRangeMin: r.rep_range_min as number,
+    repRangeMax: r.rep_range_max as number,
+    earlySetCount: r.early_set_count as number,
+    lastSetCount: r.last_set_count as number,
+    earlySetRpeMin: r.early_set_rpe_min as number,
+    earlySetRpeMax: r.early_set_rpe_max as number,
+    lastSetRpeMin: r.last_set_rpe_min as number | null,
+    lastSetRpeMax: r.last_set_rpe_max as number | null,
+    lastSetTarget: r.last_set_target as string,
+    warmupProtocol,
+  };
+}
+
+export async function duplicateProgramWeek(
+  programId: string, sourceWeek: number, targetWeek: number, newTotalWeeks: number
+): Promise<BuilderDay[]> {
+  const sb = createClient();
+
+  const { data: sourceDays } = await sb
+    .from("program_days")
+    .select(`
+      id, day_index, day_type,
+      program_day_exercises(
+        exercise_id, position, rep_range_min, rep_range_max,
+        early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max,
+        last_set_rpe_min, last_set_rpe_max, last_set_target,
+        exercises(id, name, warmup_protocol)
+      )
+    `)
+    .eq("program_id", programId)
+    .eq("week", sourceWeek);
+
+  if (!sourceDays?.length) return [];
+
+  await sb.from("programs").update({ total_weeks: newTotalWeeks }).eq("id", programId);
+
+  const newDays: BuilderDay[] = [];
+
+  for (const sourceDay of sourceDays as unknown as Array<{
+    id: string; day_index: number; day_type: string;
+    program_day_exercises: Array<{
+      exercise_id: string; position: number; rep_range_min: number; rep_range_max: number;
+      early_set_count: number; last_set_count: number; early_set_rpe_min: number; early_set_rpe_max: number;
+      last_set_rpe_min: number | null; last_set_rpe_max: number | null; last_set_target: string;
+      exercises: { id: string; name: string; warmup_protocol: string };
+    }>;
+  }>) {
+    const { data: newDay, error: dayError } = await sb
+      .from("program_days")
+      .insert({ program_id: programId, week: targetWeek, day_index: sourceDay.day_index, day_type: sourceDay.day_type })
+      .select("id")
+      .single();
+    if (dayError || !newDay) continue;
+
+    const pdes = sourceDay.program_day_exercises ?? [];
+    let newExercises: BuilderExercise[] = [];
+
+    if (pdes.length > 0) {
+      const { data: newPdes } = await sb
+        .from("program_day_exercises")
+        .insert(pdes.map((e) => ({
+          program_day_id: (newDay as Record<string, unknown>).id,
+          exercise_id: e.exercise_id,
+          position: e.position,
+          rep_range_min: e.rep_range_min,
+          rep_range_max: e.rep_range_max,
+          early_set_count: e.early_set_count,
+          last_set_count: e.last_set_count,
+          early_set_rpe_min: e.early_set_rpe_min,
+          early_set_rpe_max: e.early_set_rpe_max,
+          last_set_rpe_min: e.last_set_rpe_min,
+          last_set_rpe_max: e.last_set_rpe_max,
+          last_set_target: e.last_set_target,
+        })))
+        .select("id, exercise_id, position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target");
+
+      newExercises = ((newPdes ?? []) as unknown as Array<Record<string, unknown>>).map((pde) => {
+        const src = pdes.find((e) => e.exercise_id === pde.exercise_id);
+        return {
+          pdeId: pde.id as string,
+          exerciseId: pde.exercise_id as string,
+          name: src?.exercises.name ?? (pde.exercise_id as string),
+          position: pde.position as number,
+          repRangeMin: pde.rep_range_min as number,
+          repRangeMax: pde.rep_range_max as number,
+          earlySetCount: pde.early_set_count as number,
+          lastSetCount: pde.last_set_count as number,
+          earlySetRpeMin: pde.early_set_rpe_min as number,
+          earlySetRpeMax: pde.early_set_rpe_max as number,
+          lastSetRpeMin: pde.last_set_rpe_min as number | null,
+          lastSetRpeMax: pde.last_set_rpe_max as number | null,
+          lastSetTarget: pde.last_set_target as string,
+          warmupProtocol: src?.exercises.warmup_protocol ?? "2-set",
+        };
+      }).sort((a, b) => a.position - b.position);
+    }
+
+    newDays.push({
+      pdId: (newDay as Record<string, unknown>).id as string,
+      week: targetWeek,
+      dayIndex: sourceDay.day_index,
+      dayType: sourceDay.day_type,
+      exercises: newExercises,
+    });
+  }
+
+  return newDays.sort((a, b) => a.dayIndex - b.dayIndex);
 }
