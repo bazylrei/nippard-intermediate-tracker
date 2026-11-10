@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase";
 import {
   getExerciseHistory, getWeeklyVolume, getPersonalRecords,
   getCompletedSessions, getSessionSets, updateSetLog, deleteWorkoutSession,
+  deleteSetLog, deleteExerciseSetsFromSession,
 } from "@/lib/db";
 import { DAY_LABELS } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -249,10 +250,15 @@ function HistoryTab({
   const [editReps, setEditReps] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
+  const [confirmDeleteExerciseKey, setConfirmDeleteExerciseKey] = useState<string | null>(null);
+  const [deletingItem, setDeletingItem] = useState(false);
 
   async function toggleSession(sessionId: string) {
     setEditingSetId(null);
     setConfirmDeleteId(null);
+    setConfirmDeleteSetId(null);
+    setConfirmDeleteExerciseKey(null);
     setExpandedId((prev) => (prev === sessionId ? null : sessionId));
     if (!setsCache[sessionId]) {
       const sets = await getSessionSets(sessionId);
@@ -284,6 +290,28 @@ function HistoryTab({
     setConfirmDeleteId(null);
     setExpandedId(null);
     setDeleting(false);
+  }
+
+  async function confirmDeleteSet(setId: string, sessionId: string) {
+    setDeletingItem(true);
+    await deleteSetLog(setId);
+    setSetsCache((prev) => ({
+      ...prev,
+      [sessionId]: prev[sessionId]?.filter((s) => s.id !== setId) ?? [],
+    }));
+    setConfirmDeleteSetId(null);
+    setDeletingItem(false);
+  }
+
+  async function confirmDeleteExercise(sessionId: string, exerciseId: string) {
+    setDeletingItem(true);
+    await deleteExerciseSetsFromSession(sessionId, exerciseId);
+    setSetsCache((prev) => ({
+      ...prev,
+      [sessionId]: prev[sessionId]?.filter((s) => s.exerciseId !== exerciseId) ?? [],
+    }));
+    setConfirmDeleteExerciseKey(null);
+    setDeletingItem(false);
   }
 
   if (!loaded) {
@@ -365,11 +393,36 @@ function HistoryTab({
                 ) : exerciseOrder.length === 0 ? (
                   <p className="text-xs text-zinc-500 py-2">No sets logged.</p>
                 ) : (
-                  exerciseOrder.map((exId) => (
+                  exerciseOrder.map((exId) => {
+                    const exKey = `${session.id}:${exId}`;
+                    return (
                     <div key={exId}>
-                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">
-                        {exerciseName[exId] ?? exId}
-                      </p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
+                          {exerciseName[exId] ?? exId}
+                        </p>
+                        {confirmDeleteExerciseKey === exKey ? (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => confirmDeleteExercise(session.id, exId)}
+                              disabled={deletingItem}
+                              className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                            >
+                              {deletingItem ? "…" : "Remove"}
+                            </button>
+                            <button onClick={() => setConfirmDeleteExerciseKey(null)} className="text-zinc-600 hover:text-zinc-400">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteExerciseKey(exKey)}
+                            className="text-zinc-700 hover:text-red-400 transition-colors p-0.5 shrink-0"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-1">
                         {setsByExercise[exId].map((set) => {
                           if (editingSetId === set.id) {
@@ -410,6 +463,28 @@ function HistoryTab({
                             );
                           }
 
+                          if (confirmDeleteSetId === set.id) {
+                            return (
+                              <div key={set.id} className="flex items-center justify-between px-1 py-1">
+                                <span className="text-xs text-zinc-500">
+                                  {set.weight}kg × {set.reps} reps
+                                </span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button
+                                    onClick={() => confirmDeleteSet(set.id, session.id)}
+                                    disabled={deletingItem}
+                                    className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                                  >
+                                    {deletingItem ? "…" : "Delete"}
+                                  </button>
+                                  <button onClick={() => setConfirmDeleteSetId(null)} className="text-zinc-600 hover:text-zinc-400">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
                           return (
                             <div key={set.id} className="flex items-center justify-between px-1 py-1">
                               <div className="flex items-center gap-2">
@@ -427,22 +502,31 @@ function HistoryTab({
                                   <span className="text-xs text-zinc-600">@ RPE {set.rpe}</span>
                                 )}
                               </div>
-                              <button
-                                onClick={() => {
-                                  setEditingSetId(set.id);
-                                  setEditWeight(String(set.weight));
-                                  setEditReps(String(set.reps));
-                                }}
-                                className="text-zinc-600 hover:text-orange-400 transition-colors p-1"
-                              >
-                                <Pencil size={13} />
-                              </button>
+                              <div className="flex items-center gap-0.5">
+                                <button
+                                  onClick={() => {
+                                    setEditingSetId(set.id);
+                                    setEditWeight(String(set.weight));
+                                    setEditReps(String(set.reps));
+                                  }}
+                                  className="text-zinc-600 hover:text-orange-400 transition-colors p-1"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteSetId(set.id)}
+                                  className="text-zinc-700 hover:text-red-400 transition-colors p-1"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}

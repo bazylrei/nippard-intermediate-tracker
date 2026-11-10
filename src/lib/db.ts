@@ -158,6 +158,11 @@ export async function deleteSetLog(setId: string): Promise<void> {
   await sb.from("set_logs").delete().eq("id", setId);
 }
 
+export async function deleteExerciseSetsFromSession(sessionId: string, exerciseId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("set_logs").delete().eq("session_id", sessionId).eq("exercise_id", exerciseId);
+}
+
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const sb = createClient();
   await sb.from("set_logs").delete().eq("session_id", sessionId);

@@ -82,17 +82,19 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
   ]);
 
   if (programResult.error || !programResult.data) return null;
-  if (warmupResult.error) return null;
-  if (techniqueResult.error) return null;
 
   const warmupSteps: Record<string, string[]> = {};
-  for (const row of (warmupResult.data as WarmupProtocolRow[])) {
-    warmupSteps[row.id] = row.steps;
+  if (!warmupResult.error && warmupResult.data) {
+    for (const row of (warmupResult.data as WarmupProtocolRow[])) {
+      warmupSteps[row.id] = row.steps;
+    }
   }
 
   const failureTechniques: Record<string, { label: string; description: string }> = {};
-  for (const row of (techniqueResult.data as FailureTechniqueRow[])) {
-    failureTechniques[row.id] = { label: row.label, description: row.description };
+  if (!techniqueResult.error && techniqueResult.data) {
+    for (const row of (techniqueResult.data as FailureTechniqueRow[])) {
+      failureTechniques[row.id] = { label: row.label, description: row.description };
+    }
   }
 
   const programDays = programResult.data.program_days as unknown as ProgramDayRow[];
