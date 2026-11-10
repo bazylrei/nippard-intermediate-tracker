@@ -688,3 +688,24 @@ export async function duplicateProgramWeek(
 
   return newDays.sort((a, b) => a.dayIndex - b.dayIndex);
 }
+
+export async function deleteProgramDayExercise(pdeId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("program_day_exercises").delete().eq("id", pdeId);
+}
+
+export async function deleteProgramDay(pdId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("program_day_exercises").delete().eq("program_day_id", pdId);
+  await sb.from("program_days").delete().eq("id", pdId);
+}
+
+export async function deleteProgramWeek(programId: string, week: number): Promise<void> {
+  const sb = createClient();
+  const { data: days } = await sb.from("program_days").select("id").eq("program_id", programId).eq("week", week);
+  if (days?.length) {
+    const ids = (days as { id: string }[]).map((d) => d.id);
+    await sb.from("program_day_exercises").delete().in("program_day_id", ids);
+    await sb.from("program_days").delete().in("id", ids);
+  }
+}
