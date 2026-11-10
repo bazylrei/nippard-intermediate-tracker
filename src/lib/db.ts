@@ -163,6 +163,33 @@ export async function deleteExerciseSetsFromSession(sessionId: string, exerciseI
   await sb.from("set_logs").delete().eq("session_id", sessionId).eq("exercise_id", exerciseId);
 }
 
+export async function updateExerciseIdForSets(sessionId: string, oldExerciseId: string, newExerciseId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("set_logs").update({ exercise_id: newExerciseId }).eq("session_id", sessionId).eq("exercise_id", oldExerciseId);
+}
+
+export async function addSetsToSession(
+  sessionId: string,
+  exerciseId: string,
+  userId: string,
+  sets: { weight: number; reps: number }[]
+): Promise<SetLog[]> {
+  const sb = createClient();
+  const rows = sets.map((s, i) => ({
+    session_id: sessionId,
+    exercise_id: exerciseId,
+    user_id: userId,
+    set_index: i,
+    is_last_set: i === sets.length - 1,
+    weight_kg: s.weight,
+    reps: s.reps,
+    rpe: null,
+    failure_hit: false,
+  }));
+  const { data } = await sb.from("set_logs").insert(rows).select();
+  return (data ?? []).map((r: Record<string, unknown>) => mapSetLog(r));
+}
+
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const sb = createClient();
   await sb.from("set_logs").delete().eq("session_id", sessionId);

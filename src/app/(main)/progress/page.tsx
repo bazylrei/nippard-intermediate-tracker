@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase";
 import {
   getExerciseHistory, getWeeklyVolume, getPersonalRecords,
   getCompletedSessions, getSessionSets, updateSetLog, deleteWorkoutSession,
-  deleteSetLog, deleteExerciseSetsFromSession,
+  deleteSetLog, deleteExerciseSetsFromSession, getAllExercises,
+  updateExerciseIdForSets, addSetsToSession,
 } from "@/lib/db";
 import { DAY_LABELS } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog } from "@/lib/types";
-import { TrendingUp, BarChart3, Clock, ChevronDown, Pencil, Check, X, Trash2 } from "lucide-react";
+import { TrendingUp, BarChart3, Clock, ChevronDown, Pencil, Check, X, Trash2, Plus } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid,
@@ -40,6 +41,7 @@ export default function ProgressPage() {
   // History tab
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [allExercisesDb, setAllExercisesDb] = useState<{ id: string; name: string; muscleGroup: string }[]>([]);
 
   const ALL_EXERCISES = useMemo(() => {
     // Deduplicate by name — same exercise can have different IDs across blocks
@@ -56,10 +58,11 @@ export default function ProgressPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [program]);
 
-  const EXERCISE_NAME = useMemo(
-    () => Object.fromEntries(ALL_EXERCISES.map((ex) => [ex.id, ex.name])),
-    [ALL_EXERCISES]
-  );
+  const EXERCISE_NAME = useMemo(() => {
+    const fromDb = Object.fromEntries(allExercisesDb.map((ex) => [ex.id, ex.name]));
+    const fromProgram = Object.fromEntries(ALL_EXERCISES.map((ex) => [ex.id, ex.name]));
+    return { ...fromDb, ...fromProgram };
+  }, [ALL_EXERCISES, allExercisesDb]);
 
   useEffect(() => {
     async function init() {
@@ -68,10 +71,12 @@ export default function ProgressPage() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [prData, volData] = await Promise.all([
+      const [prData, volData, exData] = await Promise.all([
         getPersonalRecords(user.id),
         getWeeklyVolume(user.id),
+        getAllExercises(),
       ]);
+      setAllExercisesDb(exData);
       const ids = prData.map((pr) => pr.exerciseId);
       setExercisesWithData(ids);
       setVolume(volData.sort((a, b) => a.week - b.week));
@@ -223,6 +228,8 @@ export default function ProgressPage() {
             loaded={sessionsLoaded}
             onSessionsUpdate={setSessions}
             exerciseName={EXERCISE_NAME}
+            allExercises={allExercisesDb}
+            userId={userId}
           />
         )}
       </div>
@@ -237,11 +244,15 @@ function HistoryTab({
   loaded,
   onSessionsUpdate,
   exerciseName,
+  allExercises,
+  userId,
 }: {
   sessions: WorkoutSession[];
   loaded: boolean;
   onSessionsUpdate: (s: WorkoutSession[]) => void;
   exerciseName: Record<string, string>;
+  allExercises: { id: string; name: string; muscleGroup: string }[];
+  userId: string | null;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [setsCache, setSetsCache] = useState<Record<string, SetLog[]>>({});
@@ -253,12 +264,24 @@ function HistoryTab({
   const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
   const [confirmDeleteExerciseKey, setConfirmDeleteExerciseKey] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
+  // Edit exercise
+  const [editExKey, setEditExKey] = useState<string | null>(null);
+  const [editExSearch, setEditExSearch] = useState("");
+  // Add exercise
+  const [addToSessionId, setAddToSessionId] = useState<string | null>(null);
+  const [addExId, setAddExId] = useState("");
+  const [addExSearch, setAddExSearch] = useState("");
+  const [addSetsRows, setAddSetsRows] = useState<{ weight: string; reps: string }[]>([{ weight: "", reps: "" }]);
+  const [savingAdd, setSavingAdd] = useState(false);
 
   async function toggleSession(sessionId: string) {
     setEditingSetId(null);
     setConfirmDeleteId(null);
     setConfirmDeleteSetId(null);
     setConfirmDeleteExerciseKey(null);
+    setEditExKey(null);
+    setEditExSearch("");
+    setAddToSessionId(null);
     setExpandedId((prev) => (prev === sessionId ? null : sessionId));
     if (!setsCache[sessionId]) {
       const sets = await getSessionSets(sessionId);
@@ -312,6 +335,36 @@ function HistoryTab({
     }));
     setConfirmDeleteExerciseKey(null);
     setDeletingItem(false);
+  }
+
+  async function saveEditExercise(sessionId: string, oldExId: string, newExId: string) {
+    if (!newExId || newExId === oldExId) { setEditExKey(null); setEditExSearch(""); return; }
+    await updateExerciseIdForSets(sessionId, oldExId, newExId);
+    setSetsCache((prev) => ({
+      ...prev,
+      [sessionId]: prev[sessionId]?.map((s) => s.exerciseId === oldExId ? { ...s, exerciseId: newExId } : s) ?? [],
+    }));
+    setEditExKey(null);
+    setEditExSearch("");
+  }
+
+  async function saveAddExercise(sessionId: string) {
+    if (!addExId || !userId) return;
+    const validSets = addSetsRows
+      .map((r) => ({ weight: parseFloat(r.weight), reps: parseInt(r.reps, 10) }))
+      .filter((r) => !isNaN(r.weight) && !isNaN(r.reps) && r.weight > 0 && r.reps > 0);
+    if (!validSets.length) return;
+    setSavingAdd(true);
+    const newSets = await addSetsToSession(sessionId, addExId, userId, validSets);
+    setSetsCache((prev) => ({
+      ...prev,
+      [sessionId]: [...(prev[sessionId] ?? []), ...newSets],
+    }));
+    setAddToSessionId(null);
+    setAddExId("");
+    setAddExSearch("");
+    setAddSetsRows([{ weight: "", reps: "" }]);
+    setSavingAdd(false);
   }
 
   if (!loaded) {
@@ -395,34 +448,82 @@ function HistoryTab({
                 ) : (
                   exerciseOrder.map((exId) => {
                     const exKey = `${session.id}:${exId}`;
+                    const isEditingThisEx = editExKey === exKey;
+                    const filteredExercises = allExercises
+                      .filter((e) => e.name.toLowerCase().includes(editExSearch.toLowerCase()))
+                      .slice(0, 25);
                     return (
                     <div key={exId}>
+                      {isEditingThisEx ? (
+                        <div className="mb-2 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editExSearch}
+                              onChange={(e) => setEditExSearch(e.target.value)}
+                              placeholder="Search exercise…"
+                              className="flex-1 text-xs bg-zinc-800 border border-orange-500/50 rounded-lg px-2 py-1.5 text-zinc-200 focus:outline-none focus:border-orange-500"
+                            />
+                            <button onClick={() => { setEditExKey(null); setEditExSearch(""); }} className="text-zinc-500 hover:text-zinc-300 shrink-0">
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <div className="bg-zinc-800 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
+                            {filteredExercises.length === 0 ? (
+                              <p className="text-xs text-zinc-500 px-3 py-2">No matches</p>
+                            ) : filteredExercises.map((e) => (
+                              <button
+                                key={e.id}
+                                onClick={() => saveEditExercise(session.id, exId, e.id)}
+                                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                                  e.id === exId ? "text-orange-400 bg-orange-500/10" : "text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+                                }`}
+                              >
+                                {e.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
                           {exerciseName[exId] ?? exId}
                         </p>
-                        {confirmDeleteExerciseKey === exKey ? (
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              onClick={() => confirmDeleteExercise(session.id, exId)}
-                              disabled={deletingItem}
-                              className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
-                            >
-                              {deletingItem ? "…" : "Remove"}
-                            </button>
-                            <button onClick={() => setConfirmDeleteExerciseKey(null)} className="text-zinc-600 hover:text-zinc-400">
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDeleteExerciseKey(exKey)}
-                            className="text-zinc-700 hover:text-red-400 transition-colors p-0.5 shrink-0"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                          {confirmDeleteExerciseKey === exKey ? (
+                            <>
+                              <button
+                                onClick={() => confirmDeleteExercise(session.id, exId)}
+                                disabled={deletingItem}
+                                className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 mr-1"
+                              >
+                                {deletingItem ? "…" : "Remove"}
+                              </button>
+                              <button onClick={() => setConfirmDeleteExerciseKey(null)} className="text-zinc-600 hover:text-zinc-400">
+                                <X size={12} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => { setEditExKey(exKey); setEditExSearch(""); setConfirmDeleteExerciseKey(null); }}
+                                className="text-zinc-700 hover:text-orange-400 transition-colors p-0.5"
+                                title="Change exercise"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteExerciseKey(exKey)}
+                                className="text-zinc-700 hover:text-red-400 transition-colors p-0.5"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
+                      )}
                       <div className="space-y-1">
                         {setsByExercise[exId].map((set) => {
                           if (editingSetId === set.id) {
@@ -527,6 +628,98 @@ function HistoryTab({
                     </div>
                     );
                   })
+                )}
+
+                {/* Add exercise */}
+                {addToSessionId === session.id ? (
+                  <div className="border-t border-zinc-800 pt-3 mt-1 space-y-3">
+                    <div className="space-y-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={addExSearch}
+                        onChange={(e) => { setAddExSearch(e.target.value); setAddExId(""); }}
+                        placeholder="Search exercise…"
+                        className="w-full text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-orange-500"
+                      />
+                      {!addExId && (
+                        <div className="bg-zinc-800 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
+                          {allExercises
+                            .filter((e) => e.name.toLowerCase().includes(addExSearch.toLowerCase()))
+                            .slice(0, 25)
+                            .map((e) => (
+                              <button
+                                key={e.id}
+                                onClick={() => { setAddExId(e.id); setAddExSearch(e.name); }}
+                                className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
+                              >
+                                {e.name}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                      {addExId && (
+                        <p className="text-xs text-orange-400 px-1">
+                          {addExSearch} <button onClick={() => { setAddExId(""); setAddExSearch(""); }} className="text-zinc-500 hover:text-zinc-300 ml-1"><X size={10} className="inline" /></button>
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {addSetsRows.map((row, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-500 w-6">S{i + 1}</span>
+                          <input
+                            type="number"
+                            value={row.weight}
+                            onChange={(e) => setAddSetsRows((prev) => prev.map((r, j) => j === i ? { ...r, weight: e.target.value } : r))}
+                            placeholder="kg"
+                            className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
+                          />
+                          <span className="text-zinc-500 text-xs">×</span>
+                          <input
+                            type="number"
+                            value={row.reps}
+                            onChange={(e) => setAddSetsRows((prev) => prev.map((r, j) => j === i ? { ...r, reps: e.target.value } : r))}
+                            placeholder="reps"
+                            className="w-16 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
+                          />
+                          {addSetsRows.length > 1 && (
+                            <button onClick={() => setAddSetsRows((prev) => prev.filter((_, j) => j !== i))} className="text-zinc-600 hover:text-red-400 transition-colors">
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setAddSetsRows((prev) => [...prev, { weight: "", reps: "" }])}
+                        className="text-xs text-zinc-600 hover:text-orange-400 transition-colors flex items-center gap-1 pl-8"
+                      >
+                        <Plus size={11} /> Add set
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => saveAddExercise(session.id)}
+                        disabled={!addExId || savingAdd}
+                        className="text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors disabled:opacity-40"
+                      >
+                        {savingAdd ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        onClick={() => { setAddToSessionId(null); setAddExId(""); setAddExSearch(""); setAddSetsRows([{ weight: "", reps: "" }]); }}
+                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddToSessionId(session.id); setAddExId(""); setAddExSearch(""); setAddSetsRows([{ weight: "", reps: "" }]); }}
+                    className="mt-2 text-xs text-zinc-600 hover:text-orange-400 transition-colors flex items-center gap-1"
+                  >
+                    <Plus size={12} /> Add exercise
+                  </button>
                 )}
               </div>
             )}
