@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic } from "@/lib/db";
+import { getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic, getAllExercises } from "@/lib/db";
 import type { BuilderProgram, BuilderExercise, BuilderDay } from "@/lib/types";
 import { ArrowLeft, ChevronDown, ChevronRight, Globe, Lock, Pencil, Check, X, Users } from "lucide-react";
 
@@ -50,6 +50,7 @@ function ProgramEditorPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [program, setProgram] = useState<BuilderProgram | null>(null);
+  const [allExercises, setAllExercises] = useState<{ id: string; name: string; muscleGroup: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([1]));
   const [editingExercise, setEditingExercise] = useState<BuilderExercise | null>(null);
@@ -60,8 +61,12 @@ function ProgramEditorPage() {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) { router.replace("/auth"); return; }
     setUserId(user.id);
-    const data = await getBuilderProgram(programId);
+    const [data, exercises] = await Promise.all([
+      getBuilderProgram(programId),
+      getAllExercises(),
+    ]);
     setProgram(data);
+    setAllExercises(exercises);
     setLoading(false);
   }, [programId, router]);
 
@@ -87,6 +92,7 @@ function ProgramEditorPage() {
 
   async function handleSaveExercise(pdeId: string, fields: Partial<BuilderExercise>) {
     await updateProgramDayExercise(pdeId, {
+      exerciseId: fields.exerciseId,
       repRangeMin: fields.repRangeMin,
       repRangeMax: fields.repRangeMax,
       earlySetCount: fields.earlySetCount,
@@ -95,6 +101,12 @@ function ProgramEditorPage() {
       earlySetRpeMax: fields.earlySetRpeMax,
       lastSetTarget: fields.lastSetTarget,
     });
+    // If exercise changed, resolve the new name from allExercises
+    const resolvedFields = { ...fields };
+    if (fields.exerciseId) {
+      const found = allExercises.find((e) => e.id === fields.exerciseId);
+      if (found) resolvedFields.name = found.name;
+    }
     setProgram((p) => {
       if (!p) return p;
       return {
@@ -102,7 +114,7 @@ function ProgramEditorPage() {
         days: p.days.map((day) => ({
           ...day,
           exercises: day.exercises.map((ex) =>
-            ex.pdeId === pdeId ? { ...ex, ...fields } : ex
+            ex.pdeId === pdeId ? { ...ex, ...resolvedFields } : ex
           ),
         })),
       };
@@ -217,6 +229,7 @@ function ProgramEditorPage() {
       {editingExercise && (
         <ExerciseEditModal
           exercise={editingExercise}
+          allExercises={allExercises}
           onSave={(fields) => handleSaveExercise(editingExercise.pdeId, fields)}
           onClose={() => setEditingExercise(null)}
         />
@@ -286,13 +299,18 @@ function DaySection({
 
 function ExerciseEditModal({
   exercise,
+  allExercises,
   onSave,
   onClose,
 }: {
   exercise: BuilderExercise;
+  allExercises: { id: string; name: string; muscleGroup: string }[];
   onSave: (fields: Partial<BuilderExercise>) => Promise<void>;
   onClose: () => void;
 }) {
+  const [exerciseId, setExerciseId] = useState(exercise.exerciseId);
+  const [search, setSearch] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
   const [repMin, setRepMin] = useState(String(exercise.repRangeMin));
   const [repMax, setRepMax] = useState(String(exercise.repRangeMax));
   const [earlySets, setEarlySets] = useState(String(exercise.earlySetCount));
@@ -300,9 +318,24 @@ function ExerciseEditModal({
   const [lastSetTarget, setLastSetTarget] = useState(exercise.lastSetTarget);
   const [saving, setSaving] = useState(false);
 
+  const selectedName = allExercises.find((e) => e.id === exerciseId)?.name ?? exercise.name;
+
+  const filtered = search.trim().length > 0
+    ? allExercises.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
+    : allExercises;
+
+  // Group filtered exercises by muscle group
+  const grouped = filtered.reduce<Record<string, typeof allExercises>>((acc, ex) => {
+    const g = ex.muscleGroup;
+    if (!acc[g]) acc[g] = [];
+    acc[g].push(ex);
+    return acc;
+  }, {});
+
   async function handleSave() {
     setSaving(true);
     await onSave({
+      exerciseId,
       repRangeMin: parseInt(repMin) || exercise.repRangeMin,
       repRangeMax: parseInt(repMax) || exercise.repRangeMax,
       earlySetCount: parseInt(earlySets),
@@ -314,85 +347,140 @@ function ExerciseEditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm space-y-5 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-zinc-100 text-sm">{exercise.name}</h2>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between shrink-0">
+          <h2 className="font-semibold text-zinc-100 text-sm">Edit Slot</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
             <X size={18} />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="space-y-1">
-            <span className="text-xs text-zinc-500">Rep min</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={repMin}
-              onChange={(e) => setRepMin(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs text-zinc-500">Rep max</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={repMax}
-              onChange={(e) => setRepMax(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs text-zinc-500">Working sets</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={earlySets}
-              onChange={(e) => setEarlySets(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-xs text-zinc-500">Last sets</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={lastSets}
-              onChange={(e) => setLastSets(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
-            />
-          </label>
-        </div>
-
-        <label className="block space-y-1">
-          <span className="text-xs text-zinc-500">Last set technique</span>
-          <select
-            value={lastSetTarget}
-            onChange={(e) => setLastSetTarget(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
-          >
-            {FAILURE_TECHNIQUES.map((f) => (
-              <option key={f.value} value={f.value}>{f.label}</option>
-            ))}
-          </select>
-        </label>
-
-        <div className="flex gap-2 pt-1">
+        {/* Exercise picker */}
+        <div className="shrink-0 space-y-1.5">
+          <span className="text-xs text-zinc-500">Exercise</span>
           <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+            onClick={() => setShowPicker((v) => !v)}
+            className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 hover:border-orange-500 transition-colors"
           >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? "Saving…" : <><Check size={15} /> Save</>}
+            <span className="truncate">{selectedName}</span>
+            <ChevronDown size={14} className={`text-zinc-500 transition-transform shrink-0 ml-2 ${showPicker ? "rotate-180" : ""}`} />
           </button>
         </div>
+
+        {showPicker && (
+          <div className="flex flex-col min-h-0 flex-1">
+            <input
+              autoFocus
+              placeholder="Search exercises…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoCorrect="off"
+              autoCapitalize="off"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500 mb-2 shrink-0"
+            />
+            <div className="overflow-y-auto flex-1 -mx-1 px-1">
+              {Object.entries(grouped).map(([group, exs]) => (
+                <div key={group}>
+                  <div className="sticky top-0 bg-zinc-900 text-xs text-zinc-500 font-semibold uppercase tracking-wide px-1 py-1.5">
+                    {group}
+                  </div>
+                  {exs.map((ex) => (
+                    <button
+                      key={ex.id}
+                      onClick={() => { setExerciseId(ex.id); setShowPicker(false); setSearch(""); }}
+                      className={`w-full text-left px-2 py-2 rounded-lg text-sm transition-colors ${
+                        ex.id === exerciseId
+                          ? "bg-orange-500/10 text-orange-400"
+                          : "text-zinc-200 hover:bg-zinc-800"
+                      }`}
+                    >
+                      {ex.name}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <p className="text-xs text-zinc-600 text-center py-4">No exercises match.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!showPicker && (
+          <div className="space-y-4 flex-1 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="space-y-1">
+                <span className="text-xs text-zinc-500">Rep min</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={repMin}
+                  onChange={(e) => setRepMin(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-zinc-500">Rep max</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={repMax}
+                  onChange={(e) => setRepMax(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-zinc-500">Working sets</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={earlySets}
+                  onChange={(e) => setEarlySets(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-zinc-500">Last sets</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={lastSets}
+                  onChange={(e) => setLastSets(e.target.value)}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                />
+              </label>
+            </div>
+
+            <label className="block space-y-1">
+              <span className="text-xs text-zinc-500">Last set technique</span>
+              <select
+                value={lastSetTarget}
+                onChange={(e) => setLastSetTarget(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+              >
+                {FAILURE_TECHNIQUES.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? "Saving…" : <><Check size={15} /> Save</>}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

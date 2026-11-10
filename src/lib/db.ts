@@ -369,9 +369,24 @@ export async function updateProgram(
   await sb.from("programs").update(fields).eq("id", programId);
 }
 
+export async function getAllExercises(): Promise<{ id: string; name: string; muscleGroup: string }[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("exercises")
+    .select("id, name, muscle_group")
+    .order("muscle_group")
+    .order("name");
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    name: r.name as string,
+    muscleGroup: r.muscle_group as string,
+  }));
+}
+
 export async function updateProgramDayExercise(
   pdeId: string,
   fields: {
+    exerciseId?: string;
     repRangeMin?: number;
     repRangeMax?: number;
     earlySetCount?: number;
@@ -383,6 +398,7 @@ export async function updateProgramDayExercise(
 ): Promise<void> {
   const sb = createClient();
   const dbFields: Record<string, unknown> = {};
+  if (fields.exerciseId !== undefined) dbFields.exercise_id = fields.exerciseId;
   if (fields.repRangeMin !== undefined) dbFields.rep_range_min = fields.repRangeMin;
   if (fields.repRangeMax !== undefined) dbFields.rep_range_max = fields.repRangeMax;
   if (fields.earlySetCount !== undefined) dbFields.early_set_count = fields.earlySetCount;
