@@ -44,12 +44,12 @@ export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorking
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Warm-Up</h3>
+        <h3 className="font-display font-semibold text-sm tracking-widest text-muted uppercase">Warm-Up</h3>
         <button
           onClick={onSkip}
-          className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+          className="text-xs text-subtle hover:text-muted transition-colors cursor-pointer"
         >
-          Skip warm-up →
+          Skip →
         </button>
       </div>
       <div className="space-y-2">
@@ -61,28 +61,28 @@ export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorking
             <button
               key={i}
               onClick={() => toggle(i)}
-              className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${
-                checked[i] ? "bg-zinc-800/50" : "bg-zinc-900 hover:bg-zinc-800"
+              className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors cursor-pointer ${
+                checked[i] ? "bg-elevated/50" : "bg-surface hover:bg-elevated"
               }`}
             >
               {checked[i] ? (
-                <CheckCircle2 size={18} className="text-green-500 mt-0.5 shrink-0" />
+                <CheckCircle2 size={18} className="text-accent mt-0.5 shrink-0" />
               ) : (
-                <Circle size={18} className="text-zinc-600 mt-0.5 shrink-0" />
+                <Circle size={18} className="text-subtle mt-0.5 shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <span className={`text-sm ${checked[i] ? "line-through text-zinc-500" : "text-zinc-300"}`}>
+                <span className={`text-sm ${checked[i] ? "line-through text-subtle" : "text-fg"}`}>
                   {step}
                 </span>
                 {suggestion && !checked[i] && (
-                  <span className="block text-xs text-orange-400/70 mt-0.5">{suggestion}</span>
+                  <span className="block text-xs text-primary/80 mt-0.5 font-display font-semibold">{suggestion}</span>
                 )}
               </div>
             </button>
           );
         })}
       </div>
-      <p className="text-xs text-zinc-500 text-center">Tap each step when done to continue</p>
+      <p className="text-xs text-subtle text-center">Tap each step when done to continue</p>
     </div>
   );
 }

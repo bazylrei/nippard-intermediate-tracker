@@ -1,32 +1,103 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Barlow:wght@300;400;500;600;700&display=swap');
 
+/* ── Light mode tokens ───────────────────────────────────────────────────── */
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --bg:         #FFFFFF;
+  --surface:    #F6F8FA;
+  --elevated:   #EAEEF2;
+  --border:     #D0D7DE;
+  --fg:         #1F2328;
+  --muted:      #57606A;
+  --subtle:     #9CA3AF;
+  --primary:    #D95B1E;
+  --primary-fg: #FFFFFF;
+  --accent:     #1A7F37;
+  --accent-fg:  #FFFFFF;
+  --danger:     #CF222E;
+}
+
+/* ── Dark mode tokens ────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:         #0D1117;
+    --surface:    #161B22;
+    --elevated:   #21262D;
+    --border:     #30363D;
+    --fg:         #E6EDF3;
+    --muted:      #8B949E;
+    --subtle:     #6E7681;
+    --primary:    #F97316;
+    --primary-fg: #0D1117;
+    --accent:     #22C55E;
+    --accent-fg:  #0D1117;
+    --danger:     #F85149;
+  }
+}
+
+/* ── Class overrides for manual toggle ──────────────────────────────────── */
+html.dark {
+  --bg:         #0D1117;
+  --surface:    #161B22;
+  --elevated:   #21262D;
+  --border:     #30363D;
+  --fg:         #E6EDF3;
+  --muted:      #8B949E;
+  --subtle:     #6E7681;
+  --primary:    #F97316;
+  --primary-fg: #0D1117;
+  --accent:     #22C55E;
+  --accent-fg:  #0D1117;
+  --danger:     #F85149;
+}
+
+html.light {
+  --bg:         #FFFFFF;
+  --surface:    #F6F8FA;
+  --elevated:   #EAEEF2;
+  --border:     #D0D7DE;
+  --fg:         #1F2328;
+  --muted:      #57606A;
+  --subtle:     #9CA3AF;
+  --primary:    #D95B1E;
+  --primary-fg: #FFFFFF;
+  --accent:     #1A7F37;
+  --accent-fg:  #FFFFFF;
+  --danger:     #CF222E;
+}
+
+/* ── Tailwind theme tokens ───────────────────────────────────────────────── */
+@theme {
+  --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  --font-body:    'Barlow', system-ui, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg:         var(--bg);
+  --color-surface:    var(--surface);
+  --color-elevated:   var(--elevated);
+  --color-border:     var(--border);
+  --color-fg:         var(--fg);
+  --color-muted:      var(--muted);
+  --color-subtle:     var(--subtle);
+  --color-primary:    var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-accent:     var(--accent);
+  --color-accent-fg:  var(--accent-fg);
+  --color-danger:     var(--danger);
 }
 
+/* ── Base ────────────────────────────────────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Barlow', system-ui, sans-serif;
 }
 
+/* ── Utilities ───────────────────────────────────────────────────────────── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
-  }
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .pt-safe {
-    padding-top: max(1rem, env(safe-area-inset-top));
-  }
+  .text-balance { text-wrap: balance; }
+  .safe-top     { padding-top: env(safe-area-inset-top); }
+  .safe-bottom  { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe      { padding-top: max(1rem, env(safe-area-inset-top)); }
 }

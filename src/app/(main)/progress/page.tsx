@@ -38,14 +38,12 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
-  // History tab
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [allExercisesDb, setAllExercisesDb] = useState<{ id: string; name: string; muscleGroup: string }[]>([]);
 
   const ALL_EXERCISES = useMemo(() => {
-    // Deduplicate by name — same exercise can have different IDs across blocks
-    const byName = new Map<string, string>(); // name → first id seen
+    const byName = new Map<string, string>();
     for (const week of program) {
       for (const day of week.days) {
         for (const ex of day.exercises) {
@@ -112,37 +110,43 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500">
-        Loading progress...
+      <div className="min-h-screen flex items-center justify-center text-muted text-sm font-display">
+        Loading progress…
       </div>
     );
   }
 
+  const TABS = [
+    { key: "exercise" as Tab, label: "Exercise", icon: TrendingUp },
+    { key: "volume"   as Tab, label: "Volume",   icon: BarChart3  },
+    { key: "history"  as Tab, label: "History",  icon: Clock      },
+  ];
+
   return (
     <div className="h-dvh max-w-lg md:max-w-3xl mx-auto flex flex-col">
-      <div className="flex items-center p-4 border-b border-zinc-800">
-        <h1 className="text-lg font-semibold text-zinc-100">Progress</h1>
+      {/* Header */}
+      <div className="flex items-center px-4 pt-4 pb-3 border-b border-border">
+        <h1 className="font-display font-bold text-xl tracking-wide text-fg">Progress</h1>
       </div>
 
-      <div className="flex border-b border-zinc-800">
-        {([
-          { key: "exercise", label: "Exercise", icon: TrendingUp },
-          { key: "volume",   label: "Volume",   icon: BarChart3  },
-          { key: "history",  label: "History",  icon: Clock      },
-        ] as const).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors border-b-2 ${
-              tab === key
-                ? "text-orange-400 border-orange-400"
-                : "text-zinc-500 border-transparent hover:text-zinc-300"
-            }`}
-          >
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
+      {/* Segment control tabs */}
+      <div className="px-4 py-3 border-b border-border">
+        <div className="flex bg-elevated rounded-xl p-1 gap-1">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-display font-semibold transition-all cursor-pointer ${
+                tab === key
+                  ? "bg-primary text-primary-fg shadow-sm"
+                  : "text-muted hover:text-fg"
+              }`}
+            >
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4">
@@ -152,44 +156,49 @@ export default function ProgressPage() {
               <EmptyState message="No exercise data yet — complete your first workout to start tracking." />
             ) : (
               <>
-                <select
-                  value={selectedExercise}
-                  onChange={(e) => setSelectedExercise(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-200 focus:outline-none focus:border-orange-500 text-base"
-                >
-                  {exercisesInDropdown.map((ex) => (
-                    <option key={ex.id} value={ex.id}>{ex.name}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={selectedExercise}
+                    onChange={(e) => setSelectedExercise(e.target.value)}
+                    className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-primary text-sm font-display font-medium appearance-none cursor-pointer"
+                  >
+                    {exercisesInDropdown.map((ex) => (
+                      <option key={ex.id} value={ex.id}>{ex.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                </div>
 
                 {history.length === 0 ? (
                   <EmptyState message="No data for this exercise yet." />
                 ) : (
                   <div className="space-y-4">
                     {chartWidth > 0 && (
-                      <LineChart width={chartWidth} height={200} data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="date" tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={formatDate} />
-                        <YAxis tick={{ fill: "#71717a", fontSize: 11 }} />
-                        <Tooltip
-                          contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, color: "#e4e4e7" }}
-                          labelFormatter={(l) => formatDate(String(l))}
-                          formatter={(v) => [`${Number(v)} kg`, "Weight"]}
-                        />
-                        <Line type="monotone" dataKey="weight" stroke="#f97316" strokeWidth={2} dot={{ fill: "#f97316", r: 4 }} />
-                      </LineChart>
+                      <div className="bg-surface border border-border rounded-2xl p-3">
+                        <LineChart width={chartWidth - 24} height={200} data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                          <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={formatDate} />
+                          <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--fg)" }}
+                            labelFormatter={(l) => formatDate(String(l))}
+                            formatter={(v) => [`${Number(v)} kg`, "Weight"]}
+                          />
+                          <Line type="monotone" dataKey="weight" stroke="var(--primary)" strokeWidth={2} dot={{ fill: "var(--primary)", r: 4 }} />
+                        </LineChart>
+                      </div>
                     )}
                     <div className="space-y-2">
                       {[...history].reverse().map((h, i) => (
-                        <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center justify-between">
+                        <div key={i} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center justify-between">
                           <div>
-                            <p className="text-sm text-zinc-300 font-medium">{h.weight}kg × {h.reps} reps</p>
-                            <p className="text-xs text-zinc-500">{formatDate(h.date)}</p>
+                            <p className="font-display font-semibold text-sm text-fg">{h.weight}kg × {h.reps} reps</p>
+                            <p className="text-xs text-muted mt-0.5">{formatDate(h.date)}</p>
                           </div>
                           {h.dayType && (
-                            <p className="text-xs font-medium text-orange-400/80 bg-orange-500/10 px-2.5 py-1 rounded-full">
+                            <span className="text-xs font-display font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
                               {DAY_LABELS[h.dayType] ?? h.dayType}
-                            </p>
+                            </span>
                           )}
                         </div>
                       ))}
@@ -203,21 +212,23 @@ export default function ProgressPage() {
 
         {tab === "volume" && (
           <div className="space-y-4">
-            <p className="text-xs text-zinc-500">Total weekly training volume (kg)</p>
+            <p className="text-xs text-muted font-display uppercase tracking-wider">Total weekly training volume (kg)</p>
             {volume.length === 0 ? (
               <EmptyState message="No volume data yet — complete a workout first." />
             ) : chartWidth > 0 ? (
-              <BarChart width={chartWidth} height={260} data={volume} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="week" tick={{ fill: "#71717a", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
-                <YAxis tick={{ fill: "#71717a", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8, color: "#e4e4e7" }}
-                  formatter={(v) => [`${Number(v).toLocaleString()} kg`, "Volume"]}
-                  labelFormatter={(l) => `Week ${l}`}
-                />
-                <Bar dataKey="volume" fill="#f97316" radius={[4, 4, 0, 0]} />
-              </BarChart>
+              <div className="bg-surface border border-border rounded-2xl p-3">
+                <BarChart width={chartWidth - 24} height={260} data={volume} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="week" tick={{ fill: "var(--muted)", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
+                  <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--fg)" }}
+                    formatter={(v) => [`${Number(v).toLocaleString()} kg`, "Volume"]}
+                    labelFormatter={(l) => `Week ${l}`}
+                  />
+                  <Bar dataKey="volume" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </div>
             ) : null}
           </div>
         )}
@@ -264,10 +275,8 @@ function HistoryTab({
   const [confirmDeleteSetId, setConfirmDeleteSetId] = useState<string | null>(null);
   const [confirmDeleteExerciseKey, setConfirmDeleteExerciseKey] = useState<string | null>(null);
   const [deletingItem, setDeletingItem] = useState(false);
-  // Edit exercise
   const [editExKey, setEditExKey] = useState<string | null>(null);
   const [editExSearch, setEditExSearch] = useState("");
-  // Add exercise
   const [addToSessionId, setAddToSessionId] = useState<string | null>(null);
   const [addExId, setAddExId] = useState("");
   const [addExSearch, setAddExSearch] = useState("");
@@ -368,7 +377,7 @@ function HistoryTab({
   }
 
   if (!loaded) {
-    return <div className="text-center py-16 text-zinc-500 text-sm">Loading history...</div>;
+    return <div className="text-center py-16 text-muted text-sm font-display">Loading history…</div>;
   }
   if (sessions.length === 0) {
     return <EmptyState message="No completed workouts yet." />;
@@ -392,24 +401,25 @@ function HistoryTab({
         }
 
         return (
-          <div key={session.id} className="bg-zinc-900 rounded-xl overflow-hidden">
+          <div key={session.id} className="bg-surface border border-border rounded-2xl overflow-hidden">
+            {/* Session header row */}
             <div className="flex items-center px-4 py-3.5">
               <button
                 onClick={() => toggleSession(session.id)}
-                className="flex-1 flex items-center justify-between text-left"
+                className="flex-1 flex items-center justify-between text-left cursor-pointer"
               >
                 <div>
-                  <p className="text-sm font-semibold text-zinc-200">
+                  <p className="font-display font-semibold text-sm text-fg">
                     {DAY_LABELS[session.dayType] ?? session.dayType}
-                    <span className="text-zinc-500 font-normal ml-2">· Wk {session.week}</span>
+                    <span className="text-muted font-normal ml-2">· Wk {session.week}</span>
                   </p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     {session.completedAt ? formatDate(session.completedAt.split("T")[0]) : ""}
                   </p>
                 </div>
                 <ChevronDown
                   size={16}
-                  className={`text-zinc-500 transition-transform shrink-0 ml-2 ${isExpanded ? "rotate-180" : ""}`}
+                  className={`text-muted transition-transform shrink-0 ml-2 ${isExpanded ? "rotate-180" : ""}`}
                 />
               </button>
 
@@ -418,13 +428,13 @@ function HistoryTab({
                   <button
                     onClick={() => confirmDelete(session.id)}
                     disabled={deleting}
-                    className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                    className="text-xs font-display font-semibold text-danger hover:opacity-80 transition-opacity disabled:opacity-50 cursor-pointer"
                   >
                     {deleting ? "Deleting…" : "Confirm"}
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(null)}
-                    className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                    className="text-muted hover:text-fg transition-colors cursor-pointer"
                   >
                     <X size={14} />
                   </button>
@@ -432,19 +442,20 @@ function HistoryTab({
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id); }}
-                  className="ml-3 shrink-0 text-zinc-700 hover:text-red-400 transition-colors p-1"
+                  className="ml-3 shrink-0 text-subtle hover:text-danger transition-colors p-1 cursor-pointer"
                 >
                   <Trash2 size={15} />
                 </button>
               )}
             </div>
 
+            {/* Expanded exercise list */}
             {isExpanded && (
-              <div className="border-t border-zinc-800 px-4 py-3 space-y-4">
+              <div className="border-t border-border px-4 py-3 space-y-4">
                 {sets === undefined ? (
-                  <p className="text-xs text-zinc-500 py-2">Loading…</p>
+                  <p className="text-xs text-muted py-2">Loading…</p>
                 ) : exerciseOrder.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-2">No sets logged.</p>
+                  <p className="text-xs text-muted py-2">No sets logged.</p>
                 ) : (
                   exerciseOrder.map((exId) => {
                     const exKey = `${session.id}:${exId}`;
@@ -453,186 +464,187 @@ function HistoryTab({
                       .filter((e) => e.name.toLowerCase().includes(editExSearch.toLowerCase()))
                       .slice(0, 25);
                     return (
-                    <div key={exId}>
-                      {isEditingThisEx ? (
-                        <div className="mb-2 space-y-1">
-                          <div className="flex items-center gap-2">
-                            <input
-                              autoFocus
-                              type="text"
-                              value={editExSearch}
-                              onChange={(e) => setEditExSearch(e.target.value)}
-                              placeholder="Search exercise…"
-                              className="flex-1 text-xs bg-zinc-800 border border-orange-500/50 rounded-lg px-2 py-1.5 text-zinc-200 focus:outline-none focus:border-orange-500"
-                            />
-                            <button onClick={() => { setEditExKey(null); setEditExSearch(""); }} className="text-zinc-500 hover:text-zinc-300 shrink-0">
-                              <X size={14} />
-                            </button>
-                          </div>
-                          <div className="bg-zinc-800 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
-                            {filteredExercises.length === 0 ? (
-                              <p className="text-xs text-zinc-500 px-3 py-2">No matches</p>
-                            ) : filteredExercises.map((e) => (
-                              <button
-                                key={e.id}
-                                onClick={() => saveEditExercise(session.id, exId, e.id)}
-                                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                                  e.id === exId ? "text-orange-400 bg-orange-500/10" : "text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
-                                }`}
-                              >
-                                {e.name}
+                      <div key={exId}>
+                        {isEditingThisEx ? (
+                          <div className="mb-2 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editExSearch}
+                                onChange={(e) => setEditExSearch(e.target.value)}
+                                placeholder="Search exercise…"
+                                className="flex-1 text-xs bg-elevated border border-primary/50 rounded-lg px-2 py-1.5 text-fg focus:outline-none focus:border-primary"
+                              />
+                              <button onClick={() => { setEditExKey(null); setEditExSearch(""); }} className="text-muted hover:text-fg cursor-pointer">
+                                <X size={14} />
                               </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">
-                          {exerciseName[exId] ?? exId}
-                        </p>
-                        <div className="flex items-center gap-0.5 shrink-0 ml-2">
-                          {confirmDeleteExerciseKey === exKey ? (
-                            <>
-                              <button
-                                onClick={() => confirmDeleteExercise(session.id, exId)}
-                                disabled={deletingItem}
-                                className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50 mr-1"
-                              >
-                                {deletingItem ? "…" : "Remove"}
-                              </button>
-                              <button onClick={() => setConfirmDeleteExerciseKey(null)} className="text-zinc-600 hover:text-zinc-400">
-                                <X size={12} />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => { setEditExKey(exKey); setEditExSearch(""); setConfirmDeleteExerciseKey(null); }}
-                                className="text-zinc-700 hover:text-orange-400 transition-colors p-0.5"
-                                title="Change exercise"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                              <button
-                                onClick={() => setConfirmDeleteExerciseKey(exKey)}
-                                className="text-zinc-700 hover:text-red-400 transition-colors p-0.5"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      )}
-                      <div className="space-y-1">
-                        {setsByExercise[exId].map((set) => {
-                          if (editingSetId === set.id) {
-                            return (
-                              <div key={set.id} className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2">
-                                <input
-                                  type="number"
-                                  value={editWeight}
-                                  onChange={(e) => setEditWeight(e.target.value)}
-                                  step="any"
-                                  min="0"
-                                  className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
-                                  placeholder="kg"
-                                />
-                                <span className="text-zinc-500 text-xs">kg ×</span>
-                                <input
-                                  type="number"
-                                  value={editReps}
-                                  onChange={(e) => setEditReps(e.target.value)}
-                                  min="1"
-                                  className="w-16 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
-                                  placeholder="reps"
-                                />
-                                <span className="text-zinc-500 text-xs flex-1">reps</span>
+                            </div>
+                            <div className="bg-elevated border border-border rounded-xl overflow-hidden max-h-36 overflow-y-auto">
+                              {filteredExercises.length === 0 ? (
+                                <p className="text-xs text-muted px-3 py-2">No matches</p>
+                              ) : filteredExercises.map((e) => (
                                 <button
-                                  onClick={() => saveEdit(set.id)}
-                                  className="text-green-400 hover:text-green-300 transition-colors"
+                                  key={e.id}
+                                  onClick={() => saveEditExercise(session.id, exId, e.id)}
+                                  className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer ${
+                                    e.id === exId ? "text-primary bg-primary/10" : "text-fg hover:bg-border"
+                                  }`}
                                 >
-                                  <Check size={16} />
+                                  {e.name}
                                 </button>
-                                <button
-                                  onClick={() => setEditingSetId(null)}
-                                  className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            );
-                          }
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-display font-semibold text-muted uppercase tracking-wider">
+                              {exerciseName[exId] ?? exId}
+                            </p>
+                            <div className="flex items-center gap-0.5 shrink-0 ml-2">
+                              {confirmDeleteExerciseKey === exKey ? (
+                                <>
+                                  <button
+                                    onClick={() => confirmDeleteExercise(session.id, exId)}
+                                    disabled={deletingItem}
+                                    className="text-xs font-display font-semibold text-danger hover:opacity-80 transition-opacity disabled:opacity-50 mr-1 cursor-pointer"
+                                  >
+                                    {deletingItem ? "…" : "Remove"}
+                                  </button>
+                                  <button onClick={() => setConfirmDeleteExerciseKey(null)} className="text-muted hover:text-fg cursor-pointer">
+                                    <X size={12} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => { setEditExKey(exKey); setEditExSearch(""); setConfirmDeleteExerciseKey(null); }}
+                                    className="text-subtle hover:text-primary transition-colors p-0.5 cursor-pointer"
+                                    title="Change exercise"
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteExerciseKey(exKey)}
+                                    className="text-subtle hover:text-danger transition-colors p-0.5 cursor-pointer"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
-                          if (confirmDeleteSetId === set.id) {
+                        <div className="space-y-1">
+                          {setsByExercise[exId].map((set) => {
+                            if (editingSetId === set.id) {
+                              return (
+                                <div key={set.id} className="flex items-center gap-2 bg-elevated border border-border rounded-xl px-3 py-2">
+                                  <input
+                                    type="number"
+                                    value={editWeight}
+                                    onChange={(e) => setEditWeight(e.target.value)}
+                                    step="any"
+                                    min="0"
+                                    className="w-20 bg-surface border border-border rounded-lg px-2 py-1 text-fg text-sm text-center focus:outline-none focus:border-primary"
+                                    placeholder="kg"
+                                  />
+                                  <span className="text-muted text-xs">kg ×</span>
+                                  <input
+                                    type="number"
+                                    value={editReps}
+                                    onChange={(e) => setEditReps(e.target.value)}
+                                    min="1"
+                                    className="w-16 bg-surface border border-border rounded-lg px-2 py-1 text-fg text-sm text-center focus:outline-none focus:border-primary"
+                                    placeholder="reps"
+                                  />
+                                  <span className="text-muted text-xs flex-1">reps</span>
+                                  <button
+                                    onClick={() => saveEdit(set.id)}
+                                    className="text-accent hover:opacity-80 transition-opacity cursor-pointer"
+                                  >
+                                    <Check size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingSetId(null)}
+                                    className="text-muted hover:text-fg transition-colors cursor-pointer"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            if (confirmDeleteSetId === set.id) {
+                              return (
+                                <div key={set.id} className="flex items-center justify-between px-1 py-1">
+                                  <span className="text-xs text-muted">
+                                    {set.weight}kg × {set.reps} reps
+                                  </span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      onClick={() => confirmDeleteSet(set.id, session.id)}
+                                      disabled={deletingItem}
+                                      className="text-xs font-display font-semibold text-danger hover:opacity-80 transition-opacity disabled:opacity-50 cursor-pointer"
+                                    >
+                                      {deletingItem ? "…" : "Delete"}
+                                    </button>
+                                    <button onClick={() => setConfirmDeleteSetId(null)} className="text-muted hover:text-fg cursor-pointer">
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            }
+
                             return (
                               <div key={set.id} className="flex items-center justify-between px-1 py-1">
-                                <span className="text-xs text-zinc-500">
-                                  {set.weight}kg × {set.reps} reps
-                                </span>
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-1.5 py-0.5 rounded-md font-display font-semibold ${
+                                    set.isLastSet
+                                      ? "bg-primary/15 text-primary"
+                                      : "bg-elevated text-muted"
+                                  }`}>
+                                    {set.isLastSet ? "Last" : `S${set.setIndex + 1}`}
+                                  </span>
+                                  <span className="text-sm text-fg font-medium">
+                                    {set.weight}kg × {set.reps} reps
+                                  </span>
+                                  {set.rpe && (
+                                    <span className="text-xs text-subtle">@ RPE {set.rpe}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-0.5">
                                   <button
-                                    onClick={() => confirmDeleteSet(set.id, session.id)}
-                                    disabled={deletingItem}
-                                    className="text-xs font-medium text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                                    onClick={() => {
+                                      setEditingSetId(set.id);
+                                      setEditWeight(String(set.weight));
+                                      setEditReps(String(set.reps));
+                                    }}
+                                    className="text-subtle hover:text-primary transition-colors p-1 cursor-pointer"
                                   >
-                                    {deletingItem ? "…" : "Delete"}
+                                    <Pencil size={13} />
                                   </button>
-                                  <button onClick={() => setConfirmDeleteSetId(null)} className="text-zinc-600 hover:text-zinc-400">
-                                    <X size={14} />
+                                  <button
+                                    onClick={() => setConfirmDeleteSetId(set.id)}
+                                    className="text-subtle hover:text-danger transition-colors p-1 cursor-pointer"
+                                  >
+                                    <Trash2 size={13} />
                                   </button>
                                 </div>
                               </div>
                             );
-                          }
-
-                          return (
-                            <div key={set.id} className="flex items-center justify-between px-1 py-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                                  set.isLastSet
-                                    ? "bg-orange-500/20 text-orange-400"
-                                    : "bg-zinc-800 text-zinc-500"
-                                }`}>
-                                  {set.isLastSet ? "Last" : `S${set.setIndex + 1}`}
-                                </span>
-                                <span className="text-sm text-zinc-300">
-                                  {set.weight}kg × {set.reps} reps
-                                </span>
-                                {set.rpe && (
-                                  <span className="text-xs text-zinc-600">@ RPE {set.rpe}</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-0.5">
-                                <button
-                                  onClick={() => {
-                                    setEditingSetId(set.id);
-                                    setEditWeight(String(set.weight));
-                                    setEditReps(String(set.reps));
-                                  }}
-                                  className="text-zinc-600 hover:text-orange-400 transition-colors p-1"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteSetId(set.id)}
-                                  className="text-zinc-700 hover:text-red-400 transition-colors p-1"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                          })}
+                        </div>
                       </div>
-                    </div>
                     );
                   })
                 )}
 
                 {/* Add exercise */}
                 {addToSessionId === session.id ? (
-                  <div className="border-t border-zinc-800 pt-3 mt-1 space-y-3">
+                  <div className="border-t border-border pt-3 mt-1 space-y-3">
                     <div className="space-y-1">
                       <input
                         autoFocus
@@ -640,10 +652,10 @@ function HistoryTab({
                         value={addExSearch}
                         onChange={(e) => { setAddExSearch(e.target.value); setAddExId(""); }}
                         placeholder="Search exercise…"
-                        className="w-full text-xs bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-200 focus:outline-none focus:border-orange-500"
+                        className="w-full text-xs bg-elevated border border-border rounded-xl px-3 py-2 text-fg focus:outline-none focus:border-primary"
                       />
                       {!addExId && (
-                        <div className="bg-zinc-800 rounded-lg overflow-hidden max-h-36 overflow-y-auto">
+                        <div className="bg-elevated border border-border rounded-xl overflow-hidden max-h-36 overflow-y-auto">
                           {allExercises
                             .filter((e) => e.name.toLowerCase().includes(addExSearch.toLowerCase()))
                             .slice(0, 25)
@@ -651,7 +663,7 @@ function HistoryTab({
                               <button
                                 key={e.id}
                                 onClick={() => { setAddExId(e.id); setAddExSearch(e.name); }}
-                                className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
+                                className="w-full text-left px-3 py-1.5 text-xs text-fg hover:bg-border transition-colors cursor-pointer"
                               >
                                 {e.name}
                               </button>
@@ -659,32 +671,35 @@ function HistoryTab({
                         </div>
                       )}
                       {addExId && (
-                        <p className="text-xs text-orange-400 px-1">
-                          {addExSearch} <button onClick={() => { setAddExId(""); setAddExSearch(""); }} className="text-zinc-500 hover:text-zinc-300 ml-1"><X size={10} className="inline" /></button>
+                        <p className="text-xs text-primary px-1 font-display font-semibold">
+                          {addExSearch}
+                          <button onClick={() => { setAddExId(""); setAddExSearch(""); }} className="text-muted hover:text-fg ml-1 cursor-pointer">
+                            <X size={10} className="inline" />
+                          </button>
                         </p>
                       )}
                     </div>
                     <div className="space-y-2">
                       {addSetsRows.map((row, i) => (
                         <div key={i} className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-500 w-6">S{i + 1}</span>
+                          <span className="text-xs text-muted w-6 font-display">S{i + 1}</span>
                           <input
                             type="number"
                             value={row.weight}
                             onChange={(e) => setAddSetsRows((prev) => prev.map((r, j) => j === i ? { ...r, weight: e.target.value } : r))}
                             placeholder="kg"
-                            className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
+                            className="w-20 bg-elevated border border-border rounded-lg px-2 py-1 text-fg text-sm text-center focus:outline-none focus:border-primary"
                           />
-                          <span className="text-zinc-500 text-xs">×</span>
+                          <span className="text-muted text-xs">×</span>
                           <input
                             type="number"
                             value={row.reps}
                             onChange={(e) => setAddSetsRows((prev) => prev.map((r, j) => j === i ? { ...r, reps: e.target.value } : r))}
                             placeholder="reps"
-                            className="w-16 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-zinc-100 text-sm text-center focus:outline-none focus:border-orange-500"
+                            className="w-16 bg-elevated border border-border rounded-lg px-2 py-1 text-fg text-sm text-center focus:outline-none focus:border-primary"
                           />
                           {addSetsRows.length > 1 && (
-                            <button onClick={() => setAddSetsRows((prev) => prev.filter((_, j) => j !== i))} className="text-zinc-600 hover:text-red-400 transition-colors">
+                            <button onClick={() => setAddSetsRows((prev) => prev.filter((_, j) => j !== i))} className="text-muted hover:text-danger transition-colors cursor-pointer">
                               <X size={14} />
                             </button>
                           )}
@@ -692,7 +707,7 @@ function HistoryTab({
                       ))}
                       <button
                         onClick={() => setAddSetsRows((prev) => [...prev, { weight: "", reps: "" }])}
-                        className="text-xs text-zinc-600 hover:text-orange-400 transition-colors flex items-center gap-1 pl-8"
+                        className="text-xs text-subtle hover:text-primary transition-colors flex items-center gap-1 pl-8 cursor-pointer"
                       >
                         <Plus size={11} /> Add set
                       </button>
@@ -701,13 +716,13 @@ function HistoryTab({
                       <button
                         onClick={() => saveAddExercise(session.id)}
                         disabled={!addExId || savingAdd}
-                        className="text-xs font-medium text-orange-400 hover:text-orange-300 transition-colors disabled:opacity-40"
+                        className="text-xs font-display font-semibold text-primary hover:opacity-80 transition-opacity disabled:opacity-40 cursor-pointer"
                       >
                         {savingAdd ? "Saving…" : "Save"}
                       </button>
                       <button
                         onClick={() => { setAddToSessionId(null); setAddExId(""); setAddExSearch(""); setAddSetsRows([{ weight: "", reps: "" }]); }}
-                        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                        className="text-xs text-muted hover:text-fg transition-colors cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -716,7 +731,7 @@ function HistoryTab({
                 ) : (
                   <button
                     onClick={() => { setAddToSessionId(session.id); setAddExId(""); setAddExSearch(""); setAddSetsRows([{ weight: "", reps: "" }]); }}
-                    className="mt-2 text-xs text-zinc-600 hover:text-orange-400 transition-colors flex items-center gap-1"
+                    className="mt-2 text-xs text-subtle hover:text-primary transition-colors flex items-center gap-1 cursor-pointer"
                   >
                     <Plus size={12} /> Add exercise
                   </button>
@@ -732,7 +747,7 @@ function HistoryTab({
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="text-center py-16 text-zinc-500 text-sm">
+    <div className="text-center py-16 text-muted text-sm font-display">
       {message}
     </div>
   );

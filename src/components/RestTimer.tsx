@@ -41,36 +41,51 @@ export default function RestTimer({ durationSeconds, onComplete, onSkip }: Props
     };
   }, [durationSeconds]);
 
-  const pct = ((durationSeconds - remaining) / durationSeconds) * 100;
+  const pct = (durationSeconds - remaining) / durationSeconds;
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference * (1 - pct);
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center p-4 z-50">
-      <div className="w-full max-w-sm bg-zinc-900 rounded-2xl p-6 space-y-4">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center p-4 z-50">
+      <div className="w-full max-w-sm bg-surface rounded-2xl p-6 space-y-5 border border-border">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-zinc-400 font-medium uppercase tracking-widest">Rest Timer</span>
-          <button onClick={onSkip} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <span className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Rest</span>
+          <button onClick={onSkip} className="text-subtle hover:text-fg transition-colors cursor-pointer p-1 -mr-1">
             <X size={18} />
           </button>
         </div>
 
-        <div className="text-center">
-          <span className="text-6xl font-mono font-bold text-zinc-100 tabular-nums">
-            {mins}:{secs.toString().padStart(2, "0")}
-          </span>
-        </div>
-
-        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-orange-500 transition-all duration-500"
-            style={{ width: `${pct}%` }}
-          />
+        <div className="flex justify-center">
+          <div className="relative w-36 h-36">
+            <svg className="-rotate-90 w-full h-full" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r={radius} strokeWidth="6" stroke="var(--border)" fill="none" />
+              <circle
+                cx="70" cy="70" r={radius}
+                strokeWidth="6"
+                stroke="var(--primary)"
+                fill="none"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                style={{ transition: "stroke-dashoffset 0.5s linear" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-display text-4xl font-bold text-fg tabular-nums leading-none">
+                {mins}:{secs.toString().padStart(2, "0")}
+              </span>
+              <span className="text-xs text-muted mt-1">remaining</span>
+            </div>
+          </div>
         </div>
 
         <button
           onClick={onSkip}
-          className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-3 rounded-xl transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-elevated border border-border hover:border-primary/40 text-fg font-medium py-3 rounded-xl transition-colors cursor-pointer"
         >
           <SkipForward size={16} />
           Skip Rest

@@ -25,6 +25,8 @@ function toKg(val: number, unit: "kg" | "lbs"): number {
   return unit === "lbs" ? val / KG_TO_LBS : val;
 }
 
+const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
+
 export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, unit, onLog }: Props) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
@@ -62,32 +64,35 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       {/* Set header */}
       <div className="flex items-center justify-between">
         <div>
-          <span className={`text-sm font-semibold uppercase tracking-wide ${isLastSet ? "text-orange-400" : "text-zinc-400"}`}>
+          <span className={`font-display font-bold text-base uppercase tracking-wide ${isLastSet ? "text-primary" : "text-muted"}`}>
             {isLastSet ? "Last Set" : `Set ${setIndex + 1}`}
           </span>
           {isLastSet && techniqueInfo && (
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-orange-400/80">{techniqueInfo.label}</span>
-              <button onClick={() => setShowTechniqueInfo(true)} className="text-zinc-500 hover:text-orange-400 transition-colors">
+              <span className="text-xs text-primary/80">{techniqueInfo.label}</span>
+              <button
+                onClick={() => setShowTechniqueInfo(true)}
+                className="text-subtle hover:text-primary transition-colors cursor-pointer"
+              >
                 <Info size={14} />
               </button>
             </div>
           )}
         </div>
         {targetRpe && (
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded-full">
-            Target RPE {targetRpe[0]}–{targetRpe[1]}
+          <span className="text-xs text-muted bg-elevated px-2.5 py-1 rounded-full border border-border">
+            RPE {targetRpe[0]}–{targetRpe[1]}
           </span>
         )}
       </div>
 
       {/* Previous data */}
       {prevSet && (
-        <div className="bg-zinc-800/50 rounded-lg px-3 py-2 text-xs text-zinc-400">
-          <span className="text-zinc-500">Last time: </span>
-          <span className="text-zinc-300 font-medium">
-            {toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps} reps
-            {prevSet.rpe && ` @ RPE ${prevSet.rpe}`}
+        <div className="bg-elevated/60 border border-border rounded-xl px-4 py-2.5 flex items-center justify-between">
+          <span className="text-xs text-muted">Last time</span>
+          <span className="font-display font-semibold text-sm text-fg">
+            {toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
+            {prevSet.rpe && <span className="text-muted font-normal"> @ RPE {prevSet.rpe}</span>}
           </span>
         </div>
       )}
@@ -96,7 +101,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Weight ({unit})</label>
+            <label className="block text-xs text-muted mb-1.5">Weight ({unit})</label>
             <input
               type="number"
               value={weight}
@@ -107,13 +112,13 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-100 text-center text-lg font-semibold focus:outline-none focus:border-orange-500"
+              className="w-full bg-surface border border-border rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none focus:border-primary transition-colors"
               placeholder="—"
               required
             />
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">
+            <label className="block text-xs text-muted mb-1.5">
               Reps ({exercise.repRange[0]}–{exercise.repRange[1]})
             </label>
             <input
@@ -126,25 +131,26 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-100 text-center text-lg font-semibold focus:outline-none focus:border-orange-500"
+              className="w-full bg-surface border border-border rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none focus:border-primary transition-colors"
               placeholder="—"
               required
             />
           </div>
         </div>
 
+        {/* RPE selector */}
         <div>
-          <label className="block text-xs text-zinc-500 mb-1">RPE (optional)</label>
-          <div className="flex gap-1.5">
-            {[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map((r) => (
+          <label className="block text-xs text-muted mb-1.5">RPE (optional)</label>
+          <div className="flex gap-1">
+            {RPE_VALUES.map((r) => (
               <button
                 key={r}
                 type="button"
-                onClick={() => setRpe(String(r))}
-                className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                onClick={() => setRpe(rpe === String(r) ? "" : String(r))}
+                className={`flex-1 py-2 rounded-lg text-xs font-display font-semibold transition-colors cursor-pointer ${
                   rpe === String(r)
-                    ? "bg-orange-500 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    ? "bg-primary text-primary-fg"
+                    : "bg-elevated text-muted hover:text-fg hover:bg-border"
                 }`}
               >
                 {r}
@@ -153,17 +159,18 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
           </div>
         </div>
 
+        {/* Failure toggle */}
         {isLastSet && (
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Reached failure?</label>
+            <label className="block text-xs text-muted mb-1.5">Reached failure?</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setFailureHit(true)}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
                   failureHit === true
-                    ? "bg-green-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    ? "bg-accent text-accent-fg"
+                    : "bg-elevated text-muted hover:text-fg"
                 }`}
               >
                 Yes
@@ -171,10 +178,10 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               <button
                 type="button"
                 onClick={() => setFailureHit(false)}
-                className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
                   failureHit === false
-                    ? "bg-zinc-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    ? "bg-elevated border-2 border-border text-fg"
+                    : "bg-elevated text-muted hover:text-fg"
                 }`}
               >
                 No
@@ -185,9 +192,9 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3.5 rounded-xl transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
         >
-          <CheckCircle size={18} />
+          <CheckCircle size={20} />
           Log Set
         </button>
       </form>

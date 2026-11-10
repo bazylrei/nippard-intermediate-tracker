@@ -191,13 +191,8 @@ function WorkoutContent() {
     setPhase("sets");
   }
 
-  function handleWarmupComplete() {
-    setPhase("sets");
-  }
-
-  function handleRestDone() {
-    setShowRestTimer(false);
-  }
+  function handleWarmupComplete() { setPhase("sets"); }
+  function handleRestDone() { setShowRestTimer(false); }
 
   async function toggleAlternate(exId: string) {
     const current = useAlternate[exId] ?? 0;
@@ -215,48 +210,51 @@ function WorkoutContent() {
 
   if (!programReady && loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-zinc-500">Loading workout...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted text-sm">Loading workout...</div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-zinc-500">Loading workout...</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted text-sm">Loading workout...</div>
       </div>
     );
   }
 
   if (!workoutDay || !currentExercise) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-zinc-500">Invalid workout.</div>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-muted text-sm">Invalid workout.</div>
       </div>
     );
   }
 
+  // ── Done screen ──────────────────────────────────────────────────────────
   if (done) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6 text-center">
-        <Trophy size={64} className="text-orange-400" />
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-8 text-center bg-bg">
+        <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
+          <Trophy size={48} className="text-primary" />
+        </div>
         <div>
-          <h1 className="text-2xl font-bold text-zinc-100">Workout Complete!</h1>
-          <p className="text-zinc-400 mt-1">
-            Week {week}, {DAY_LABELS[workoutDay.dayType]} — {resolvedExercises.length} exercises done
+          <h1 className="font-display text-5xl font-bold text-fg leading-tight">Workout Complete!</h1>
+          <p className="text-muted mt-2">
+            Week {week} · {DAY_LABELS[workoutDay.dayType]} · {resolvedExercises.length} exercises
           </p>
         </div>
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button
             onClick={() => router.push("/progress")}
-            className="bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
           >
             View Progress
           </button>
           <button
             onClick={() => router.push("/")}
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium py-3 rounded-xl transition-colors"
+            className="bg-surface border border-border hover:bg-elevated text-fg font-medium py-4 rounded-2xl transition-colors cursor-pointer"
           >
             Back to Dashboard
           </button>
@@ -265,46 +263,51 @@ function WorkoutContent() {
     );
   }
 
-  // ── Overview screen ──────────────────────────────────────────────────────────
+  // ── Overview screen ──────────────────────────────────────────────────────
   if (phase === "overview") {
     return (
-      <div className="h-dvh flex flex-col max-w-lg mx-auto">
-        <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-          <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+      <div className="h-dvh flex flex-col max-w-lg mx-auto bg-bg">
+        <div className="flex items-center gap-3 p-4 border-b border-border">
+          <button
+            onClick={() => router.push("/")}
+            className="text-subtle hover:text-fg transition-colors cursor-pointer"
+          >
             <ArrowLeft size={20} />
           </button>
           <div>
-            <p className="text-xs text-zinc-500">Week {week}</p>
-            <h1 className="text-sm font-semibold text-zinc-200">{DAY_LABELS[workoutDay.dayType]}</h1>
+            <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Week {week}</p>
+            <h1 className="font-display text-lg font-bold text-fg">{DAY_LABELS[workoutDay.dayType]}</h1>
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          <h2 className="text-lg font-bold text-zinc-100">Today&apos;s Workout</h2>
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+          <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">
+            Today&apos;s Workout — {resolvedExercises.length} exercises
+          </p>
           <div className="space-y-2">
             {resolvedExercises.map((ex, i) => (
-              <div key={i} className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center gap-3">
-                <span className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400 shrink-0">
+              <div key={i} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg bg-elevated flex items-center justify-center font-display text-xs font-bold text-muted shrink-0">
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-zinc-200 truncate">{ex.name}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="font-display font-semibold text-fg truncate">{ex.name}</p>
+                  <p className="text-xs text-muted">
                     {ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps
                   </p>
                 </div>
-                <span className="text-xs text-zinc-600 capitalize shrink-0">{ex.muscleGroup}</span>
+                <span className="text-xs text-subtle capitalize shrink-0">{ex.muscleGroup}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="p-4 border-t border-zinc-800">
+        <div className="p-4 border-t border-border">
           <button
             onClick={() => setPhase("warmup")}
-            className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-4 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
           >
-            <Play size={18} fill="currentColor" />
+            <Play size={20} fill="currentColor" />
             Begin Workout
           </button>
         </div>
@@ -312,7 +315,7 @@ function WorkoutContent() {
     );
   }
 
-  // ── Active workout ───────────────────────────────────────────────────────────
+  // ── Active workout ───────────────────────────────────────────────────────
   const totalSets = totalSetsForExercise(currentExercise);
   const isLastSet = setIndex === totalSets - 1;
   const currentWarmupSteps = warmupSteps[currentExercise.warmupProtocol] ?? [];
@@ -320,19 +323,22 @@ function WorkoutContent() {
   const setsForExercise = sessionSets.filter((s) => s.exerciseId === currentExercise.id && s.setIndex >= 0);
 
   return (
-    <div className="h-dvh flex flex-col max-w-lg mx-auto relative">
+    <div className="h-dvh flex flex-col max-w-lg mx-auto relative bg-bg">
       {/* Exercise list overlay */}
       {showExerciseList && (
-        <div className="absolute inset-0 z-20 bg-zinc-950 flex flex-col">
-          <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-            <button onClick={() => setShowExerciseList(false)} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+        <div className="absolute inset-0 z-20 bg-bg flex flex-col">
+          <div className="flex items-center gap-3 p-4 border-b border-border">
+            <button
+              onClick={() => setShowExerciseList(false)}
+              className="text-subtle hover:text-fg transition-colors cursor-pointer"
+            >
               <X size={20} />
             </button>
-            <h2 className="text-sm font-semibold text-zinc-200">Exercises</h2>
+            <h2 className="font-display font-bold text-fg">Exercises</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {resolvedExercises.map((ex, i) => {
-              const done = isExerciseDone(i);
+              const exDone = isExerciseDone(i);
               const isCurrent = i === exerciseIndex;
               return (
                 <button
@@ -342,33 +348,33 @@ function WorkoutContent() {
                     setPhase("warmup");
                     setShowExerciseList(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
                     isCurrent
-                      ? "bg-orange-500/10 border border-orange-500/20"
-                      : "bg-zinc-900 hover:bg-zinc-800"
+                      ? "bg-primary/10 border border-primary/20"
+                      : "bg-surface border border-border hover:bg-elevated"
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                    done
-                      ? "bg-green-800/60 text-green-400"
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-display text-xs font-bold shrink-0 ${
+                    exDone
+                      ? "bg-accent/20 text-accent"
                       : isCurrent
-                      ? "bg-orange-500/20 text-orange-400"
-                      : "bg-zinc-800 text-zinc-500"
+                      ? "bg-primary/20 text-primary"
+                      : "bg-elevated text-muted"
                   }`}>
-                    {done ? <CheckCircle2 size={14} /> : i + 1}
+                    {exDone ? <CheckCircle2 size={14} /> : i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${
-                      isCurrent ? "text-zinc-100" : done ? "text-zinc-500" : "text-zinc-300"
+                    <p className={`font-display font-semibold truncate ${
+                      isCurrent ? "text-fg" : exDone ? "text-muted" : "text-fg"
                     }`}>
                       {ex.name}
                     </p>
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-muted">
                       {ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps
                     </p>
                   </div>
-                  {done && <span className="text-xs text-green-500 shrink-0">Done</span>}
-                  {isCurrent && !done && <span className="text-xs text-orange-400 shrink-0">Current</span>}
+                  {exDone && <span className="text-xs text-accent shrink-0">Done</span>}
+                  {isCurrent && !exDone && <span className="text-xs text-primary shrink-0">Now</span>}
                 </button>
               );
             })}
@@ -377,27 +383,40 @@ function WorkoutContent() {
       )}
 
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-        <button onClick={() => setShowExerciseList(true)} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+        <button
+          onClick={() => setShowExerciseList(true)}
+          className="text-subtle hover:text-fg transition-colors cursor-pointer"
+        >
           <List size={20} />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-zinc-500">Week {week} · {DAY_LABELS[workoutDay.dayType]}</p>
-          <p className="text-sm font-medium text-zinc-200 truncate">
+          <p className="font-display text-xs font-semibold tracking-widest text-muted uppercase">
+            Week {week} · {DAY_LABELS[workoutDay.dayType]}
+          </p>
+          <p className="text-xs text-muted">
             Exercise {exerciseIndex + 1} of {resolvedExercises.length}
           </p>
         </div>
-        <div className="flex gap-1">
+        {/* Progress dots */}
+        <div className="flex gap-1 items-center">
           {resolvedExercises.map((_, i) => (
             <div
               key={i}
-              className={`h-1.5 w-1.5 rounded-full ${
-                isExerciseDone(i) ? "bg-orange-500" : i === exerciseIndex ? "bg-orange-400" : "bg-zinc-700"
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                isExerciseDone(i)
+                  ? "bg-primary w-4"
+                  : i === exerciseIndex
+                  ? "bg-primary/50 w-4"
+                  : "bg-border w-1.5"
               }`}
             />
           ))}
         </div>
-        <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+        <button
+          onClick={() => router.push("/")}
+          className="text-subtle hover:text-fg transition-colors cursor-pointer"
+        >
           <ArrowLeft size={20} />
         </button>
       </div>
@@ -405,7 +424,7 @@ function WorkoutContent() {
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
         {/* Exercise name */}
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-zinc-100">{currentExercise.name}</h2>
+          <h2 className="font-display text-4xl font-bold text-fg leading-tight">{currentExercise.name}</h2>
           <div className="flex items-center gap-2">
             {(() => {
               const origEx = workoutDay.exercises[exerciseIndex];
@@ -415,10 +434,10 @@ function WorkoutContent() {
               return (
                 <button
                   onClick={() => toggleAlternate(currentExercise.id)}
-                  className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-orange-400 transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-subtle hover:text-primary transition-colors cursor-pointer"
                 >
                   <Repeat2 size={13} />
-                  Swap to: {names[nextIdx]}
+                  Swap to {names[nextIdx]}
                 </button>
               );
             })()}
@@ -427,7 +446,7 @@ function WorkoutContent() {
 
         {/* Form note */}
         {currentExercise.formNote && (
-          <p className="text-sm text-zinc-400 bg-zinc-900 rounded-xl px-4 py-3 leading-relaxed">
+          <p className="text-sm text-muted bg-surface border border-border rounded-xl px-4 py-3 leading-relaxed">
             {currentExercise.formNote}
           </p>
         )}
@@ -437,7 +456,7 @@ function WorkoutContent() {
             href={currentExercise.youtubeUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-subtle hover:text-danger transition-colors"
           >
             <ExternalLink size={13} />
             Watch tutorial
@@ -445,7 +464,7 @@ function WorkoutContent() {
         )}
 
         {/* Sets progress */}
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex gap-1.5">
             {Array.from({ length: totalSets }).map((_, i) => {
               const logged = setsForExercise[i];
@@ -453,15 +472,19 @@ function WorkoutContent() {
               return (
                 <div
                   key={i}
-                  className={`flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-medium ${
+                  className={`flex-1 h-10 rounded-lg flex items-center justify-center font-display font-bold text-sm transition-colors ${
                     logged
-                      ? isLast ? "bg-orange-500/20 text-orange-400 border border-orange-500/40" : "bg-green-900/30 text-green-400 border border-green-700/40"
+                      ? isLast
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "bg-accent/10 text-accent border border-accent/25"
                       : i === setIndex && phase === "sets"
-                      ? isLast ? "bg-orange-500/30 border border-orange-500 text-orange-300" : "bg-zinc-700 border border-zinc-500 text-zinc-200"
-                      : "bg-zinc-900 border border-zinc-800 text-zinc-600"
+                      ? isLast
+                        ? "bg-primary/20 border border-primary text-primary"
+                        : "bg-elevated border border-border text-fg"
+                      : "bg-surface border border-border text-subtle"
                   }`}
                 >
-                  {logged ? `${logged.reps}r` : isLast ? "●" : i + 1}
+                  {logged ? logged.reps : isLast ? "●" : i + 1}
                 </div>
               );
             })}
@@ -469,7 +492,7 @@ function WorkoutContent() {
           {sessionSets.filter((s) => s.setIndex >= 0).length > 0 && (
             <button
               onClick={handleGoBack}
-              className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+              className="text-xs text-subtle hover:text-muted transition-colors cursor-pointer"
             >
               ← Undo last set
             </button>
@@ -508,7 +531,7 @@ function WorkoutContent() {
               setDone(true);
             }
           }}
-          className="w-full flex items-center justify-center gap-1.5 text-sm text-zinc-600 hover:text-zinc-400 py-2 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 text-sm text-subtle hover:text-muted py-2 transition-colors cursor-pointer"
         >
           Skip exercise
           <ChevronRight size={14} />
@@ -528,7 +551,11 @@ function WorkoutContent() {
 
 export default function WorkoutPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-zinc-500">Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-bg text-muted text-sm">
+        Loading...
+      </div>
+    }>
       <WorkoutContent />
     </Suspense>
   );
