@@ -21,6 +21,8 @@ export interface Exercise {
   earlySetCount: number;
   lastSetCount: number;
   formNote: string;
+  youtubeUrl?: string | null;
+  instructions?: string | null;
 }
 
 export type MuscleGroup =
@@ -72,6 +74,7 @@ export interface SetLog {
 export interface WorkoutSession {
   id: string;
   userId: string;
+  programId: string | null;
   week: number;
   dayIndex: number; // 0–4
   dayType: DayType;
@@ -79,6 +82,55 @@ export interface WorkoutSession {
   completedAt: string | null;
   currentExerciseIndex: number;
   currentSetIndex: number;
+}
+
+export interface ProgramRow {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  totalWeeks: number;
+  createdBy: string | null;
+  isPublic: boolean;
+  createdAt: string;
+  userCount: number;
+}
+
+export interface BuilderExercise {
+  pdeId: string;
+  exerciseId: string;
+  name: string;
+  position: number;
+  repRangeMin: number;
+  repRangeMax: number;
+  earlySetCount: number;
+  lastSetCount: number;
+  earlySetRpeMin: number;
+  earlySetRpeMax: number;
+  lastSetRpeMin: number | null;
+  lastSetRpeMax: number | null;
+  lastSetTarget: string;
+  warmupProtocol: string;
+}
+
+export interface BuilderDay {
+  pdId: string;
+  week: number;
+  dayIndex: number;
+  dayType: string;
+  exercises: BuilderExercise[];
+}
+
+export interface BuilderProgram {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  isPublic: boolean;
+  createdBy: string | null;
+  totalWeeks: number;
+  days: BuilderDay[];
+  userCount: number;
 }
 
 export interface PersonalRecord {

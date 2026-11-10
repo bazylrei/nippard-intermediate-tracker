@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
-import { FAILURE_TECHNIQUE_LABELS } from "@/lib/program-data";
+import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
 
 interface Props {
@@ -26,15 +26,28 @@ function toKg(val: number, unit: "kg" | "lbs"): number {
 }
 
 export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, unit, onLog }: Props) {
-  const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
-  const [weight, setWeight] = useState(prevSet ? String(toDisplay(prevSet.weight, unit)) : "");
-  const [reps, setReps] = useState(prevSet ? String(prevSet.reps) : "");
-  const [rpe, setRpe] = useState(prevSet?.rpe ? String(prevSet.rpe) : "");
+  const [weight, setWeight] = useState("");
+  const [reps, setReps] = useState("");
+  const [rpe, setRpe] = useState("");
   const [failureHit, setFailureHit] = useState<boolean | null>(null);
   const [showTechniqueInfo, setShowTechniqueInfo] = useState(false);
+  const populated = useRef(false);
 
+  useEffect(() => {
+    if (populated.current || previousSets.length === 0) return;
+    populated.current = true;
+    const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
+    if (prevSet) {
+      setWeight(String(toDisplay(prevSet.weight, unit)));
+      setReps(String(prevSet.reps));
+      setRpe(prevSet.rpe ? String(prevSet.rpe) : "");
+    }
+  }, [previousSets, setIndex, unit]);
+
+  const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
+  const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
-  const techniqueInfo = isLastSet ? FAILURE_TECHNIQUE_LABELS[exercise.lastSetTarget] : null;
+  const techniqueInfo = isLastSet ? failureTechniques[exercise.lastSetTarget] : null;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -90,6 +103,10 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               onChange={(e) => setWeight(e.target.value)}
               step="any"
               min="0"
+              inputMode="decimal"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
               className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-100 text-center text-lg font-semibold focus:outline-none focus:border-orange-500"
               placeholder="—"
               required
@@ -105,6 +122,10 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               onChange={(e) => setReps(e.target.value)}
               min="1"
               max="50"
+              inputMode="numeric"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
               className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2.5 text-zinc-100 text-center text-lg font-semibold focus:outline-none focus:border-orange-500"
               placeholder="—"
               required

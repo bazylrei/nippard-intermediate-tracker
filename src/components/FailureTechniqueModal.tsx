@@ -1,8 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import { FAILURE_TECHNIQUE_LABELS } from "@/lib/program-data";
 import type { FailureTechnique } from "@/lib/types";
+import { useProgramContext } from "@/context/ProgramContext";
 
 interface Props {
   technique: FailureTechnique;
@@ -10,7 +10,8 @@ interface Props {
 }
 
 export default function FailureTechniqueModal({ technique, onClose }: Props) {
-  const info = FAILURE_TECHNIQUE_LABELS[technique];
+  const { failureTechniques } = useProgramContext();
+  const info = failureTechniques[technique];
   if (!info) return null;
 
   return (

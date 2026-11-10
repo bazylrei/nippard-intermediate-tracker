@@ -2,16 +2,29 @@
 
 import { useState } from "react";
 import { CheckCircle2, Circle } from "lucide-react";
-import { WARMUP_PROTOCOLS } from "@/lib/program-data";
-import type { WarmupProtocol } from "@/lib/types";
 
 interface Props {
-  protocol: WarmupProtocol;
+  steps: string[];
   onComplete: () => void;
+  onSkip: () => void;
+  prevWorkingWeightKg?: number;
+  unit: "kg" | "lbs";
 }
 
-export default function WarmupChecklist({ protocol, onComplete }: Props) {
-  const steps = WARMUP_PROTOCOLS[protocol];
+function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"): string | null {
+  const match = step.match(/~(\d+)%/);
+  if (!match) return null;
+  const pct = parseInt(match[1]) / 100;
+  const weightKg = workingWeightKg * pct;
+  if (unit === "lbs") {
+    const lbs = Math.round(weightKg * 2.20462 / 2.5) * 2.5;
+    return `~${lbs} lbs`;
+  }
+  const kg = Math.round(weightKg / 2.5) * 2.5;
+  return `~${kg} kg`;
+}
+
+export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorkingWeightKg, unit }: Props) {
   const [checked, setChecked] = useState<boolean[]>(steps.map(() => false));
 
   if (!steps.length) {
@@ -30,26 +43,44 @@ export default function WarmupChecklist({ protocol, onComplete }: Props) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Warm-Up</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">Warm-Up</h3>
+        <button
+          onClick={onSkip}
+          className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+        >
+          Skip warm-up →
+        </button>
+      </div>
       <div className="space-y-2">
-        {steps.map((step, i) => (
-          <button
-            key={i}
-            onClick={() => toggle(i)}
-            className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${
-              checked[i] ? "bg-zinc-800/50" : "bg-zinc-900 hover:bg-zinc-800"
-            }`}
-          >
-            {checked[i] ? (
-              <CheckCircle2 size={18} className="text-green-500 mt-0.5 shrink-0" />
-            ) : (
-              <Circle size={18} className="text-zinc-600 mt-0.5 shrink-0" />
-            )}
-            <span className={`text-sm ${checked[i] ? "line-through text-zinc-500" : "text-zinc-300"}`}>
-              {step}
-            </span>
-          </button>
-        ))}
+        {steps.map((step, i) => {
+          const suggestion = prevWorkingWeightKg != null
+            ? suggestWeight(step, prevWorkingWeightKg, unit)
+            : null;
+          return (
+            <button
+              key={i}
+              onClick={() => toggle(i)}
+              className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors ${
+                checked[i] ? "bg-zinc-800/50" : "bg-zinc-900 hover:bg-zinc-800"
+              }`}
+            >
+              {checked[i] ? (
+                <CheckCircle2 size={18} className="text-green-500 mt-0.5 shrink-0" />
+              ) : (
+                <Circle size={18} className="text-zinc-600 mt-0.5 shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm ${checked[i] ? "line-through text-zinc-500" : "text-zinc-300"}`}>
+                  {step}
+                </span>
+                {suggestion && !checked[i] && (
+                  <span className="block text-xs text-orange-400/70 mt-0.5">{suggestion}</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
       <p className="text-xs text-zinc-500 text-center">Tap each step when done to continue</p>
     </div>

@@ -4,18 +4,29 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getNextSession, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
-import { PROGRAM, DAY_LABELS, getSessionNumber, getTotalSessions } from "@/lib/program-data";
+import { DAY_LABELS, getSessionNumber, getTotalSessions } from "@/lib/program-data";
+import { useProgramContext } from "@/context/ProgramContext";
 import type { UserPreferences } from "@/lib/types";
-import { Dumbbell, TrendingUp, Play, LogOut, Settings, ChevronRight } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/cache";
+import { Dumbbell, Play, LogOut, Settings } from "lucide-react";
+
+type CachedDashboard = {
+  nextSession: { week: number; dayIndex: number };
+  hasResume: boolean;
+  prefs: UserPreferences;
+  email: string;
+};
 
 export default function Dashboard() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const { program, ready: programReady } = useProgramContext();
+  const cached = cacheGet<CachedDashboard>("dashboard");
+  const [loading, setLoading] = useState(!cached);
   const [userId, setUserId] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [nextSession, setNextSession] = useState<{ week: number; dayIndex: number } | null>(null);
-  const [hasResume, setHasResume] = useState(false);
-  const [prefs, setPrefs] = useState<UserPreferences>({ unit: "kg", alternateSelections: {} });
+  const [email, setEmail] = useState(cached?.email ?? "");
+  const [nextSession, setNextSession] = useState<{ week: number; dayIndex: number } | null>(cached?.nextSession ?? null);
+  const [hasResume, setHasResume] = useState(cached?.hasResume ?? false);
+  const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {} });
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
@@ -24,16 +35,20 @@ export default function Dashboard() {
       const { data: { user } } = await sb.auth.getUser();
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
-      setEmail(user.email ?? "");
 
       const [incomplete, next, p] = await Promise.all([
         getIncompleteSession(user.id),
         getNextSession(user.id),
         getPreferences(user.id),
       ]);
+      const resolvedNext = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : next;
+      const resolvedEmail = user.email ?? "";
       setHasResume(!!incomplete);
-      setNextSession(incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : next);
+      setNextSession(resolvedNext);
       setPrefs(p);
+      setEmail(resolvedEmail);
+      cacheSet("dashboard", { nextSession: resolvedNext, hasResume: !!incomplete, prefs: p, email: resolvedEmail });
+      cacheSet("prefs", p);
       setLoading(false);
     }
     init();
@@ -49,6 +64,8 @@ export default function Dashboard() {
     if (!userId) return;
     const next: UserPreferences = { ...prefs, unit: prefs.unit === "kg" ? "lbs" : "kg" };
     setPrefs(next);
+    if (nextSession) cacheSet("dashboard", { nextSession, hasResume, prefs: next, email });
+    cacheSet("prefs", next);
     await upsertPreferences(userId, { unit: next.unit });
   }
 
@@ -65,13 +82,13 @@ export default function Dashboard() {
     );
   }
 
-  const nextDay = nextSession ? PROGRAM.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
+  const nextDay = nextSession ? program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
   const sessionNum = nextSession ? getSessionNumber(nextSession.week, nextSession.dayIndex) : 1;
   const totalSessions = getTotalSessions();
   const progressPct = Math.round(((sessionNum - 1) / totalSessions) * 100);
 
   return (
-    <div className="min-h-screen max-w-lg mx-auto flex flex-col p-4 gap-5">
+    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-5">
       {/* Header */}
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-2.5">
@@ -174,7 +191,7 @@ export default function Dashboard() {
       <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
         <h3 className="text-sm font-semibold text-zinc-400">Week {nextSession?.week ?? 1} Overview</h3>
         <div className="space-y-1.5">
-          {(PROGRAM.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? []).map((day, i) => {
+          {(program.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? []).map((day, i) => {
             const isNext = i === nextSession?.dayIndex;
             const isDone = nextSession ? i < nextSession.dayIndex : false;
             return (
@@ -201,17 +218,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Progress link */}
-      <button
-        onClick={() => router.push("/progress")}
-        className="flex items-center justify-between bg-zinc-900 rounded-2xl p-4 hover:bg-zinc-800 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <TrendingUp size={20} className="text-orange-400" />
-          <span className="text-sm font-medium text-zinc-200">View Progress & PRs</span>
-        </div>
-        <ChevronRight size={16} className="text-zinc-500" />
-      </button>
     </div>
   );
 }

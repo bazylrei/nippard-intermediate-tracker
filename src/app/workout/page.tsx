@@ -14,12 +14,14 @@ import {
   getLastSessionSetsForExercise,
   getPreferences,
 } from "@/lib/db";
-import { getWorkoutDay, DAY_LABELS, WARMUP_PROTOCOLS } from "@/lib/program-data";
+import { DAY_LABELS } from "@/lib/program-data";
+import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, UserPreferences, Exercise } from "@/lib/types";
+import { cacheGet, cacheSet } from "@/lib/cache";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
 import RestTimer from "@/components/RestTimer";
-import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink } from "lucide-react";
 import { Suspense } from "react";
 
 type Phase = "overview" | "warmup" | "sets" | "rest";
@@ -27,9 +29,11 @@ type Phase = "overview" | "warmup" | "sets" | "rest";
 function WorkoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { getWorkoutDay, warmupSteps, programId, ready: programReady } = useProgramContext();
   const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
-  const [prefs, setPrefs] = useState<UserPreferences>({ unit: "kg", alternateSelections: {} });
+  const cachedPrefs = cacheGet<UserPreferences>("prefs");
+  const [prefs, setPrefs] = useState<UserPreferences>(cachedPrefs ?? { unit: "kg", alternateSelections: {} });
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [setIndex, setSetIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("overview");
@@ -37,14 +41,14 @@ function WorkoutContent() {
   const [prevSets, setPrevSets] = useState<SetLog[]>([]);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restDuration, setRestDuration] = useState(120);
-  const [useAlternate, setUseAlternate] = useState<Record<string, number>>({});
+  const [useAlternate, setUseAlternate] = useState<Record<string, number>>(cachedPrefs?.alternateSelections ?? {});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showExerciseList, setShowExerciseList] = useState(false);
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
-  const workoutDay = useMemo(() => getWorkoutDay(week, dayIndex), [week, dayIndex]);
+  const workoutDay = useMemo(() => getWorkoutDay(week, dayIndex), [week, dayIndex, getWorkoutDay]);
 
   const resolvedExercises = workoutDay?.exercises.map((ex) => {
     const idx = useAlternate[ex.id] ?? 0;
@@ -61,6 +65,7 @@ function WorkoutContent() {
   }, []);
 
   useEffect(() => {
+    if (!programReady) return;
     setDone(false);
     setLoading(true);
     setSessionSets([]);
@@ -77,6 +82,7 @@ function WorkoutContent() {
       ]);
       setPrefs(p);
       setUseAlternate(p.alternateSelections);
+      cacheSet("prefs", p);
 
       const exerciseCount = workoutDay?.exercises.length ?? 0;
       let sess: WorkoutSession;
@@ -92,7 +98,7 @@ function WorkoutContent() {
         setPhase(existing.currentSetIndex === -1 ? "warmup" : "sets");
       } else {
         const dayType = workoutDay?.dayType ?? "upper-a";
-        sess = await createSession(user.id, week, dayIndex, dayType);
+        sess = await createSession(user.id, week, dayIndex, dayType, programId);
         setPhase("overview");
       }
       setSession(sess);
@@ -103,7 +109,7 @@ function WorkoutContent() {
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, router, workoutDay, loadPrevSets]);
+  }, [week, dayIndex, router, workoutDay, loadPrevSets, programReady]);
 
   useEffect(() => {
     if (!userId || !currentExercise) return;
@@ -197,6 +203,7 @@ function WorkoutContent() {
     const current = useAlternate[exId] ?? 0;
     const next = { ...useAlternate, [exId]: (current + 1) % 3 };
     setUseAlternate(next);
+    cacheSet("prefs", { ...prefs, alternateSelections: next });
     if (userId) {
       const sb = createClient();
       await sb.from("user_preferences").upsert(
@@ -204,6 +211,14 @@ function WorkoutContent() {
         { onConflict: "user_id" }
       );
     }
+  }
+
+  if (!programReady && loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-zinc-500">Loading workout...</div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -253,7 +268,7 @@ function WorkoutContent() {
   // ── Overview screen ──────────────────────────────────────────────────────────
   if (phase === "overview") {
     return (
-      <div className="min-h-screen flex flex-col max-w-lg mx-auto">
+      <div className="h-dvh flex flex-col max-w-lg mx-auto">
         <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
           <button onClick={() => router.push("/")} className="text-zinc-500 hover:text-zinc-200 transition-colors">
             <ArrowLeft size={20} />
@@ -264,7 +279,7 @@ function WorkoutContent() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
           <h2 className="text-lg font-bold text-zinc-100">Today&apos;s Workout</h2>
           <div className="space-y-2">
             {resolvedExercises.map((ex, i) => (
@@ -300,12 +315,12 @@ function WorkoutContent() {
   // ── Active workout ───────────────────────────────────────────────────────────
   const totalSets = totalSetsForExercise(currentExercise);
   const isLastSet = setIndex === totalSets - 1;
-  const warmupSteps = WARMUP_PROTOCOLS[currentExercise.warmupProtocol];
-  const hasWarmup = warmupSteps.length > 0;
+  const currentWarmupSteps = warmupSteps[currentExercise.warmupProtocol] ?? [];
+  const hasWarmup = currentWarmupSteps.length > 0;
   const setsForExercise = sessionSets.filter((s) => s.exerciseId === currentExercise.id && s.setIndex >= 0);
 
   return (
-    <div className="min-h-screen flex flex-col max-w-lg mx-auto relative">
+    <div className="h-dvh flex flex-col max-w-lg mx-auto relative">
       {/* Exercise list overlay */}
       {showExerciseList && (
         <div className="absolute inset-0 z-20 bg-zinc-950 flex flex-col">
@@ -387,7 +402,7 @@ function WorkoutContent() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
         {/* Exercise name */}
         <div className="space-y-1">
           <h2 className="text-xl font-bold text-zinc-100">{currentExercise.name}</h2>
@@ -415,6 +430,18 @@ function WorkoutContent() {
           <p className="text-sm text-zinc-400 bg-zinc-900 rounded-xl px-4 py-3 leading-relaxed">
             {currentExercise.formNote}
           </p>
+        )}
+
+        {currentExercise.youtubeUrl && (
+          <a
+            href={currentExercise.youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+          >
+            <ExternalLink size={13} />
+            Watch tutorial
+          </a>
         )}
 
         {/* Sets progress */}
@@ -452,11 +479,15 @@ function WorkoutContent() {
         {/* Phase content */}
         {phase === "warmup" && hasWarmup ? (
           <WarmupChecklist
-            protocol={currentExercise.warmupProtocol}
+            steps={currentWarmupSteps}
             onComplete={handleWarmupComplete}
+            onSkip={handleWarmupComplete}
+            prevWorkingWeightKg={prevSets.length > 0 ? prevSets[prevSets.length - 1].weight : undefined}
+            unit={prefs.unit}
           />
         ) : phase === "sets" || (phase === "warmup" && !hasWarmup) ? (
           <SetLogger
+            key={`${currentExercise.id}-${setIndex}`}
             exercise={currentExercise}
             setIndex={setIndex}
             isLastSet={isLastSet}

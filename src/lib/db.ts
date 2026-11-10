@@ -1,11 +1,12 @@
 import { createClient } from "./supabase";
-import type { SetLog, WorkoutSession, UserPreferences } from "./types";
+import type { SetLog, WorkoutSession, UserPreferences, ProgramRow, BuilderProgram, BuilderDay, BuilderExercise } from "./types";
 import { estimateOneRm } from "./program-data";
 
 function mapSession(row: Record<string, unknown>): WorkoutSession {
   return {
     id: row.id as string,
     userId: row.user_id as string,
+    programId: (row.program_id as string | null) ?? null,
     week: row.week as number,
     dayIndex: row.day_index as number,
     dayType: row.day_type as WorkoutSession["dayType"],
@@ -99,12 +100,13 @@ export async function createSession(
   userId: string,
   week: number,
   dayIndex: number,
-  dayType: string
+  dayType: string,
+  programId?: string | null
 ): Promise<WorkoutSession> {
   const sb = createClient();
   const { data, error } = await sb
     .from("workout_sessions")
-    .insert({ user_id: userId, week, day_index: dayIndex, day_type: dayType })
+    .insert({ user_id: userId, week, day_index: dayIndex, day_type: dayType, program_id: programId ?? null })
     .select()
     .single();
   if (error) throw error;
@@ -156,6 +158,28 @@ export async function deleteSetLog(setId: string): Promise<void> {
   await sb.from("set_logs").delete().eq("id", setId);
 }
 
+export async function deleteWorkoutSession(sessionId: string): Promise<void> {
+  const sb = createClient();
+  await sb.from("set_logs").delete().eq("session_id", sessionId);
+  await sb.from("workout_sessions").delete().eq("id", sessionId);
+}
+
+export async function updateSetLog(setId: string, weight: number, reps: number): Promise<void> {
+  const sb = createClient();
+  await sb.from("set_logs").update({ weight_kg: weight, reps }).eq("id", setId);
+}
+
+export async function getCompletedSessions(userId: string): Promise<WorkoutSession[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("workout_sessions")
+    .select("*")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .order("completed_at", { ascending: false });
+  return (data ?? []).map((r: Record<string, unknown>) => mapSession(r));
+}
+
 export async function getSessionSets(sessionId: string): Promise<SetLog[]> {
   const sb = createClient();
   const { data } = await sb
@@ -197,7 +221,7 @@ export async function getLastSessionSetsForExercise(
 export async function getExerciseHistory(
   userId: string,
   exerciseId: string
-): Promise<{ date: string; weight: number; reps: number; estimatedOneRm: number }[]> {
+): Promise<{ date: string; weight: number; reps: number; dayType: string }[]> {
   const sb = createClient();
   const { data } = await sb
     .from("set_logs")
@@ -208,11 +232,23 @@ export async function getExerciseHistory(
     .gte("set_index", 0)
     .order("logged_at");
 
-  return (data ?? []).map((row: { weight_kg: number; reps: number; logged_at: string }) => ({
+  if (!data?.length) return [];
+
+  const sessionIds = [...new Set(data.map((r: { session_id: string }) => r.session_id))];
+  const { data: sessions } = await sb
+    .from("workout_sessions")
+    .select("id, day_type")
+    .in("id", sessionIds);
+
+  const sessionDayMap = Object.fromEntries(
+    (sessions ?? []).map((s: { id: string; day_type: string }) => [s.id, s.day_type])
+  );
+
+  return data.map((row: { weight_kg: number; reps: number; logged_at: string; session_id: string }) => ({
     date: row.logged_at.split("T")[0],
     weight: row.weight_kg,
     reps: row.reps,
-    estimatedOneRm: estimateOneRm(row.weight_kg, row.reps),
+    dayType: sessionDayMap[row.session_id] ?? "",
   }));
 }
 
@@ -281,4 +317,169 @@ export async function getPersonalRecords(
   }
 
   return Object.entries(prMap).map(([exerciseId, pr]) => ({ exerciseId, ...pr }));
+}
+
+// ─── Builder ──────────────────────────────────────────────────────────────────
+
+export async function getPrograms(userId: string): Promise<ProgramRow[]> {
+  const sb = createClient();
+  const { data: programs } = await sb
+    .from("programs")
+    .select("id, name, description, category, total_weeks, created_by, is_public, created_at")
+    .or(`is_public.eq.true,created_by.eq.${userId}`)
+    .order("created_at", { ascending: false });
+
+  if (!programs?.length) return [];
+
+  const { data: counts } = await sb
+    .from("workout_sessions")
+    .select("program_id, user_id")
+    .in("program_id", programs.map((p: { id: string }) => p.id));
+
+  const countMap: Record<string, Set<string>> = {};
+  for (const row of counts ?? []) {
+    const r = row as { program_id: string; user_id: string };
+    if (!countMap[r.program_id]) countMap[r.program_id] = new Set();
+    countMap[r.program_id].add(r.user_id);
+  }
+
+  return programs.map((p: Record<string, unknown>) => ({
+    id: p.id as string,
+    name: p.name as string,
+    description: (p.description as string | null) ?? null,
+    category: (p.category as string | null) ?? null,
+    totalWeeks: p.total_weeks as number,
+    createdBy: (p.created_by as string | null) ?? null,
+    isPublic: p.is_public as boolean,
+    createdAt: p.created_at as string,
+    userCount: countMap[p.id as string]?.size ?? 0,
+  }));
+}
+
+export async function toggleProgramPublic(programId: string, isPublic: boolean): Promise<void> {
+  const sb = createClient();
+  await sb.from("programs").update({ is_public: isPublic }).eq("id", programId);
+}
+
+export async function updateProgram(
+  programId: string,
+  fields: { name?: string; description?: string; category?: string }
+): Promise<void> {
+  const sb = createClient();
+  await sb.from("programs").update(fields).eq("id", programId);
+}
+
+export async function updateProgramDayExercise(
+  pdeId: string,
+  fields: {
+    repRangeMin?: number;
+    repRangeMax?: number;
+    earlySetCount?: number;
+    lastSetCount?: number;
+    earlySetRpeMin?: number;
+    earlySetRpeMax?: number;
+    lastSetTarget?: string;
+  }
+): Promise<void> {
+  const sb = createClient();
+  const dbFields: Record<string, unknown> = {};
+  if (fields.repRangeMin !== undefined) dbFields.rep_range_min = fields.repRangeMin;
+  if (fields.repRangeMax !== undefined) dbFields.rep_range_max = fields.repRangeMax;
+  if (fields.earlySetCount !== undefined) dbFields.early_set_count = fields.earlySetCount;
+  if (fields.lastSetCount !== undefined) dbFields.last_set_count = fields.lastSetCount;
+  if (fields.earlySetRpeMin !== undefined) dbFields.early_set_rpe_min = fields.earlySetRpeMin;
+  if (fields.earlySetRpeMax !== undefined) dbFields.early_set_rpe_max = fields.earlySetRpeMax;
+  if (fields.lastSetTarget !== undefined) dbFields.last_set_target = fields.lastSetTarget;
+  await sb.from("program_day_exercises").update(dbFields).eq("id", pdeId);
+}
+
+export async function getBuilderProgram(programId: string): Promise<BuilderProgram | null> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from("programs")
+    .select(`
+      id, name, description, category, total_weeks, created_by, is_public,
+      program_days(
+        id, week, day_index, day_type,
+        program_day_exercises(
+          id, position, rep_range_min, rep_range_max, early_set_count, last_set_count,
+          early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target,
+          exercises(id, name, warmup_protocol)
+        )
+      )
+    `)
+    .eq("id", programId)
+    .single();
+
+  if (error || !data) return null;
+
+  const { data: countData } = await sb
+    .from("workout_sessions")
+    .select("user_id")
+    .eq("program_id", programId);
+
+  const userCount = new Set((countData ?? []).map((r: { user_id: string }) => r.user_id)).size;
+
+  type RawPDE = {
+    id: string;
+    position: number;
+    rep_range_min: number;
+    rep_range_max: number;
+    early_set_count: number;
+    last_set_count: number;
+    early_set_rpe_min: number;
+    early_set_rpe_max: number;
+    last_set_rpe_min: number | null;
+    last_set_rpe_max: number | null;
+    last_set_target: string;
+    exercises: { id: string; name: string; warmup_protocol: string };
+  };
+
+  type RawDay = {
+    id: string;
+    week: number;
+    day_index: number;
+    day_type: string;
+    program_day_exercises: RawPDE[];
+  };
+
+  const days: BuilderDay[] = ((data.program_days as unknown as RawDay[]) ?? [])
+    .map((day) => ({
+      pdId: day.id,
+      week: day.week,
+      dayIndex: day.day_index,
+      dayType: day.day_type,
+      exercises: [...(day.program_day_exercises ?? [])]
+        .sort((a, b) => a.position - b.position)
+        .map((pde): BuilderExercise => ({
+          pdeId: pde.id,
+          exerciseId: pde.exercises.id,
+          name: pde.exercises.name,
+          position: pde.position,
+          repRangeMin: pde.rep_range_min,
+          repRangeMax: pde.rep_range_max,
+          earlySetCount: pde.early_set_count,
+          lastSetCount: pde.last_set_count,
+          earlySetRpeMin: pde.early_set_rpe_min,
+          earlySetRpeMax: pde.early_set_rpe_max,
+          lastSetRpeMin: pde.last_set_rpe_min,
+          lastSetRpeMax: pde.last_set_rpe_max,
+          lastSetTarget: pde.last_set_target,
+          warmupProtocol: pde.exercises.warmup_protocol,
+        })),
+    }))
+    .sort((a, b) => a.week !== b.week ? a.week - b.week : a.dayIndex - b.dayIndex);
+
+  const p = data as Record<string, unknown>;
+  return {
+    id: p.id as string,
+    name: p.name as string,
+    description: (p.description as string | null) ?? null,
+    category: (p.category as string | null) ?? null,
+    isPublic: p.is_public as boolean,
+    createdBy: (p.created_by as string | null) ?? null,
+    totalWeeks: p.total_weeks as number,
+    days,
+    userCount,
+  };
 }
