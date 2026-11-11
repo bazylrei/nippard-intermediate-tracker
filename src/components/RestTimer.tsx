@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { X, SkipForward } from "lucide-react";
+import { X } from "lucide-react";
 
 interface Props {
   durationSeconds: number;
@@ -50,8 +50,10 @@ export default function RestTimer({ durationSeconds, onComplete, onSkip }: Props
   const strokeDashoffset = circumference * (1 - pct);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end justify-center p-4 z-50">
-      <div className="w-full max-w-sm bg-surface rounded-2xl p-6 space-y-5 border border-border">
+    <div className="fixed inset-0 flex items-end justify-center p-4 z-50"
+      style={{ background: "color-mix(in srgb, var(--bg) 50%, transparent)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}>
+      <div className="w-full max-w-sm glass-strong gloss rounded-2xl p-6 space-y-5"
+        style={{ boxShadow: "0 8px 40px color-mix(in srgb, var(--bg) 60%, transparent), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent)" }}>
         <div className="flex items-center justify-between">
           <span className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Rest</span>
           <button onClick={onSkip} className="text-subtle hover:text-fg transition-colors cursor-pointer p-1 -mr-1">
@@ -62,7 +64,7 @@ export default function RestTimer({ durationSeconds, onComplete, onSkip }: Props
         <div className="flex justify-center">
           <div className="relative w-36 h-36">
             <svg className="-rotate-90 w-full h-full" viewBox="0 0 140 140">
-              <circle cx="70" cy="70" r={radius} strokeWidth="6" stroke="var(--border)" fill="none" />
+              <circle cx="70" cy="70" r={radius} strokeWidth="6" stroke="color-mix(in srgb, var(--fg) 10%, transparent)" fill="none" />
               <circle
                 cx="70" cy="70" r={radius}
                 strokeWidth="6"
@@ -71,7 +73,10 @@ export default function RestTimer({ durationSeconds, onComplete, onSkip }: Props
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
-                style={{ transition: "stroke-dashoffset 0.5s linear" }}
+                style={{
+                  transition: "stroke-dashoffset 0.5s linear",
+                  filter: "drop-shadow(0 0 6px var(--primary))",
+                }}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -85,9 +90,8 @@ export default function RestTimer({ durationSeconds, onComplete, onSkip }: Props
 
         <button
           onClick={onSkip}
-          className="w-full flex items-center justify-center gap-2 bg-elevated border border-border hover:border-primary/40 text-fg font-medium py-3 rounded-xl transition-colors cursor-pointer"
+          className="glass w-full flex items-center justify-center gap-2 text-fg font-medium py-3 rounded-xl transition-colors cursor-pointer hover:text-primary"
         >
-          <SkipForward size={16} />
           Skip Rest
         </button>
       </div>

@@ -1,75 +1,74 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,600&family=Barlow:wght@300;400;500;600;700&display=swap');
 
 /* ── Light mode tokens ───────────────────────────────────────────────────── */
 :root {
-  --bg:         #FFFFFF;
-  --surface:    #F6F8FA;
-  --elevated:   #EAEEF2;
-  --border:     #D0D7DE;
-  --fg:         #1F2328;
-  --muted:      #57606A;
-  --subtle:     #9CA3AF;
-  --primary:    #D95B1E;
+  --bg:         #F0EFE9;
+  --surface:    #FAFAF8;
+  --elevated:   #E8E7E0;
+  --border:     #D4D3CB;
+  --fg:         #111110;
+  --muted:      #6F6F6B;
+  --subtle:     #A8A8A4;
+  --primary:    #E8540A;
   --primary-fg: #FFFFFF;
-  --accent:     #1A7F37;
+  --accent:     #18794E;
   --accent-fg:  #FFFFFF;
-  --danger:     #CF222E;
+  --danger:     #CE2C31;
 }
 
 /* ── Dark mode tokens ────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg:         #0D1117;
-    --surface:    #161B22;
-    --elevated:   #21262D;
-    --border:     #30363D;
-    --fg:         #E6EDF3;
-    --muted:      #8B949E;
-    --subtle:     #6E7681;
+    --bg:         #0E0E0C;
+    --surface:    #1A1A17;
+    --elevated:   #252521;
+    --border:     #333330;
+    --fg:         #EDEDEC;
+    --muted:      #9B9B97;
+    --subtle:     #62625E;
     --primary:    #F97316;
-    --primary-fg: #0D1117;
-    --accent:     #22C55E;
-    --accent-fg:  #0D1117;
-    --danger:     #F85149;
+    --primary-fg: #0E0E0C;
+    --accent:     #30A46C;
+    --accent-fg:  #0E0E0C;
+    --danger:     #E5484D;
   }
 }
 
 /* ── Class overrides for manual toggle ──────────────────────────────────── */
 html.dark {
-  --bg:         #0D1117;
-  --surface:    #161B22;
-  --elevated:   #21262D;
-  --border:     #30363D;
-  --fg:         #E6EDF3;
-  --muted:      #8B949E;
-  --subtle:     #6E7681;
+  --bg:         #0E0E0C;
+  --surface:    #1A1A17;
+  --elevated:   #252521;
+  --border:     #333330;
+  --fg:         #EDEDEC;
+  --muted:      #9B9B97;
+  --subtle:     #62625E;
   --primary:    #F97316;
-  --primary-fg: #0D1117;
-  --accent:     #22C55E;
-  --accent-fg:  #0D1117;
-  --danger:     #F85149;
+  --primary-fg: #0E0E0C;
+  --accent:     #30A46C;
+  --accent-fg:  #0E0E0C;
+  --danger:     #E5484D;
 }
 
 html.light {
-  --bg:         #FFFFFF;
-  --surface:    #F6F8FA;
-  --elevated:   #EAEEF2;
-  --border:     #D0D7DE;
-  --fg:         #1F2328;
-  --muted:      #57606A;
-  --subtle:     #9CA3AF;
-  --primary:    #D95B1E;
+  --bg:         #F0EFE9;
+  --surface:    #FAFAF8;
+  --elevated:   #E8E7E0;
+  --border:     #D4D3CB;
+  --fg:         #111110;
+  --muted:      #6F6F6B;
+  --subtle:     #A8A8A4;
+  --primary:    #E8540A;
   --primary-fg: #FFFFFF;
-  --accent:     #1A7F37;
+  --accent:     #18794E;
   --accent-fg:  #FFFFFF;
-  --danger:     #CF222E;
+  --danger:     #CE2C31;
 }
 
 /* ── Tailwind theme tokens ───────────────────────────────────────────────── */
 @theme {
-  --font-display: 'Barlow Condensed', system-ui, sans-serif;
-  --font-body:    'Barlow', system-ui, sans-serif;
+  --font-display: var(--font-barlow-condensed);
+  --font-body:    var(--font-barlow);
 }
 
 @theme inline {
@@ -90,12 +89,50 @@ html.light {
 /* ── Base ────────────────────────────────────────────────────────────────── */
 body {
   background-color: var(--bg);
+  background-image: radial-gradient(
+    ellipse 100% 50% at 50% -10%,
+    color-mix(in srgb, var(--primary) 16%, transparent),
+    transparent
+  );
+  background-attachment: fixed;
   color: var(--fg);
-  font-family: 'Barlow', system-ui, sans-serif;
+  font-family: var(--font-barlow), system-ui, sans-serif;
 }
 
-/* ── Utilities ───────────────────────────────────────────────────────────── */
+/* ── Glass & Gloss utilities ─────────────────────────────────────────────── */
 @layer utilities {
+  .glass {
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  .glass-strong {
+    background: color-mix(in srgb, var(--surface) 80%, transparent);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+  }
+
+  .gloss {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gloss::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Tailwind utilities */
   .text-balance { text-wrap: balance; }
   .safe-top     { padding-top: env(safe-area-inset-top); }
   .safe-bottom  { padding-bottom: env(safe-area-inset-bottom); }

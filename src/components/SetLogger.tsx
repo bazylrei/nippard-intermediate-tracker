@@ -60,7 +60,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }
 
   return (
-    <div className="space-y-4">
+    <div className="glass gloss rounded-2xl p-4 space-y-4">
       {/* Set header */}
       <div className="flex items-center justify-between">
         <div>
@@ -80,7 +80,8 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
           )}
         </div>
         {targetRpe && (
-          <span className="text-xs text-muted bg-elevated px-2.5 py-1 rounded-full border border-border">
+          <span className="text-xs text-muted px-2.5 py-1 rounded-full font-display"
+            style={{ background: "color-mix(in srgb, var(--fg) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}>
             RPE {targetRpe[0]}–{targetRpe[1]}
           </span>
         )}
@@ -88,7 +89,8 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
       {/* Previous data */}
       {prevSet && (
-        <div className="bg-elevated/60 border border-border rounded-xl px-4 py-2.5 flex items-center justify-between">
+        <div className="rounded-xl px-4 py-2.5 flex items-center justify-between"
+          style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}>
           <span className="text-xs text-muted">Last time</span>
           <span className="font-display font-semibold text-sm text-fg">
             {toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
@@ -112,7 +114,11 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full bg-surface border border-border rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none focus:border-primary transition-colors"
+              className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
+              style={{
+                background: "color-mix(in srgb, var(--fg) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
+              }}
               placeholder="—"
               required
             />
@@ -131,7 +137,11 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full bg-surface border border-border rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none focus:border-primary transition-colors"
+              className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
+              style={{
+                background: "color-mix(in srgb, var(--fg) 6%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
+              }}
               placeholder="—"
               required
             />
@@ -150,8 +160,9 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                 className={`flex-1 py-2 rounded-lg text-xs font-display font-semibold transition-colors cursor-pointer ${
                   rpe === String(r)
                     ? "bg-primary text-primary-fg"
-                    : "bg-elevated text-muted hover:text-fg hover:bg-border"
+                    : "text-muted hover:text-fg"
                 }`}
+                style={rpe !== String(r) ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
               >
                 {r}
               </button>
@@ -170,8 +181,9 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                 className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
                   failureHit === true
                     ? "bg-accent text-accent-fg"
-                    : "bg-elevated text-muted hover:text-fg"
+                    : "text-muted hover:text-fg"
                 }`}
+                style={failureHit !== true ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
               >
                 Yes
               </button>
@@ -180,9 +192,15 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                 onClick={() => setFailureHit(false)}
                 className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
                   failureHit === false
-                    ? "bg-elevated border-2 border-border text-fg"
-                    : "bg-elevated text-muted hover:text-fg"
+                    ? "text-fg"
+                    : "text-muted hover:text-fg"
                 }`}
+                style={{
+                  background: failureHit === false
+                    ? "color-mix(in srgb, var(--fg) 12%, transparent)"
+                    : "color-mix(in srgb, var(--fg) 7%, transparent)",
+                  border: failureHit === false ? "1px solid color-mix(in srgb, var(--fg) 20%, transparent)" : "none",
+                }}
               >
                 No
               </button>
@@ -192,7 +210,11 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
         <button
           type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
+          className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
+          style={{
+            background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
+          }}
         >
           <CheckCircle size={20} />
           Log Set

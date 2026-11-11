@@ -134,34 +134,18 @@ function WorkoutContent() {
     return logged.length >= totalSetsForExercise(ex);
   }
 
-  async function handleSetLogged(
-    weight: number,
-    reps: number,
-    rpe: number | null,
-    failureHit: boolean | null
-  ) {
+  async function handleSetLogged(weight: number, reps: number, rpe: number | null, failureHit: boolean | null) {
     if (!session || !currentExercise || !userId) return;
     const totalSets = totalSetsForExercise(currentExercise);
     const isLastSet = setIndex === totalSets - 1;
 
-    await logSet({
-      sessionId: session.id,
-      userId,
-      exerciseId: currentExercise.id,
-      setIndex,
-      isLastSet,
-      weight,
-      reps,
-      rpe,
-      failureHit,
-    });
+    await logSet({ sessionId: session.id, userId, exerciseId: currentExercise.id, setIndex, isLastSet, weight, reps, rpe, failureHit });
 
     const updated = await getSessionSets(session.id);
     setSessionSets(updated);
 
     const [restMin, restMax] = currentExercise.restSeconds;
-    const mid = Math.round((restMin + restMax) / 2);
-    setRestDuration(mid);
+    setRestDuration(Math.round((restMin + restMax) / 2));
     setShowRestTimer(true);
 
     if (isLastSet) {
@@ -211,7 +195,7 @@ function WorkoutContent() {
   if (!programReady && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
-        <div className="text-muted text-sm">Loading workout...</div>
+        <div className="text-muted text-sm">Loading workout…</div>
       </div>
     );
   }
@@ -219,7 +203,7 @@ function WorkoutContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
-        <div className="text-muted text-sm">Loading workout...</div>
+        <div className="text-muted text-sm">Loading workout…</div>
       </div>
     );
   }
@@ -236,7 +220,8 @@ function WorkoutContent() {
   if (done) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-8 text-center bg-bg">
-        <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="w-24 h-24 glass gloss rounded-full flex items-center justify-center"
+          style={{ boxShadow: "0 0 40px color-mix(in srgb, var(--primary) 25%, transparent)" }}>
           <Trophy size={48} className="text-primary" />
         </div>
         <div>
@@ -248,13 +233,17 @@ function WorkoutContent() {
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <button
             onClick={() => router.push("/progress")}
-            className="bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
+            className="gloss text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
+            style={{
+              background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
+            }}
           >
             View Progress
           </button>
           <button
             onClick={() => router.push("/")}
-            className="bg-surface border border-border hover:bg-elevated text-fg font-medium py-4 rounded-2xl transition-colors cursor-pointer"
+            className="glass gloss text-fg font-medium py-4 rounded-2xl transition-colors cursor-pointer"
           >
             Back to Dashboard
           </button>
@@ -266,12 +255,9 @@ function WorkoutContent() {
   // ── Overview screen ──────────────────────────────────────────────────────
   if (phase === "overview") {
     return (
-      <div className="h-dvh flex flex-col max-w-lg mx-auto bg-bg">
-        <div className="flex items-center gap-3 p-4 border-b border-border">
-          <button
-            onClick={() => router.push("/")}
-            className="text-subtle hover:text-fg transition-colors cursor-pointer"
-          >
+      <div className="h-dvh flex flex-col max-w-lg mx-auto">
+        <div className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+          <button onClick={() => router.push("/")} className="text-subtle hover:text-fg transition-colors cursor-pointer">
             <ArrowLeft size={20} />
           </button>
           <div>
@@ -282,12 +268,13 @@ function WorkoutContent() {
 
         <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">
-            Today&apos;s Workout — {resolvedExercises.length} exercises
+            {resolvedExercises.length} exercises
           </p>
           <div className="space-y-2">
             {resolvedExercises.map((ex, i) => (
-              <div key={i} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center gap-3">
-                <span className="w-7 h-7 rounded-lg bg-elevated flex items-center justify-center font-display text-xs font-bold text-muted shrink-0">
+              <div key={i} className="glass gloss rounded-xl px-4 py-3 flex items-center gap-3">
+                <span className="w-7 h-7 rounded-lg flex items-center justify-center font-display text-xs font-bold text-muted shrink-0"
+                  style={{ background: "color-mix(in srgb, var(--fg) 8%, transparent)" }}>
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -302,10 +289,14 @@ function WorkoutContent() {
           </div>
         </div>
 
-        <div className="p-4 border-t border-border">
+        <div className="p-4" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
           <button
             onClick={() => setPhase("warmup")}
-            className="w-full flex items-center justify-center gap-2 bg-primary hover:opacity-90 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer"
+            className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
+            style={{
+              background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
+            }}
           >
             <Play size={20} fill="currentColor" />
             Begin Workout
@@ -323,15 +314,12 @@ function WorkoutContent() {
   const setsForExercise = sessionSets.filter((s) => s.exerciseId === currentExercise.id && s.setIndex >= 0);
 
   return (
-    <div className="h-dvh flex flex-col max-w-lg mx-auto relative bg-bg">
+    <div className="h-dvh flex flex-col max-w-lg mx-auto relative">
       {/* Exercise list overlay */}
       {showExerciseList && (
-        <div className="absolute inset-0 z-20 bg-bg flex flex-col">
-          <div className="flex items-center gap-3 p-4 border-b border-border">
-            <button
-              onClick={() => setShowExerciseList(false)}
-              className="text-subtle hover:text-fg transition-colors cursor-pointer"
-            >
+        <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "var(--bg)" }}>
+          <div className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+            <button onClick={() => setShowExerciseList(false)} className="text-subtle hover:text-fg transition-colors cursor-pointer">
               <X size={20} />
             </button>
             <h2 className="font-display font-bold text-fg">Exercises</h2>
@@ -343,35 +331,22 @@ function WorkoutContent() {
               return (
                 <button
                   key={i}
-                  onClick={() => {
-                    advanceTo(i, 0);
-                    setPhase("warmup");
-                    setShowExerciseList(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
-                    isCurrent
-                      ? "bg-primary/10 border border-primary/20"
-                      : "bg-surface border border-border hover:bg-elevated"
+                  onClick={() => { advanceTo(i, 0); setPhase("warmup"); setShowExerciseList(false); }}
+                  className={`w-full glass gloss flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
+                    isCurrent ? "border-primary/30" : ""
                   }`}
+                  style={isCurrent ? { borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)" } : {}}
                 >
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-display text-xs font-bold shrink-0 ${
-                    exDone
-                      ? "bg-accent/20 text-accent"
-                      : isCurrent
-                      ? "bg-primary/20 text-primary"
-                      : "bg-elevated text-muted"
-                  }`}>
+                    exDone ? "bg-accent/20 text-accent" : isCurrent ? "bg-primary/20 text-primary" : "text-muted"
+                  }`} style={!exDone && !isCurrent ? { background: "color-mix(in srgb, var(--fg) 8%, transparent)" } : {}}>
                     {exDone ? <CheckCircle2 size={14} /> : i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-display font-semibold truncate ${
-                      isCurrent ? "text-fg" : exDone ? "text-muted" : "text-fg"
-                    }`}>
+                    <p className={`font-display font-semibold truncate ${isCurrent ? "text-fg" : exDone ? "text-muted" : "text-fg"}`}>
                       {ex.name}
                     </p>
-                    <p className="text-xs text-muted">
-                      {ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps
-                    </p>
+                    <p className="text-xs text-muted">{ex.earlySetCount + ex.lastSetCount} sets · {ex.repRange[0]}–{ex.repRange[1]} reps</p>
                   </div>
                   {exDone && <span className="text-xs text-accent shrink-0">Done</span>}
                   {isCurrent && !exDone && <span className="text-xs text-primary shrink-0">Now</span>}
@@ -383,11 +358,8 @@ function WorkoutContent() {
       )}
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-        <button
-          onClick={() => setShowExerciseList(true)}
-          className="text-subtle hover:text-fg transition-colors cursor-pointer"
-        >
+      <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+        <button onClick={() => setShowExerciseList(true)} className="text-subtle hover:text-fg transition-colors cursor-pointer">
           <List size={20} />
         </button>
         <div className="flex-1 min-w-0">
@@ -407,16 +379,19 @@ function WorkoutContent() {
                 isExerciseDone(i)
                   ? "bg-primary w-4"
                   : i === exerciseIndex
-                  ? "bg-primary/50 w-4"
-                  : "bg-border w-1.5"
+                  ? "w-4"
+                  : "w-1.5"
               }`}
+              style={i === exerciseIndex && !isExerciseDone(i)
+                ? { background: "color-mix(in srgb, var(--primary) 50%, transparent)" }
+                : !isExerciseDone(i)
+                ? { background: "color-mix(in srgb, var(--fg) 15%, transparent)" }
+                : {}
+              }
             />
           ))}
         </div>
-        <button
-          onClick={() => router.push("/")}
-          className="text-subtle hover:text-fg transition-colors cursor-pointer"
-        >
+        <button onClick={() => router.push("/")} className="text-subtle hover:text-fg transition-colors cursor-pointer">
           <ArrowLeft size={20} />
         </button>
       </div>
@@ -446,7 +421,7 @@ function WorkoutContent() {
 
         {/* Form note */}
         {currentExercise.formNote && (
-          <p className="text-sm text-muted bg-surface border border-border rounded-xl px-4 py-3 leading-relaxed">
+          <p className="text-sm text-muted glass rounded-xl px-4 py-3 leading-relaxed">
             {currentExercise.formNote}
           </p>
         )}
@@ -463,26 +438,28 @@ function WorkoutContent() {
           </a>
         )}
 
-        {/* Sets progress */}
+        {/* Sets progress — glass tiles */}
         <div className="space-y-2">
-          <div className="flex gap-1.5">
+          <div className="flex gap-2">
             {Array.from({ length: totalSets }).map((_, i) => {
               const logged = setsForExercise[i];
               const isLast = i === totalSets - 1;
+              const isCurrent = i === setIndex && phase === "sets";
               return (
                 <div
                   key={i}
-                  className={`flex-1 h-10 rounded-lg flex items-center justify-center font-display font-bold text-sm transition-colors ${
+                  className="flex-1 h-12 rounded-xl flex items-center justify-center font-display font-bold text-sm transition-colors glass"
+                  style={
                     logged
                       ? isLast
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "bg-accent/10 text-accent border border-accent/25"
-                      : i === setIndex && phase === "sets"
+                        ? { background: "color-mix(in srgb, var(--primary) 20%, transparent)", borderColor: "color-mix(in srgb, var(--primary) 40%, transparent)", color: "var(--primary)" }
+                        : { background: "color-mix(in srgb, var(--accent) 15%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)", color: "var(--accent)" }
+                      : isCurrent
                       ? isLast
-                        ? "bg-primary/20 border border-primary text-primary"
-                        : "bg-elevated border border-border text-fg"
-                      : "bg-surface border border-border text-subtle"
-                  }`}
+                        ? { background: "color-mix(in srgb, var(--primary) 25%, transparent)", borderColor: "var(--primary)", color: "var(--primary)" }
+                        : { borderColor: "color-mix(in srgb, var(--fg) 20%, transparent)", color: "var(--fg)" }
+                      : { color: "var(--subtle)" }
+                  }
                 >
                   {logged ? logged.reps : isLast ? "●" : i + 1}
                 </div>
@@ -490,10 +467,7 @@ function WorkoutContent() {
             })}
           </div>
           {sessionSets.filter((s) => s.setIndex >= 0).length > 0 && (
-            <button
-              onClick={handleGoBack}
-              className="text-xs text-subtle hover:text-muted transition-colors cursor-pointer"
-            >
+            <button onClick={handleGoBack} className="text-xs text-subtle hover:text-muted transition-colors cursor-pointer">
               ← Undo last set
             </button>
           )}
@@ -553,7 +527,7 @@ export default function WorkoutPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-bg text-muted text-sm">
-        Loading...
+        Loading…
       </div>
     }>
       <WorkoutContent />

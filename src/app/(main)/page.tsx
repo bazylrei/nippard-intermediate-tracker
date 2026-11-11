@@ -8,7 +8,7 @@ import { DAY_LABELS, getSessionNumber, getTotalSessions } from "@/lib/program-da
 import { useProgramContext } from "@/context/ProgramContext";
 import type { UserPreferences } from "@/lib/types";
 import { cacheGet, cacheSet } from "@/lib/cache";
-import { Dumbbell, Play, LogOut, Settings } from "lucide-react";
+import { Dumbbell, Play, LogOut, Settings, ChevronRight } from "lucide-react";
 
 type CachedDashboard = {
   nextSession: { week: number; dayIndex: number };
@@ -76,8 +76,8 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center text-muted text-sm font-display">
+        Loading…
       </div>
     );
   }
@@ -86,23 +86,30 @@ export default function Dashboard() {
   const sessionNum = nextSession ? getSessionNumber(nextSession.week, nextSession.dayIndex) : 1;
   const totalSessions = getTotalSessions();
   const progressPct = Math.round(((sessionNum - 1) / totalSessions) * 100);
+  const weekDays = program.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? [];
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-5">
+    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+
       {/* Header */}
       <div className="flex items-center justify-between pt-2">
         <div className="flex items-center gap-2.5">
-          <Dumbbell className="text-orange-400" size={24} />
+          <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
+            <Dumbbell className="text-primary" size={20} />
+          </div>
           <div>
-            <h1 className="text-base font-bold text-zinc-100">Nippard Intermediate</h1>
-            <p className="text-xs text-zinc-500">{email}</p>
+            <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">Nippard Intermediate</h1>
+            <p className="text-xs text-muted">{email}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-2 transition-colors rounded-xl cursor-pointer ${showSettings ? "glass text-primary" : "text-muted hover:text-fg"}`}
+          >
             <Settings size={18} />
           </button>
-          <button onClick={handleSignOut} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors">
+          <button onClick={handleSignOut} className="p-2 text-muted hover:text-fg transition-colors rounded-xl cursor-pointer">
             <LogOut size={18} />
           </button>
         </div>
@@ -110,13 +117,13 @@ export default function Dashboard() {
 
       {/* Settings panel */}
       {showSettings && (
-        <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-zinc-300">Settings</h3>
+        <div className="glass gloss rounded-2xl p-4 space-y-3">
+          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Settings</h3>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-zinc-400">Weight unit</span>
+            <span className="text-sm text-fg">Weight unit</span>
             <button
               onClick={toggleUnit}
-              className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+              className="glass gloss font-display font-bold text-sm px-4 py-1.5 rounded-lg transition-colors cursor-pointer text-fg"
             >
               {prefs.unit.toUpperCase()}
             </button>
@@ -125,93 +132,108 @@ export default function Dashboard() {
       )}
 
       {/* Program progress */}
-      <div className="bg-zinc-900 rounded-2xl p-5 space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-zinc-400">Program Progress</span>
-          <span className="text-zinc-300 font-medium">
-            Session {Math.max(0, sessionNum - 1)} / {totalSessions}
+      <div className="glass gloss rounded-2xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Program Progress</span>
+          <span className="font-display font-bold text-sm text-fg">
+            {Math.max(0, sessionNum - 1)}<span className="text-muted font-normal"> / {totalSessions}</span>
           </span>
         </div>
-        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "color-mix(in srgb, var(--fg) 10%, transparent)" }}>
           <div
-            className="h-full bg-orange-500 rounded-full transition-all"
-            style={{ width: `${progressPct}%` }}
+            className="h-full bg-primary rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%`, boxShadow: "0 0 8px var(--primary)" }}
           />
         </div>
-        <div className="flex justify-between text-xs text-zinc-600">
+        <div className="flex justify-between text-xs text-subtle">
           <span>Week 1</span>
-          <span>{progressPct}% complete</span>
+          <span className="text-muted font-display font-semibold">{progressPct}% complete</span>
           <span>Week 12</span>
         </div>
       </div>
 
-      {/* Next workout card */}
+      {/* Next workout hero */}
       {nextSession && nextDay && (
-        <div className="bg-gradient-to-br from-orange-950/40 to-zinc-900 border border-orange-900/30 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-orange-400/80 font-medium uppercase tracking-wider">
-                {hasResume ? "Resume Workout" : "Next Up"}
-              </p>
-              <h2 className="text-lg font-bold text-zinc-100 mt-0.5">
-                Week {nextSession.week} · {DAY_LABELS[nextDay.dayType]}
-              </h2>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-zinc-500">Session</p>
-              <p className="text-2xl font-bold text-orange-400">{sessionNum}</p>
-            </div>
+        <div className="glass gloss rounded-2xl overflow-hidden">
+          <div className="px-5 pt-4 pb-0 flex items-center justify-between">
+            <span className="font-display font-bold text-xs uppercase tracking-widest text-primary">
+              {hasResume ? "Resume Workout" : "Next Up"}
+            </span>
+            <span className="font-display font-bold text-xs text-muted">Session {sessionNum}</span>
           </div>
 
-          {/* Exercise preview */}
-          <div className="space-y-1.5">
-            {nextDay.exercises.slice(0, 4).map((ex, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm text-zinc-400">
-                <div className="w-1 h-1 bg-zinc-600 rounded-full" />
-                {ex.name}
-                <span className="text-zinc-600 text-xs ml-auto">{ex.repRange[0]}–{ex.repRange[1]} reps</span>
+          <div className="px-5 pt-2 pb-4 border-b" style={{ borderColor: "color-mix(in srgb, var(--fg) 7%, transparent)" }}>
+            <h2 className="font-display font-bold text-3xl text-fg leading-tight">
+              {DAY_LABELS[nextDay.dayType]}
+            </h2>
+            <p className="text-sm text-muted mt-0.5">Week {nextSession.week} of 12</p>
+          </div>
+
+          <div className="px-5 py-3 space-y-1">
+            {nextDay.exercises.slice(0, 5).map((ex, i) => (
+              <div key={i} className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-md flex items-center justify-center font-display font-bold text-xs text-muted shrink-0"
+                    style={{ background: "color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+                    {i + 1}
+                  </span>
+                  <span className="text-sm text-fg">{ex.name}</span>
+                </div>
+                <span className="text-xs text-muted font-display">{ex.repRange[0]}–{ex.repRange[1]}</span>
               </div>
             ))}
-            {nextDay.exercises.length > 4 && (
-              <p className="text-xs text-zinc-600 pl-3">+{nextDay.exercises.length - 4} more exercises</p>
+            {nextDay.exercises.length > 5 && (
+              <p className="text-xs text-subtle pt-0.5 pl-7">+{nextDay.exercises.length - 5} more</p>
             )}
           </div>
 
-          <button
-            onClick={startWorkout}
-            className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-400 text-white font-semibold py-3.5 rounded-xl transition-colors"
-          >
-            <Play size={18} fill="currentColor" />
-            {hasResume ? "Resume Workout" : "Start Workout"}
-          </button>
+          <div className="px-5 pb-5 pt-2">
+            <button
+              onClick={startWorkout}
+              className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
+              style={{
+                background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 40%, transparent)",
+              }}
+            >
+              <Play size={18} fill="currentColor" />
+              {hasResume ? "Resume Workout" : "Start Workout"}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Week overview */}
-      <div className="bg-zinc-900 rounded-2xl p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-zinc-400">Week {nextSession?.week ?? 1} Overview</h3>
-        <div className="space-y-1.5">
-          {(program.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? []).map((day, i) => {
+      {/* Week overview — 2×N grid tiles */}
+      <div className="space-y-3">
+        <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted px-1">
+          Week {nextSession?.week ?? 1} Overview
+        </h3>
+        <div className="grid grid-cols-2 gap-2.5">
+          {weekDays.map((day, i) => {
             const isNext = i === nextSession?.dayIndex;
             const isDone = nextSession ? i < nextSession.dayIndex : false;
             return (
               <div
                 key={i}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-sm ${
-                  isNext ? "bg-orange-500/10 border border-orange-500/20" : isDone ? "opacity-50" : ""
-                }`}
+                className={`glass gloss rounded-2xl p-4 transition-opacity ${isDone ? "opacity-50" : ""}`}
+                style={isNext ? { borderColor: "color-mix(in srgb, var(--primary) 35%, transparent)" } : {}}
               >
-                <div className="flex items-center gap-2.5">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                    isDone ? "bg-green-800/60 text-green-400" : isNext ? "bg-orange-500/20 text-orange-400" : "bg-zinc-800 text-zinc-500"
-                  }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-display font-bold text-xs ${
+                    isDone
+                      ? "bg-accent/20 text-accent"
+                      : isNext
+                      ? "bg-primary/20 text-primary"
+                      : "text-muted"
+                  }`} style={!isDone && !isNext ? { background: "color-mix(in srgb, var(--fg) 8%, transparent)" } : {}}>
                     {isDone ? "✓" : i + 1}
                   </span>
-                  <span className={isNext ? "text-zinc-200 font-medium" : "text-zinc-400"}>
-                    {DAY_LABELS[day.dayType]}
-                  </span>
+                  {isNext && <ChevronRight size={14} className="text-primary" />}
                 </div>
-                <span className="text-zinc-600 text-xs">{day.exercises.length} exercises</span>
+                <p className={`font-display font-semibold text-sm leading-tight ${isNext ? "text-fg" : "text-muted"}`}>
+                  {DAY_LABELS[day.dayType]}
+                </p>
+                <p className="text-xs text-subtle mt-0.5">{day.exercises.length} exercises</p>
               </div>
             );
           })}
