@@ -112,12 +112,12 @@ export async function getRecentCompletedSessions(
   limit: number
 ): Promise<WorkoutSession[]> {
   const sb = createClient();
-  const { data } = await sb
+  const data = unwrap("getRecentCompletedSessions", await sb
     .from("workout_sessions")
     .select("*")
     .eq("user_id", userId)
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false })
-    .limit(limit);
-  return (data ?? []).map((r: Record<string, unknown>) => mapSession(r));
+    .limit(limit));
+  return (data ?? []).map(mapSession);
 }

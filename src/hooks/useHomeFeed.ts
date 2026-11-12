@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { getSignedInUser } from "@/lib/auth";
 import {
   getIncompleteSession, getNextSession, getRecentCompletedSessions, getWorkingSetsForSessions,
 } from "@/lib/db";
@@ -22,7 +22,7 @@ export function useHomeFeed(): { feed: HomeFeed | null } {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await createClient().auth.getUser();
+      const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
 
       const [incomplete, next, sessions] = await Promise.all([

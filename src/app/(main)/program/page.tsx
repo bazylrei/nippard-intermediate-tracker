@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { getSignedInUser } from "@/lib/auth";
 import { getNextSession, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
 import { DAY_LABELS, getSessionNumber, getTotalSessions } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -31,8 +32,7 @@ export default function MyProgram() {
 
   useEffect(() => {
     async function init() {
-      const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 

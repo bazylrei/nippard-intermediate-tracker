@@ -124,13 +124,10 @@ export interface SessionSetRef {
 export async function getWorkingSetsForSessions(sessionIds: string[]): Promise<SessionSetRef[]> {
   if (sessionIds.length === 0) return [];
   const sb = createClient();
-  const { data } = await sb
+  const data = unwrap("getWorkingSetsForSessions", await sb
     .from("set_logs")
     .select("session_id, exercise_id")
     .in("session_id", sessionIds)
-    .gte("set_index", 0);
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    sessionId: r.session_id as string,
-    exerciseId: r.exercise_id as string,
-  }));
+    .gte("set_index", 0));
+  return (data ?? []).map((r) => ({ sessionId: r.session_id, exerciseId: r.exercise_id }));
 }
