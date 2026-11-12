@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useReducer, useState, useEffect, useRef } from "react";
 import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -27,10 +27,18 @@ function toKg(val: number, unit: "kg" | "lbs"): number {
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
+type FormState = { weight: string; reps: string; rpe: string };
+type FormAction =
+  | { type: "populate"; weight: string; reps: string; rpe: string }
+  | { type: "set"; field: keyof FormState; value: string };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  if (action.type === "populate") return { weight: action.weight, reps: action.reps, rpe: action.rpe };
+  return { ...state, [action.field]: action.value };
+}
+
 export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, unit, onLog }: Props) {
-  const [weight, setWeight] = useState("");
-  const [reps, setReps] = useState("");
-  const [rpe, setRpe] = useState("");
+  const [form, dispatch] = useReducer(formReducer, { weight: "", reps: "", rpe: "" });
   const [failureHit, setFailureHit] = useState<boolean | null>(null);
   const [showTechniqueInfo, setShowTechniqueInfo] = useState(false);
   const populated = useRef(false);
@@ -40,10 +48,12 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
     populated.current = true;
     const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
     if (prevSet) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWeight(String(toDisplay(prevSet.weight, unit)));
-      setReps(String(prevSet.reps));
-      setRpe(prevSet.rpe ? String(prevSet.rpe) : "");
+      dispatch({
+        type: "populate",
+        weight: String(toDisplay(prevSet.weight, unit)),
+        reps: String(prevSet.reps),
+        rpe: prevSet.rpe ? String(prevSet.rpe) : "",
+      });
     }
   }, [previousSets, setIndex, unit]);
 
@@ -55,10 +65,10 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const w = parseFloat(weight);
-    const r = parseInt(reps, 10);
+    const w = parseFloat(form.weight);
+    const r = parseInt(form.reps, 10);
     if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
-    onLog(toKg(w, unit), r, rpe ? parseFloat(rpe) : null, isLastSet ? failureHit : null);
+    onLog(toKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null, isLastSet ? failureHit : null);
   }
 
   return (
@@ -115,8 +125,8 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                   <span className="font-display font-bold text-lg text-muted pl-3 shrink-0 select-none">2×</span>
                   <input
                     type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
+                    value={form.weight}
+                    onChange={(e) => dispatch({ type: "set", field: "weight", value: e.target.value })}
                     step="any"
                     min="0"
                     inputMode="decimal"
@@ -128,17 +138,17 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                     required
                   />
                 </div>
-                {weight && !isNaN(parseFloat(weight)) && parseFloat(weight) > 0 && (
+                {form.weight && !isNaN(parseFloat(form.weight)) && parseFloat(form.weight) > 0 && (
                   <p className="text-center text-xs text-muted font-display">
-                    = {(parseFloat(weight) * 2)} {unit} total
+                    = {(parseFloat(form.weight) * 2)} {unit} total
                   </p>
                 )}
               </div>
             ) : (
               <input
                 type="number"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                value={form.weight}
+                onChange={(e) => dispatch({ type: "set", field: "weight", value: e.target.value })}
                 step="any"
                 min="0"
                 inputMode="decimal"
@@ -161,8 +171,8 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
             </label>
             <input
               type="number"
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
+              value={form.reps}
+              onChange={(e) => dispatch({ type: "set", field: "reps", value: e.target.value })}
               min="1"
               max="50"
               inputMode="numeric"
@@ -188,13 +198,13 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
               <button
                 key={r}
                 type="button"
-                onClick={() => setRpe(rpe === String(r) ? "" : String(r))}
+                onClick={() => dispatch({ type: "set", field: "rpe", value: form.rpe === String(r) ? "" : String(r) })}
                 className={`flex-1 py-2 rounded-lg text-xs font-display font-semibold transition-colors cursor-pointer ${
-                  rpe === String(r)
+                  form.rpe === String(r)
                     ? "bg-primary text-primary-fg"
                     : "text-muted hover:text-fg"
                 }`}
-                style={rpe !== String(r) ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
+                style={form.rpe !== String(r) ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
               >
                 {r}
               </button>

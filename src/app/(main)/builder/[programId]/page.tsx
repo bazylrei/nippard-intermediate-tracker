@@ -99,8 +99,7 @@ function ProgramEditorPage() {
     setLoading(false);
   }, [programId, router]);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { async function run() { await load(); } void run(); }, [load]);
 
   const isOwner = !!userId && program?.createdBy === userId;
 

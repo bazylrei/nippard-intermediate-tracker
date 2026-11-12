@@ -61,12 +61,12 @@ function WorkoutContent() {
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
   const workoutDay = useMemo(() => getWorkoutDay(week, dayIndex), [week, dayIndex, getWorkoutDay]);
 
-  const resolvedExercises = workoutDay?.exercises.map((ex) => {
+  const resolvedExercises = useMemo(() => workoutDay?.exercises.map((ex) => {
     const idx = useAlternate[ex.id] ?? 0;
     if (idx === 1) return { ...ex, name: ex.alternates[0] };
     if (idx === 2) return { ...ex, name: ex.alternates[1] };
     return ex;
-  }) ?? [];
+  }) ?? [], [workoutDay, useAlternate]);
 
   const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
 
@@ -95,12 +95,11 @@ function WorkoutContent() {
 
   useEffect(() => {
     if (!programReady) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDone(false);
-    setLoading(true);
-    setSessionSets([]);
 
     async function init() {
+      setDone(false);
+      setLoading(true);
+      setSessionSets([]);
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) { router.replace("/auth"); return; }
@@ -152,8 +151,10 @@ function WorkoutContent() {
 
   useEffect(() => {
     if (!userId || !currentExercise?.id) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPrevSets(userId, currentExercise.id);
+    const uid = userId;
+    const exId = currentExercise.id;
+    async function run() { await loadPrevSets(uid, exId); }
+    void run();
   }, [exerciseIndex, userId, currentExercise?.id, loadPrevSets]);
 
   useEffect(() => {
@@ -163,7 +164,7 @@ function WorkoutContent() {
         getExerciseHistory(userId, ex.id).then((h) => [ex.id, h] as const)
       )
     ).then((results) => setPostHistory(Object.fromEntries(results)));
-  }, [done, userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [done, userId, resolvedExercises]); 
 
   async function advanceTo(exIdx: number, sIdx: number) {
     if (!session) return;
