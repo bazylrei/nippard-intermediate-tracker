@@ -4,7 +4,6 @@
  */
 import type { Exercise, WorkoutDay, WeekSchedule, WarmupProtocol } from "../src/lib/types";
 
-// eslint-disable-next-line max-params
 function ex(
   id: string,
   name: string,
