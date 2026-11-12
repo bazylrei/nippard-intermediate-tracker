@@ -1,0 +1,89 @@
+import { createClient } from "../supabase";
+import type { WorkoutSession } from "../types";
+import { mapSession } from "./mappers";
+
+export async function getIncompleteSession(
+  userId: string
+): Promise<WorkoutSession | null> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("workout_sessions")
+    .select("*")
+    .eq("user_id", userId)
+    .is("completed_at", null)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .single();
+  return data ? mapSession(data as Record<string, unknown>) : null;
+}
+
+export async function getNextSession(
+  userId: string
+): Promise<{ week: number; dayIndex: number }> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("workout_sessions")
+    .select("week, day_index")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!data) return { week: 1, dayIndex: 0 };
+  const { week, day_index } = data as { week: number; day_index: number };
+  if (day_index < 4) return { week, dayIndex: day_index + 1 };
+  if (week < 12) return { week: week + 1, dayIndex: 0 };
+  return { week: 1, dayIndex: 0 };
+}
+
+export async function createSession(
+  userId: string,
+  week: number,
+  dayIndex: number,
+  dayType: string,
+  programId?: string | null
+): Promise<WorkoutSession> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from("workout_sessions")
+    .insert({ user_id: userId, week, day_index: dayIndex, day_type: dayType, program_id: programId ?? null })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapSession(data as Record<string, unknown>);
+}
+
+export async function updateSessionProgress(
+  sessionId: string,
+  exerciseIndex: number,
+  setIndex: number
+): Promise<void> {
+  const sb = createClient();
+  await sb
+    .from("workout_sessions")
+    .update({
+      current_exercise_index: exerciseIndex,
+      current_set_index: setIndex,
+    })
+    .eq("id", sessionId);
+}
+
+export async function completeSession(sessionId: string): Promise<void> {
+  const sb = createClient();
+  await sb
+    .from("workout_sessions")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("id", sessionId);
+}
+
+export async function getCompletedSessions(userId: string): Promise<WorkoutSession[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("workout_sessions")
+    .select("*")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .order("completed_at", { ascending: false });
+  return (data ?? []).map((r: Record<string, unknown>) => mapSession(r));
+}

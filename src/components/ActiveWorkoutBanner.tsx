@@ -16,13 +16,12 @@ export interface ActiveWorkoutInfo {
 }
 
 export default function ActiveWorkoutBanner() {
-  const [workout, setWorkout] = useState<ActiveWorkoutInfo | null>(null);
+  const [workout, setWorkout] = useState<ActiveWorkoutInfo | null>(
+    () => cacheGet<ActiveWorkoutInfo>("active_workout")
+  );
   const router = useRouter();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setWorkout(cacheGet<ActiveWorkoutInfo>("active_workout"));
-
     function sync() {
       setWorkout(cacheGet<ActiveWorkoutInfo>("active_workout"));
     }

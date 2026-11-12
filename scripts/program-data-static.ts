@@ -2,9 +2,8 @@
  * Static snapshot of the full program — used ONLY by scripts/seed-program.ts.
  * No app code should import from this file.
  */
-import type { Exercise, WorkoutDay, WeekSchedule, WarmupProtocol } from "./types";
+import type { Exercise, WorkoutDay, WeekSchedule, WarmupProtocol } from "../src/lib/types";
 
-// eslint-disable-next-line max-params
 function ex(
   id: string,
   name: string,

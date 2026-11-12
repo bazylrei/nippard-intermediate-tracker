@@ -7,8 +7,7 @@ import React, { useEffect } from "react";
 
 function Starter({ seconds }: { seconds: number }) {
   const { start } = useRestTimer();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { start(seconds); }, []);
+  useEffect(() => { start(seconds); }, [start, seconds]);
   return null;
 }
 
