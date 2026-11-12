@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Barlow } from "next/font/google";
 import "./globals.css";
 import { ProgramProvider } from "@/context/ProgramContext";
+import { RestTimerProvider } from "@/context/RestTimerContext";
+import RestTimerBar from "@/components/RestTimerBar";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
@@ -41,7 +43,10 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-bg text-fg safe-top">
-        <ProgramProvider>{children}</ProgramProvider>
+        <RestTimerProvider>
+          <RestTimerBar />
+          <ProgramProvider>{children}</ProgramProvider>
+        </RestTimerProvider>
       </body>
     </html>
   );

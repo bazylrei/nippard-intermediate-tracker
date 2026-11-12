@@ -22,16 +22,16 @@ import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, UserPreferences, Exercise } from "@/lib/types";
 import { cacheGet, cacheSet, cacheDelete } from "@/lib/cache";
 import type { ActiveWorkoutInfo } from "@/components/ActiveWorkoutBanner";
+import { useRestTimer } from "@/context/RestTimerContext";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
-import RestTimer from "@/components/RestTimer";
 import SetDetailSheet from "@/components/SetDetailSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink, Info, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { Suspense } from "react";
 
-type Phase = "overview" | "warmup" | "sets" | "rest";
+type Phase = "overview" | "warmup" | "sets";
 
 function WorkoutContent() {
   const router = useRouter();
@@ -46,8 +46,7 @@ function WorkoutContent() {
   const [phase, setPhase] = useState<Phase>("overview");
   const [sessionSets, setSessionSets] = useState<SetLog[]>([]);
   const [prevSets, setPrevSets] = useState<SetLog[]>([]);
-  const [showRestTimer, setShowRestTimer] = useState(false);
-  const [restDuration, setRestDuration] = useState(120);
+  const { start: startRestTimer } = useRestTimer();
   const [useAlternate, setUseAlternate] = useState<Record<string, number>>(cachedPrefs?.alternateSelections ?? {});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -193,8 +192,7 @@ function WorkoutContent() {
     setSessionSets(updated);
 
     const [restMin, restMax] = currentExercise.restSeconds;
-    setRestDuration(Math.round((restMin + restMax) / 2));
-    setShowRestTimer(true);
+    startRestTimer(Math.round((restMin + restMax) / 2));
 
     if (isLastSet) {
       const allDone = resolvedExercises.every((ex) => {
@@ -242,7 +240,6 @@ function WorkoutContent() {
     setPhase("sets");
     if (session) await updateSessionProgress(session.id, exerciseIndex, 0);
   }
-  function handleRestDone() { setShowRestTimer(false); }
 
   async function toggleAlternate(exId: string) {
     const current = useAlternate[exId] ?? 0;
@@ -743,14 +740,6 @@ function WorkoutContent() {
           <ChevronRight size={14} />
         </button>
       </div>
-
-      {showRestTimer && (
-        <RestTimer
-          durationSeconds={restDuration}
-          onComplete={handleRestDone}
-          onSkip={handleRestDone}
-        />
-      )}
 
       {showNotes && currentExercise && (
         <ExerciseNotesSheet
