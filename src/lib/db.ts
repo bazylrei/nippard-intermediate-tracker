@@ -37,14 +37,34 @@ function mapSetLog(row: Record<string, unknown>): SetLog {
 
 export async function getPreferences(userId: string): Promise<UserPreferences> {
   const sb = createClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("user_preferences")
-    .select("unit, alternate_selections")
+    .select("unit, alternate_selections, body_weight_kg, height_cm")
     .eq("user_id", userId)
     .single();
+
+  if (error && error.message.includes("body_weight_kg")) {
+    // Columns not migrated yet — fall back to base select
+    const { data: base } = await sb
+      .from("user_preferences")
+      .select("unit, alternate_selections")
+      .eq("user_id", userId)
+      .single();
+    const row = base as Record<string, unknown> | null;
+    return {
+      unit: (row?.unit as "kg" | "lbs") ?? "kg",
+      alternateSelections: (row?.alternate_selections as Record<string, number>) ?? {},
+      bodyWeightKg: null,
+      heightCm: null,
+    };
+  }
+
+  const row = data as Record<string, unknown> | null;
   return {
-    unit: data?.unit ?? "kg",
-    alternateSelections: data?.alternate_selections ?? {},
+    unit: (row?.unit as "kg" | "lbs") ?? "kg",
+    alternateSelections: (row?.alternate_selections as Record<string, number>) ?? {},
+    bodyWeightKg: (row?.body_weight_kg as number | null) ?? null,
+    heightCm: (row?.height_cm as number | null) ?? null,
   };
 }
 

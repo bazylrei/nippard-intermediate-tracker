@@ -23,6 +23,7 @@ export interface Exercise {
   formNote: string;
   youtubeUrl?: string | null;
   instructions?: string | null;
+  equipment?: string | null; // "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight" | null
 }
 
 export type MuscleGroup =
@@ -55,6 +56,8 @@ export interface WeekSchedule {
 export interface UserPreferences {
   unit: "kg" | "lbs";
   alternateSelections: Record<string, number>; // exerciseId -> 0 (main) | 1 (alt1) | 2 (alt2)
+  bodyWeightKg?: number | null;
+  heightCm?: number | null;
 }
 
 export interface SetLog {

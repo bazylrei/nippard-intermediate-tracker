@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
+import { inferEquipment } from "@/lib/program-data";
 import FailureTechniqueModal from "./FailureTechniqueModal";
 
 interface Props {
@@ -47,6 +48,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }, [previousSets, setIndex, unit]);
 
   const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
+  const equipment = exercise.equipment ?? inferEquipment(exercise.name);
   const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
   const techniqueInfo = isLastSet ? failureTechniques[exercise.lastSetTarget] : null;
@@ -65,7 +67,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       <div className="flex items-center justify-between">
         <div>
           <span className={`font-display font-bold text-base uppercase tracking-wide ${isLastSet ? "text-primary" : "text-muted"}`}>
-            {isLastSet ? "Last Set" : `Set ${setIndex + 1}`}
+            Set {setIndex + 1}
           </span>
           {isLastSet && techniqueInfo && (
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -87,13 +89,21 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         )}
       </div>
 
+      {/* Equipment context */}
+      {(equipment === "dumbbell" || equipment === "bodyweight") && (
+        <div className="text-xs text-muted">
+          {equipment === "dumbbell" && "2 dumbbells — enter weight per hand"}
+          {equipment === "bodyweight" && "Bodyweight — enter added weight (0 if none)"}
+        </div>
+      )}
+
       {/* Previous data */}
       {prevSet && (
         <div className="rounded-xl px-4 py-2.5 flex items-center justify-between"
           style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}>
           <span className="text-xs text-muted">Last time</span>
           <span className="font-display font-semibold text-sm text-fg">
-            {toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
+            {equipment === "dumbbell" && "2× "}{toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
             {prevSet.rpe && <span className="text-muted font-normal"> @ RPE {prevSet.rpe}</span>}
           </span>
         </div>
@@ -103,7 +113,9 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-muted mb-1.5">Weight ({unit})</label>
+            <label className="block text-xs text-muted mb-1.5">
+              {equipment === "dumbbell" ? `Each DB (${unit})` : equipment === "bodyweight" ? `Added (${unit})` : `Weight (${unit})`}
+            </label>
             <input
               type="number"
               value={weight}

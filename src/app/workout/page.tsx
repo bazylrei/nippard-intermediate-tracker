@@ -11,6 +11,7 @@ import {
   logSet,
   getSessionSets,
   deleteSetLog,
+  deleteWorkoutSession,
   getLastSessionSetsForExercise,
   getPreferences,
 } from "@/lib/db";
@@ -21,7 +22,7 @@ import { cacheGet, cacheSet } from "@/lib/cache";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
 import RestTimer from "@/components/RestTimer";
-import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink } from "lucide-react";
+import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink, AlertCircle } from "lucide-react";
 import { Suspense } from "react";
 
 type Phase = "overview" | "warmup" | "sets" | "rest";
@@ -45,6 +46,7 @@ function WorkoutContent() {
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showExerciseList, setShowExerciseList] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
@@ -149,12 +151,21 @@ function WorkoutContent() {
     setShowRestTimer(true);
 
     if (isLastSet) {
-      if (exerciseIndex + 1 < resolvedExercises.length) {
-        await advanceTo(exerciseIndex + 1, 0);
-        setPhase("warmup");
-      } else {
+      const allDone = resolvedExercises.every((ex) => {
+        const exSets = updated.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
+        return exSets.length >= totalSetsForExercise(ex);
+      });
+      if (allDone) {
         await completeSession(session.id);
         setDone(true);
+      } else {
+        const nextIdx = resolvedExercises.findIndex((ex, i) => {
+          const exSets = updated.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
+          return i !== exerciseIndex && exSets.length < totalSetsForExercise(ex);
+        });
+        const targetIdx = nextIdx !== -1 ? nextIdx : exerciseIndex + 1;
+        await advanceTo(targetIdx, 0);
+        setPhase("warmup");
       }
     } else {
       await advanceTo(exerciseIndex, setIndex + 1);
@@ -391,9 +402,31 @@ function WorkoutContent() {
             />
           ))}
         </div>
-        <button onClick={() => router.push("/")} className="text-subtle hover:text-fg transition-colors cursor-pointer">
-          <ArrowLeft size={20} />
-        </button>
+        {/* Discard / back */}
+        {confirmDiscard ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={async () => {
+                if (session) await deleteWorkoutSession(session.id);
+                router.push("/");
+              }}
+              className="text-xs font-display font-semibold text-danger cursor-pointer"
+            >
+              Discard
+            </button>
+            <button onClick={() => setConfirmDiscard(false)} className="text-muted hover:text-fg cursor-pointer">
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDiscard(true)}
+            className="text-subtle hover:text-fg transition-colors cursor-pointer"
+            title="Leave workout"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
@@ -440,10 +473,10 @@ function WorkoutContent() {
 
         {/* Sets progress — glass tiles */}
         <div className="space-y-2">
+          <span className="text-xs font-display font-semibold uppercase tracking-widest text-muted">Sets</span>
           <div className="flex gap-2">
             {Array.from({ length: totalSets }).map((_, i) => {
               const logged = setsForExercise[i];
-              const isLast = i === totalSets - 1;
               const isCurrent = i === setIndex && phase === "sets";
               return (
                 <div
@@ -451,17 +484,13 @@ function WorkoutContent() {
                   className="flex-1 h-12 rounded-xl flex items-center justify-center font-display font-bold text-sm transition-colors glass"
                   style={
                     logged
-                      ? isLast
-                        ? { background: "color-mix(in srgb, var(--primary) 20%, transparent)", borderColor: "color-mix(in srgb, var(--primary) 40%, transparent)", color: "var(--primary)" }
-                        : { background: "color-mix(in srgb, var(--accent) 15%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)", color: "var(--accent)" }
+                      ? { background: "color-mix(in srgb, var(--accent) 15%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)", color: "var(--accent)" }
                       : isCurrent
-                      ? isLast
-                        ? { background: "color-mix(in srgb, var(--primary) 25%, transparent)", borderColor: "var(--primary)", color: "var(--primary)" }
-                        : { borderColor: "color-mix(in srgb, var(--fg) 20%, transparent)", color: "var(--fg)" }
+                      ? { borderColor: "color-mix(in srgb, var(--fg) 20%, transparent)", color: "var(--fg)" }
                       : { color: "var(--subtle)" }
                   }
                 >
-                  {logged ? logged.reps : isLast ? "●" : i + 1}
+                  {logged ? logged.reps : i + 1}
                 </div>
               );
             })}

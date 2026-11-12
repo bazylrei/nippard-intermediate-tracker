@@ -411,7 +411,7 @@ function HistoryTab({
                 <div>
                   <p className="font-display font-semibold text-sm text-fg">
                     {DAY_LABELS[session.dayType] ?? session.dayType}
-                    <span className="text-muted font-normal ml-2">· Wk {session.week}</span>
+                    <span className="text-muted font-normal ml-2">· Week {session.week}</span>
                   </p>
                   <p className="text-xs text-muted mt-0.5">
                     {session.completedAt ? formatDate(session.completedAt.split("T")[0]) : ""}
@@ -601,12 +601,8 @@ function HistoryTab({
                             return (
                               <div key={set.id} className="flex items-center justify-between px-1 py-1">
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-1.5 py-0.5 rounded-md font-display font-semibold ${
-                                    set.isLastSet
-                                      ? "bg-primary/15 text-primary"
-                                      : "bg-elevated text-muted"
-                                  }`}>
-                                    {set.isLastSet ? "Last" : `S${set.setIndex + 1}`}
+                                  <span className="text-xs px-1.5 py-0.5 rounded-md font-display font-semibold bg-elevated text-muted">
+                                    {set.setIndex + 1}
                                   </span>
                                   <span className="text-sm text-fg font-medium">
                                     {set.weight}kg × {set.reps} reps

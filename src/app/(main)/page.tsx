@@ -69,6 +69,23 @@ export default function Dashboard() {
     await upsertPreferences(userId, { unit: next.unit });
   }
 
+  async function saveBodyStats(bodyWeightKg: number | null, heightCm: number | null) {
+    if (!userId) return;
+    const next: UserPreferences = { ...prefs, bodyWeightKg, heightCm };
+    setPrefs(next);
+    if (nextSession) cacheSet("dashboard", { nextSession, hasResume, prefs: next, email });
+    cacheSet("prefs", next);
+    try {
+      const sb = (await import("@/lib/supabase")).createClient();
+      await sb.from("user_preferences").upsert(
+        { user_id: userId, body_weight_kg: bodyWeightKg, height_cm: heightCm },
+        { onConflict: "user_id" }
+      );
+    } catch {
+      // Columns may not exist yet — values are saved locally above
+    }
+  }
+
   function startWorkout() {
     if (!nextSession) return;
     router.push(`/workout?week=${nextSession.week}&day=${nextSession.dayIndex}`);
@@ -127,6 +144,42 @@ export default function Dashboard() {
             >
               {prefs.unit.toUpperCase()}
             </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <div>
+              <label className="block text-xs text-muted mb-1.5">Body weight (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                inputMode="decimal"
+                defaultValue={prefs.bodyWeightKg ?? ""}
+                onBlur={(e) => {
+                  const v = parseFloat(e.target.value);
+                  saveBodyStats(isNaN(v) ? null : v, prefs.heightCm ?? null);
+                }}
+                className="w-full rounded-xl px-3 py-2 text-fg text-center font-display text-lg font-semibold focus:outline-none"
+                style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}
+                placeholder="—"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted mb-1.5">Height (cm)</label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                inputMode="numeric"
+                defaultValue={prefs.heightCm ?? ""}
+                onBlur={(e) => {
+                  const v = parseFloat(e.target.value);
+                  saveBodyStats(prefs.bodyWeightKg ?? null, isNaN(v) ? null : v);
+                }}
+                className="w-full rounded-xl px-3 py-2 text-fg text-center font-display text-lg font-semibold focus:outline-none"
+                style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}
+                placeholder="—"
+              />
+            </div>
           </div>
         </div>
       )}
