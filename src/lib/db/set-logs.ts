@@ -99,3 +99,23 @@ export async function getLastSessionSetsForExercise(
   }
   return [];
 }
+
+export interface SessionSetRef {
+  sessionId: string;
+  exerciseId: string;
+}
+
+/** Working sets (no warm-ups) for many sessions in one round-trip. */
+export async function getWorkingSetsForSessions(sessionIds: string[]): Promise<SessionSetRef[]> {
+  if (sessionIds.length === 0) return [];
+  const sb = createClient();
+  const { data } = await sb
+    .from("set_logs")
+    .select("session_id, exercise_id")
+    .in("session_id", sessionIds)
+    .gte("set_index", 0);
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    sessionId: r.session_id as string,
+    exerciseId: r.exercise_id as string,
+  }));
+}

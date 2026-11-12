@@ -27,7 +27,10 @@ vi.mock("@/lib/supabase", () => ({
   createClient: () => mockChain,
 }));
 
-import { getNextSession, getPreferences, saveExerciseNote, getIncompleteSession } from "@/lib/db";
+import {
+  getNextSession, getPreferences, saveExerciseNote, getIncompleteSession,
+  getRecentCompletedSessions, getWorkingSetsForSessions,
+} from "@/lib/db";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -216,5 +219,46 @@ describe("getIncompleteSession", () => {
     const result = await getIncompleteSession("user-2");
     expect(result?.programId).toBe("prog-abc");
     expect(result?.dayType).toBe("lower-a");
+  });
+});
+
+// ─── getRecentCompletedSessions ────────────────────────────────────────────────
+
+describe("getRecentCompletedSessions", () => {
+  it("maps rows, filters to completed sessions and applies the limit", async () => {
+    mockChain.limit = vi.fn().mockResolvedValue({
+      data: [{
+        id: "s1", user_id: "u1", program_id: null, week: 2, day_index: 1, day_type: "push",
+        started_at: "2026-11-10T10:00:00Z", completed_at: "2026-11-10T11:00:00Z",
+      }],
+    });
+    const result = await getRecentCompletedSessions("u1", 5);
+    expect(mockChain.not).toHaveBeenCalledWith("completed_at", "is", null);
+    expect(mockChain.order).toHaveBeenCalledWith("completed_at", { ascending: false });
+    expect(mockChain.limit).toHaveBeenCalledWith(5);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: "s1", week: 2, dayIndex: 1, dayType: "push" });
+  });
+
+  it("returns an empty list when there is no data", async () => {
+    mockChain.limit = vi.fn().mockResolvedValue({ data: null });
+    expect(await getRecentCompletedSessions("u1", 5)).toEqual([]);
+  });
+});
+
+// ─── getWorkingSetsForSessions ─────────────────────────────────────────────────
+
+describe("getWorkingSetsForSessions", () => {
+  it("skips the query entirely for an empty id list", async () => {
+    expect(await getWorkingSetsForSessions([])).toEqual([]);
+    expect(mockChain.from).not.toHaveBeenCalled();
+  });
+
+  it("queries working sets only and maps rows", async () => {
+    mockChain.gte = vi.fn().mockResolvedValue({ data: [{ session_id: "s1", exercise_id: "bench" }] });
+    const result = await getWorkingSetsForSessions(["s1", "s2"]);
+    expect(mockChain.in).toHaveBeenCalledWith("session_id", ["s1", "s2"]);
+    expect(mockChain.gte).toHaveBeenCalledWith("set_index", 0);
+    expect(result).toEqual([{ sessionId: "s1", exerciseId: "bench" }]);
   });
 });

@@ -87,3 +87,18 @@ export async function getCompletedSessions(userId: string): Promise<WorkoutSessi
     .order("completed_at", { ascending: false });
   return (data ?? []).map((r: Record<string, unknown>) => mapSession(r));
 }
+
+export async function getRecentCompletedSessions(
+  userId: string,
+  limit: number
+): Promise<WorkoutSession[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("workout_sessions")
+    .select("*")
+    .eq("user_id", userId)
+    .not("completed_at", "is", null)
+    .order("completed_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r: Record<string, unknown>) => mapSession(r));
+}

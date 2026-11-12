@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Dumbbell, TrendingUp, Wrench } from "lucide-react";
+import { Dumbbell, House, ClipboardList, TrendingUp, Wrench } from "lucide-react";
 
 const TABS = [
-  { href: "/",         label: "Home",     icon: Dumbbell   },
+  { href: "/",         label: "Home",     icon: House         },
+  { href: "/program",  label: "Program",  icon: ClipboardList },
   { href: "/progress", label: "Progress", icon: TrendingUp },
   { href: "/builder",  label: "Builder",  icon: Wrench     },
 ] as const;
