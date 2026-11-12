@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { PROGRAM } from "../src/lib/program-data-static";
+import { PROGRAM } from "./program-data-static";
 
 const SUPABASE_URL = "https://avlybhdtpgnynjffgofv.supabase.co";
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
