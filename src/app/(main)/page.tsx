@@ -5,6 +5,7 @@ import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
 import NextWorkoutCard from "@/components/home/NextWorkoutCard";
 import WorkoutFeedCard from "@/components/home/WorkoutFeedCard";
+import { getSessionNumber } from "@/lib/program-data";
 
 export default function Home() {
   const router = useRouter();
@@ -20,16 +21,17 @@ export default function Home() {
   }
 
   const { nextSession, hasResume, items } = feed;
-  const nextDay = program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex];
+  const nextDay = nextSession && program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex];
 
   return (
     <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <h1 className="font-display font-bold text-xl text-fg pt-2">Home</h1>
 
-      {nextDay && (
+      {nextSession && nextDay && (
         <NextWorkoutCard
           week={nextSession.week}
-          dayIndex={nextSession.dayIndex}
+          totalWeeks={program.length}
+          sessionNumber={getSessionNumber(nextSession, program)}
           day={nextDay}
           isResume={hasResume}
           onStart={() => router.push(`/workout?week=${nextSession.week}&day=${nextSession.dayIndex}`)}

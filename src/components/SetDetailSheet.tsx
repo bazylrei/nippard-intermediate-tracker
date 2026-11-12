@@ -29,17 +29,26 @@ export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }:
   const [reps, setReps] = useState(String(set.reps));
   const [rpe, setRpe] = useState(set.rpe ? String(set.rpe) : "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { weightPerSide } = exercise;
 
+  /** Leaves edit mode only once saved; on failure keeps the edits on screen. */
   async function handleSave() {
     const w = parseFloat(weight);
     const r = parseInt(reps, 10);
     if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
     setSaving(true);
-    await onSave(set.id, toKg(w, unit), r, rpe ? parseFloat(rpe) : null);
-    setSaving(false);
-    setEditing(false);
+    setError(null);
+    try {
+      await onSave(set.id, toKg(w, unit), r, rpe ? parseFloat(rpe) : null);
+      setEditing(false);
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't save your changes. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -130,6 +139,8 @@ export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }:
                 ))}
               </div>
             </div>
+
+            {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
             <div className="flex gap-2">
               <button

@@ -1,46 +1,61 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSignedInUser } from "@/lib/auth";
-import {
-  getIncompleteSession, getNextSession, getRecentCompletedSessions, getWorkingSetsForSessions,
-} from "@/lib/db";
+import { getIncompleteSession, getLastCompletedWorkout, getRecentWorkouts } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
+import { nextWorkout } from "@/lib/program-data";
+import { useProgramContext } from "@/context/ProgramContext";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import type { WorkoutPosition } from "@/lib/types";
 
 const FEED_LIMIT = 20;
-const CACHE_KEY = "home-feed";
+const CACHE_KEY = "home-feed-v2";
+
+/** What the server told us; the suggested next workout is derived from it and the program. */
+interface FeedData {
+  resume: WorkoutPosition | null;
+  lastCompleted: WorkoutPosition | null;
+  items: WorkoutFeedItem[];
+}
 
 export interface HomeFeed {
-  nextSession: { week: number; dayIndex: number };
+  /** Null until the program schedule has loaded. */
+  nextSession: WorkoutPosition | null;
   hasResume: boolean;
   items: WorkoutFeedItem[];
 }
 
 export function useHomeFeed(): { feed: HomeFeed | null } {
   const router = useRouter();
-  const [feed, setFeed] = useState<HomeFeed | null>(() => cacheGet<HomeFeed>(CACHE_KEY));
+  const { program } = useProgramContext();
+  const [data, setData] = useState<FeedData | null>(() => cacheGet<FeedData>(CACHE_KEY));
 
   useEffect(() => {
     async function load() {
       const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
 
-      const [incomplete, next, sessions] = await Promise.all([
+      const [incomplete, lastCompleted, recent] = await Promise.all([
         getIncompleteSession(user.id),
-        getNextSession(user.id),
-        getRecentCompletedSessions(user.id, FEED_LIMIT),
+        getLastCompletedWorkout(user.id),
+        getRecentWorkouts(user.id, FEED_LIMIT),
       ]);
-      const sets = await getWorkingSetsForSessions(sessions.map((s) => s.id));
-      const fresh: HomeFeed = {
-        nextSession: incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : next,
-        hasResume: !!incomplete,
-        items: buildWorkoutFeed(sessions, sets),
+      const fresh: FeedData = {
+        resume: incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null,
+        lastCompleted,
+        items: buildWorkoutFeed(recent.sessions, recent.sets),
       };
-      setFeed(fresh);
+      setData(fresh);
       cacheSet(CACHE_KEY, fresh);
     }
     void load();
   }, [router]);
+
+  const feed = useMemo<HomeFeed | null>(() => data && {
+    nextSession: data.resume ?? nextWorkout(data.lastCompleted, program),
+    hasResume: !!data.resume,
+    items: data.items,
+  }, [data, program]);
 
   return { feed };
 }

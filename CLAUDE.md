@@ -55,7 +55,8 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 - **Warmup sets use negative indices**: set index −3/−2/−1 are warmup; 0+ are working sets.
 - **Weight is always stored in kg** internally; `SetLogger` converts to lbs on display when the user preference is `lbs` (Epley formula also works in kg).
 - **Alternate exercises** are stored in `user_preferences.alternate_selections` and resolved at render time in `SetLogger`, not at the DB level.
-- **Session progress** = `(week − 1) × 5 + dayIndex + 1`; total = 60 sessions across 12 weeks.
+- **Never hard-code program dimensions.** Builder-edited programs can have any number of weeks, days per week, and gaps. Next workout, session numbers and totals come from the loaded schedule via `nextWorkout()` / `getSessionNumber()` / `getTotalSessions()` in `program-data.ts`; the DB stores only the last completed position.
+- **Saves are never silent**: use `useSaveError().attempt()` (or try/catch + `report`) for writes from UI handlers; sheets stay open with an inline error if `onSave` rejects.
 - **Page components** are async Server Components; interactive leaf components use `"use client"`.
 - **Round trips are the main latency cost** (the DB is in `eu-west-2`). Combine dependent queries with PostgREST embeds (`select("*, set_logs(*)")`) or a Postgres function called via `sb.rpc()`; run independent ones with `Promise.all`.
 - **Multi-step writes are Postgres functions**, not chained client calls: `log_set` (set + session progress, idempotent on a client-generated id), `duplicate_program_week` (atomic). Child rows are removed by `ON DELETE CASCADE` — don't delete them by hand.

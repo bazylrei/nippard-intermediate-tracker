@@ -11,21 +11,22 @@ const day = (n: number): WorkoutDay => ({
 }) as unknown as WorkoutDay;
 
 describe("NextWorkoutCard", () => {
-  it("shows the suggestion, day label and session number", () => {
-    render(<NextWorkoutCard week={2} dayIndex={3} day={day(5)} isResume={false} onStart={vi.fn()} />);
+  it("shows the suggestion, day label, session number and the program's real week count", () => {
+    render(<NextWorkoutCard week={2} totalWeeks={13} sessionNumber={9} day={day(5)} isResume={false} onStart={vi.fn()} />);
     expect(screen.getByText("Suggested next")).toBeInTheDocument();
     expect(screen.getByText("Push — Hypertrophy")).toBeInTheDocument();
-    expect(screen.getByText("Session 9")).toBeInTheDocument(); // (2-1)*5 + 3 + 1
+    expect(screen.getByText("Session 9")).toBeInTheDocument();
+    expect(screen.getByText(/Week 2 of 13/)).toBeInTheDocument();
   });
 
   it("previews three exercises and counts the rest", () => {
-    render(<NextWorkoutCard week={1} dayIndex={0} day={day(5)} isResume={false} onStart={vi.fn()} />);
+    render(<NextWorkoutCard week={1} totalWeeks={12} sessionNumber={1} day={day(5)} isResume={false} onStart={vi.fn()} />);
     expect(screen.getByText(/Ex1 · Ex2 · Ex3 · \+2 more/)).toBeInTheDocument();
   });
 
   it("offers Resume instead of Start for an unfinished session, and fires onStart", () => {
     const onStart = vi.fn();
-    render(<NextWorkoutCard week={1} dayIndex={0} day={day(2)} isResume onStart={onStart} />);
+    render(<NextWorkoutCard week={1} totalWeeks={12} sessionNumber={1} day={day(2)} isResume onStart={onStart} />);
     fireEvent.click(screen.getByRole("button", { name: /Resume workout/ }));
     expect(onStart).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/more/)).toBeNull();

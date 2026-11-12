@@ -19,6 +19,7 @@ import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/workout/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
+import { useSaveError } from "@/hooks/useSaveError";
 import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import SetLogger from "@/components/SetLogger";
@@ -31,8 +32,10 @@ import ExerciseListOverlay from "@/components/workout/ExerciseListOverlay";
 import WorkoutHeader from "@/components/workout/WorkoutHeader";
 import ExerciseInfo from "@/components/workout/ExerciseInfo";
 import SetTiles from "@/components/workout/SetTiles";
-import { ChevronRight } from "lucide-react";
+import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { Suspense } from "react";
+
+const PROGRESS_SAVE_FAILED = "Couldn't save your place in the workout. It will be saved with your next set.";
 
 function WorkoutContent() {
   const router = useRouter();
@@ -54,7 +57,7 @@ function WorkoutContent() {
   const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [prevSetsByExercise, setPrevSetsByExercise] = useState<Record<string, SetLog[]>>({});
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveError = useSaveError();
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
@@ -92,12 +95,38 @@ function WorkoutContent() {
     init();
   }, [week, dayIndex, router, workoutDay, programReady, programId, setPrefs]);
 
-  async function advanceTo(exIdx: number, sIdx: number) {
+  /** Navigation is instant; if saving the resume point fails, the next logged set saves it anyway. */
+  function saveProgress(exIdx: number, sIdx: number) {
+    if (!session) return;
+    void saveError.attempt(() => updateSessionProgress(session.id, exIdx, sIdx), PROGRESS_SAVE_FAILED);
+  }
+
+  function advanceTo(exIdx: number, sIdx: number) {
     if (!session) return;
     setExerciseIndex(exIdx);
     setSetIndex(sIdx);
-    await updateSessionProgress(session.id, exIdx, sIdx);
     writeBanner(exIdx, resolvedExercises, week, dayIndex, session.dayType);
+    saveProgress(exIdx, sIdx);
+  }
+
+  async function handleSkipExercise() {
+    if (exerciseIndex + 1 < resolvedExercises.length) {
+      advanceTo(exerciseIndex + 1, 0);
+      setPhase("warmup");
+      return;
+    }
+    if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
+    clearBanner();
+    setDone(true);
+  }
+
+  async function handleDiscard() {
+    if (session && !(await saveError.attempt(() => deleteWorkoutSession(session.id), "Couldn't discard the workout. Try again."))) {
+      setConfirmDiscard(false);
+      return;
+    }
+    clearBanner();
+    router.push("/");
   }
 
   function isExerciseDone(exIdx: number): boolean {
@@ -121,7 +150,7 @@ function WorkoutContent() {
     const step = planAfterSet(resolvedExercises, updated, exerciseIndex, setIndex);
     const previous = { sessionSets, exerciseIndex, setIndex, phase };
 
-    setSaveError(null);
+    saveError.clear();
     setSessionSets(updated);
     const [restMin, restMax] = currentExercise.restSeconds;
     startRestTimer(Math.round((restMin + restMax) / 2));
@@ -143,14 +172,13 @@ function WorkoutContent() {
         completeSession: step.kind === "complete",
       });
     } catch (err) {
-      console.error(err);
       setSessionSets(previous.sessionSets);
       setExerciseIndex(previous.exerciseIndex);
       setSetIndex(previous.setIndex);
       setPhase(previous.phase);
       setDone(false);
       writeBanner(previous.exerciseIndex, resolvedExercises, week, dayIndex, session.dayType);
-      setSaveError("Couldn't save that set. Check your connection and log it again.");
+      saveError.report("Couldn't save that set. Check your connection and log it again.", err);
     }
   }
 
@@ -160,10 +188,10 @@ function WorkoutContent() {
     setViewingSet((prev) => prev ? { ...prev, weight: weightKg, reps, rpe } : null);
   }
 
-  async function handleWarmupComplete() {
+  function handleWarmupComplete() {
     setSetIndex(0);
     setPhase("sets");
-    if (session) await updateSessionProgress(session.id, exerciseIndex, 0);
+    saveProgress(exerciseIndex, 0);
   }
 
   if (loading) return <FullScreenMessage message="Loading workout…" />;
@@ -213,7 +241,7 @@ function WorkoutContent() {
           exercises={resolvedExercises}
           currentIndex={exerciseIndex}
           isDone={isExerciseDone}
-          onSelect={async (i) => { await advanceTo(i, -1); setPhase("warmup"); setShowExerciseList(false); }}
+          onSelect={(i) => { advanceTo(i, -1); setPhase("warmup"); setShowExerciseList(false); }}
           onClose={() => setShowExerciseList(false)}
         />
       )}
@@ -229,23 +257,19 @@ function WorkoutContent() {
         onOpenList={() => setShowExerciseList(true)}
         onAskDiscard={() => setConfirmDiscard(true)}
         onCancelDiscard={() => setConfirmDiscard(false)}
-        onDiscard={async () => {
-          if (session) await deleteWorkoutSession(session.id);
-          clearBanner();
-          router.push("/");
-        }}
+        onDiscard={handleDiscard}
         onHome={() => router.push("/")}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
-        {saveError && <SaveErrorAlert message={saveError} onDismiss={() => setSaveError(null)} />}
+        {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
         <ExerciseInfo
           exercise={currentExercise}
           originalExercise={workoutDay.exercises[exerciseIndex]}
           alternateIndex={useAlternate[currentExercise.id] ?? 0}
           note={prefs.exerciseNotes?.[currentExercise.id]}
-          onSwap={() => toggleAlternate(currentExercise.id)}
+          onSwap={() => saveError.attempt(() => toggleAlternate(currentExercise.id), "Couldn't save the exercise swap.")}
           onOpenNotes={() => setShowNotes(true)}
         />
 
@@ -279,22 +303,7 @@ function WorkoutContent() {
           />
         ) : null}
 
-        {/* Skip exercise */}
-        <button
-          onClick={async () => {
-            if (exerciseIndex + 1 < resolvedExercises.length) {
-              await advanceTo(exerciseIndex + 1, 0);
-              setPhase("warmup");
-            } else {
-              if (session) await completeSession(session.id);
-              setDone(true);
-            }
-          }}
-          className="w-full flex items-center justify-center gap-1.5 text-sm text-subtle hover:text-muted py-2 transition-colors cursor-pointer"
-        >
-          Skip exercise
-          <ChevronRight size={14} />
-        </button>
+        <SkipExerciseButton onSkip={handleSkipExercise} />
       </div>
 
       {showNotes && (

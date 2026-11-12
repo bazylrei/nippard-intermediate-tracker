@@ -1,5 +1,5 @@
 import { createClient } from "../supabase";
-import type { SetLog, WorkoutSession } from "../types";
+import type { SetLog, WorkoutPosition, WorkoutSession } from "../types";
 import { mapSession, mapSetLog } from "./mappers";
 import { unwrap } from "./result";
 
@@ -37,11 +37,13 @@ export async function getIncompleteSessionWithSets(
   return { session: mapSession(row), sets: (set_logs ?? []).map(mapSetLog) };
 }
 
-export async function getNextSession(
-  userId: string
-): Promise<{ week: number; dayIndex: number }> {
+/**
+ * Position of the most recently completed workout, or null if none.
+ * What comes next depends on the program's schedule — see `nextWorkout()`.
+ */
+export async function getLastCompletedWorkout(userId: string): Promise<WorkoutPosition | null> {
   const sb = createClient();
-  const data = unwrap("getNextSession", await sb
+  const data = unwrap("getLastCompletedWorkout", await sb
     .from("workout_sessions")
     .select("week, day_index")
     .eq("user_id", userId)
@@ -49,12 +51,7 @@ export async function getNextSession(
     .order("completed_at", { ascending: false })
     .limit(1)
     .maybeSingle());
-
-  if (!data) return { week: 1, dayIndex: 0 };
-  const { week, day_index } = data;
-  if (day_index < 4) return { week, dayIndex: day_index + 1 };
-  if (week < 12) return { week: week + 1, dayIndex: 0 };
-  return { week: 1, dayIndex: 0 };
+  return data ? { week: data.week, dayIndex: data.day_index } : null;
 }
 
 export async function createSession(
@@ -107,17 +104,34 @@ export async function getCompletedSessions(userId: string): Promise<WorkoutSessi
   return (data ?? []).map(mapSession);
 }
 
-export async function getRecentCompletedSessions(
+export interface SessionSetRef {
+  sessionId: string;
+  exerciseId: string;
+}
+
+/**
+ * The latest completed sessions and their working sets (no warm-ups),
+ * in one round trip via an embedded select.
+ */
+export async function getRecentWorkouts(
   userId: string,
   limit: number
-): Promise<WorkoutSession[]> {
+): Promise<{ sessions: WorkoutSession[]; sets: SessionSetRef[] }> {
   const sb = createClient();
-  const data = unwrap("getRecentCompletedSessions", await sb
+  const data = unwrap("getRecentWorkouts", await sb
     .from("workout_sessions")
-    .select("*")
+    .select("*, set_logs(exercise_id)")
     .eq("user_id", userId)
     .not("completed_at", "is", null)
+    .gte("set_logs.set_index", 0)
     .order("completed_at", { ascending: false })
     .limit(limit));
-  return (data ?? []).map(mapSession);
+
+  const sessions: WorkoutSession[] = [];
+  const sets: SessionSetRef[] = [];
+  for (const { set_logs, ...row } of data ?? []) {
+    sessions.push(mapSession(row));
+    for (const log of set_logs ?? []) sets.push({ sessionId: row.id, exerciseId: log.exercise_id });
+  }
+  return { sessions, sets };
 }

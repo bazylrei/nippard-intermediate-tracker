@@ -29,8 +29,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
-  getNextSession, getPreferences, saveExerciseNote, getIncompleteSession,
-  getRecentCompletedSessions, getWorkingSetsForSessions,
+  getLastCompletedWorkout, getPreferences, saveExerciseNote, getIncompleteSession, getRecentWorkouts,
 } from "@/lib/db";
 
 beforeEach(() => {
@@ -47,39 +46,19 @@ beforeEach(() => {
   mockUpsert.mockResolvedValue({ data: null, error: null });
 });
 
-// ─── getNextSession ────────────────────────────────────────────────────────────
+// ─── getLastCompletedWorkout ───────────────────────────────────────────────────
+// (What comes *next* depends on the program schedule — see program-data tests.)
 
-describe("getNextSession", () => {
-  it("returns week 1, dayIndex 0 when no completed session exists", async () => {
+describe("getLastCompletedWorkout", () => {
+  it("returns null when no session has been completed", async () => {
     mockSingle.mockResolvedValue({ data: null, error: null });
-    const result = await getNextSession("user-1");
-    expect(result).toEqual({ week: 1, dayIndex: 0 });
+    expect(await getLastCompletedWorkout("user-1")).toBeNull();
   });
 
-  it("returns next day in same week when day_index < 4", async () => {
-    // last session: week 3, day 2 → next: week 3, day 3
-    mockSingle.mockResolvedValue({ data: { week: 3, day_index: 2 }, error: null });
-    const result = await getNextSession("user-1");
-    expect(result).toEqual({ week: 3, dayIndex: 3 });
-  });
-
-  it("advances to next week when day_index is 4", async () => {
-    // last session: week 5, day 4 → next: week 6, day 0
-    mockSingle.mockResolvedValue({ data: { week: 5, day_index: 4 }, error: null });
-    const result = await getNextSession("user-1");
-    expect(result).toEqual({ week: 6, dayIndex: 0 });
-  });
-
-  it("restarts at week 1, day 0 when last session was week 12, day 4", async () => {
+  it("returns the position of the most recently completed session", async () => {
     mockSingle.mockResolvedValue({ data: { week: 12, day_index: 4 }, error: null });
-    const result = await getNextSession("user-1");
-    expect(result).toEqual({ week: 1, dayIndex: 0 });
-  });
-
-  it("advances to week 12 when last session was week 11, day 4", async () => {
-    mockSingle.mockResolvedValue({ data: { week: 11, day_index: 4 }, error: null });
-    const result = await getNextSession("user-1");
-    expect(result).toEqual({ week: 12, dayIndex: 0 });
+    expect(await getLastCompletedWorkout("user-1")).toEqual({ week: 12, dayIndex: 4 });
+    expect(mockChain.order).toHaveBeenCalledWith("completed_at", { ascending: false });
   });
 });
 
@@ -224,43 +203,38 @@ describe("getIncompleteSession", () => {
   });
 });
 
-// ─── getRecentCompletedSessions ────────────────────────────────────────────────
+// ─── getRecentWorkouts ─────────────────────────────────────────────────────────
 
-describe("getRecentCompletedSessions", () => {
-  it("maps rows, filters to completed sessions and applies the limit", async () => {
+describe("getRecentWorkouts", () => {
+  it("fetches sessions and their working sets in one query", async () => {
     mockChain.limit = vi.fn().mockResolvedValue({
       data: [{
         id: "s1", user_id: "u1", program_id: null, week: 2, day_index: 1, day_type: "push",
         started_at: "2026-11-10T10:00:00Z", completed_at: "2026-11-10T11:00:00Z",
+        current_exercise_index: 0, current_set_index: 0,
+        set_logs: [{ exercise_id: "bench" }, { exercise_id: "bench" }, { exercise_id: "fly" }],
       }],
+      error: null,
     });
-    const result = await getRecentCompletedSessions("u1", 5);
+    const { sessions, sets } = await getRecentWorkouts("u1", 5);
+
+    expect(mockChain.from).toHaveBeenCalledTimes(1);
+    expect(mockChain.select).toHaveBeenCalledWith("*, set_logs(exercise_id)");
+    expect(mockChain.gte).toHaveBeenCalledWith("set_logs.set_index", 0); // warm-ups excluded
     expect(mockChain.not).toHaveBeenCalledWith("completed_at", "is", null);
-    expect(mockChain.order).toHaveBeenCalledWith("completed_at", { ascending: false });
     expect(mockChain.limit).toHaveBeenCalledWith(5);
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ id: "s1", week: 2, dayIndex: 1, dayType: "push" });
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ id: "s1", week: 2, dayIndex: 1, dayType: "push" });
+    expect(sessions[0]).not.toHaveProperty("set_logs");
+    expect(sets).toEqual([
+      { sessionId: "s1", exerciseId: "bench" },
+      { sessionId: "s1", exerciseId: "bench" },
+      { sessionId: "s1", exerciseId: "fly" },
+    ]);
   });
 
-  it("returns an empty list when there is no data", async () => {
-    mockChain.limit = vi.fn().mockResolvedValue({ data: null });
-    expect(await getRecentCompletedSessions("u1", 5)).toEqual([]);
-  });
-});
-
-// ─── getWorkingSetsForSessions ─────────────────────────────────────────────────
-
-describe("getWorkingSetsForSessions", () => {
-  it("skips the query entirely for an empty id list", async () => {
-    expect(await getWorkingSetsForSessions([])).toEqual([]);
-    expect(mockChain.from).not.toHaveBeenCalled();
-  });
-
-  it("queries working sets only and maps rows", async () => {
-    mockChain.gte = vi.fn().mockResolvedValue({ data: [{ session_id: "s1", exercise_id: "bench" }] });
-    const result = await getWorkingSetsForSessions(["s1", "s2"]);
-    expect(mockChain.in).toHaveBeenCalledWith("session_id", ["s1", "s2"]);
-    expect(mockChain.gte).toHaveBeenCalledWith("set_index", 0);
-    expect(result).toEqual([{ sessionId: "s1", exerciseId: "bench" }]);
+  it("returns empty lists when there are no completed sessions", async () => {
+    mockChain.limit = vi.fn().mockResolvedValue({ data: [], error: null });
+    expect(await getRecentWorkouts("u1", 5)).toEqual({ sessions: [], sets: [] });
   });
 });

@@ -49,3 +49,15 @@ describe("useWorkoutPrefs", () => {
     expect(db.upsertPreferences).not.toHaveBeenCalled();
   });
 });
+
+describe("useWorkoutPrefs — failed swap", () => {
+  it("reverts the swap and rethrows when saving it fails", async () => {
+    db.upsertPreferences.mockRejectedValueOnce(new Error("offline"));
+    const { result } = renderHook(() => useWorkoutPrefs("user-1"));
+
+    await act(async () => {
+      await expect(result.current.toggleAlternate("bench")).rejects.toThrow("offline");
+    });
+    expect(result.current.prefs.alternateSelections.bench ?? 0).toBe(0);
+  });
+});

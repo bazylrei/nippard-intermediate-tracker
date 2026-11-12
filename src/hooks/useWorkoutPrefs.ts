@@ -14,12 +14,19 @@ export function useWorkoutPrefs(userId: string | null) {
     cacheSet("prefs", next);
   }
 
-  /** Cycle main → alternate 1 → alternate 2 → main. */
+  /** Cycle main → alternate 1 → alternate 2 → main. Optimistic; reverts and rethrows if the save fails. */
   async function toggleAlternate(exerciseId: string) {
+    const previous = prefs;
     const current = prefs.alternateSelections[exerciseId] ?? 0;
     const alternateSelections = { ...prefs.alternateSelections, [exerciseId]: (current + 1) % 3 };
     update({ ...prefs, alternateSelections });
-    if (userId) await upsertPreferences(userId, { alternateSelections });
+    if (!userId) return;
+    try {
+      await upsertPreferences(userId, { alternateSelections });
+    } catch (error) {
+      update(previous);
+      throw error;
+    }
   }
 
   async function saveNote(exerciseId: string, note: string) {

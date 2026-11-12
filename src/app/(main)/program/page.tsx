@@ -4,16 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getSignedInUser } from "@/lib/auth";
-import { getNextSession, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
-import { DAY_LABELS, getSessionNumber, getTotalSessions } from "@/lib/program-data";
+import { getLastCompletedWorkout, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
+import { DAY_LABELS, getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { UserPreferences } from "@/lib/types";
+import type { UserPreferences, WorkoutPosition } from "@/lib/types";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { Dumbbell, Play, LogOut, Settings, ChevronRight } from "lucide-react";
 
+const CACHE_KEY = "dashboard-v2";
+
 type CachedDashboard = {
-  nextSession: { week: number; dayIndex: number };
-  hasResume: boolean;
+  resume: WorkoutPosition | null;
+  lastCompleted: WorkoutPosition | null;
   prefs: UserPreferences;
   email: string;
 };
@@ -21,12 +23,12 @@ type CachedDashboard = {
 export default function MyProgram() {
   const router = useRouter();
   const { program } = useProgramContext();
-  const cached = cacheGet<CachedDashboard>("dashboard");
+  const cached = cacheGet<CachedDashboard>(CACHE_KEY);
   const [loading, setLoading] = useState(!cached);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState(cached?.email ?? "");
-  const [nextSession, setNextSession] = useState<{ week: number; dayIndex: number } | null>(cached?.nextSession ?? null);
-  const [hasResume, setHasResume] = useState(cached?.hasResume ?? false);
+  const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
+  const [lastCompleted, setLastCompleted] = useState<WorkoutPosition | null>(cached?.lastCompleted ?? null);
   const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {}, exerciseNotes: {} });
   const [showSettings, setShowSettings] = useState(false);
 
@@ -36,18 +38,18 @@ export default function MyProgram() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [incomplete, next, p] = await Promise.all([
+      const [incomplete, last, p] = await Promise.all([
         getIncompleteSession(user.id),
-        getNextSession(user.id),
+        getLastCompletedWorkout(user.id),
         getPreferences(user.id),
       ]);
-      const resolvedNext = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : next;
+      const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
       const resolvedEmail = user.email ?? "";
-      setHasResume(!!incomplete);
-      setNextSession(resolvedNext);
+      setResume(resumeAt);
+      setLastCompleted(last);
       setPrefs(p);
       setEmail(resolvedEmail);
-      cacheSet("dashboard", { nextSession: resolvedNext, hasResume: !!incomplete, prefs: p, email: resolvedEmail });
+      cacheSet(CACHE_KEY, { resume: resumeAt, lastCompleted: last, prefs: p, email: resolvedEmail });
       cacheSet("prefs", p);
       setLoading(false);
     }
@@ -64,7 +66,7 @@ export default function MyProgram() {
     if (!userId) return;
     const next: UserPreferences = { ...prefs, unit: prefs.unit === "kg" ? "lbs" : "kg" };
     setPrefs(next);
-    if (nextSession) cacheSet("dashboard", { nextSession, hasResume, prefs: next, email });
+    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
     cacheSet("prefs", next);
     await upsertPreferences(userId, { unit: next.unit });
   }
@@ -73,7 +75,7 @@ export default function MyProgram() {
     if (!userId) return;
     const next: UserPreferences = { ...prefs, bodyWeightKg, heightCm };
     setPrefs(next);
-    if (nextSession) cacheSet("dashboard", { nextSession, hasResume, prefs: next, email });
+    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
     cacheSet("prefs", next);
     try {
       const sb = (await import("@/lib/supabase")).createClient();
@@ -99,10 +101,14 @@ export default function MyProgram() {
     );
   }
 
+  // Derived from the program's real schedule — it can have any number of weeks and days.
+  const nextSession = resume ?? nextWorkout(lastCompleted, program);
+  const hasResume = !!resume;
+  const totalWeeks = program.length;
   const nextDay = nextSession ? program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
-  const sessionNum = nextSession ? getSessionNumber(nextSession.week, nextSession.dayIndex) : 1;
-  const totalSessions = getTotalSessions();
-  const progressPct = Math.round(((sessionNum - 1) / totalSessions) * 100);
+  const sessionNum = nextSession ? getSessionNumber(nextSession, program) : 1;
+  const totalSessions = getTotalSessions(program);
+  const progressPct = totalSessions ? Math.round(((sessionNum - 1) / totalSessions) * 100) : 0;
   const weekDays = program.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? [];
 
   return (
@@ -201,7 +207,7 @@ export default function MyProgram() {
         <div className="flex justify-between text-xs text-subtle">
           <span>Week 1</span>
           <span className="text-muted font-display font-semibold">{progressPct}% complete</span>
-          <span>Week 12</span>
+          <span>Week {totalWeeks}</span>
         </div>
       </div>
 
@@ -219,7 +225,7 @@ export default function MyProgram() {
             <h2 className="font-display font-bold text-3xl text-fg leading-tight">
               {DAY_LABELS[nextDay.dayType]}
             </h2>
-            <p className="text-sm text-muted mt-0.5">Week {nextSession.week} of 12</p>
+            <p className="text-sm text-muted mt-0.5">Week {nextSession.week} of {totalWeeks}</p>
           </div>
 
           <div className="px-5 py-3 space-y-1">

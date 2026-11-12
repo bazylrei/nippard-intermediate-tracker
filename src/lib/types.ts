@@ -52,6 +52,12 @@ export interface WeekSchedule {
   days: WorkoutDay[];
 }
 
+/** A slot in the program: which week and which day of that week. */
+export interface WorkoutPosition {
+  week: number;
+  dayIndex: number;
+}
+
 // --- DB / session types ---
 
 export interface UserPreferences {
