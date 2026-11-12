@@ -23,7 +23,8 @@ export interface Exercise {
   formNote: string;
   youtubeUrl?: string | null;
   instructions?: string | null;
-  equipment?: string | null; // "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight" | null
+  isBodyweight: boolean;
+  weightPerSide: boolean;
 }
 
 export type MuscleGroup =

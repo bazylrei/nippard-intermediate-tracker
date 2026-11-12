@@ -1,14 +1,5 @@
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function inferEquipment(exerciseName: string): string | null {
-  const n = exerciseName;
-  if (/\bDB\b|\bDumbbell\b/i.test(n)) return "dumbbell";
-  if (/Pull-?Up|Chin-?Up|\bDip\b|Push-?Up|Hanging|Roman Chair|Nordic Ham/i.test(n)) return "bodyweight";
-  if (/\bBarbell\b|\bEZ.?Bar\b/i.test(n)) return "barbell";
-  if (/\bCable\b|Lat Pulldown|Face Pull|Bayesian/i.test(n)) return "cable";
-  return null;
-}
-
 export function estimateOneRm(weight: number, reps: number): number {
   return Math.round(weight * (1 + reps / 30));
 }

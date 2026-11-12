@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Play } from "lucide-react";
 
 interface Props {
   steps: string[];
@@ -27,18 +27,14 @@ function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"
 export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorkingWeightKg, unit }: Props) {
   const [checked, setChecked] = useState<boolean[]>(steps.map(() => false));
 
-  if (!steps.length) {
-    onComplete();
-    return null;
-  }
+  if (!steps.length) return null;
+
+  const allChecked = checked.every(Boolean);
 
   function toggle(i: number) {
     const next = [...checked];
     next[i] = !next[i];
     setChecked(next);
-    if (next.every(Boolean)) {
-      setTimeout(onComplete, 400);
-    }
   }
 
   return (
@@ -82,7 +78,22 @@ export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorking
           );
         })}
       </div>
-      <p className="text-xs text-subtle text-center">Tap each step when done to continue</p>
+
+      {allChecked ? (
+        <button
+          onClick={onComplete}
+          className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-base py-3.5 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
+          style={{
+            background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
+          }}
+        >
+          <Play size={16} fill="currentColor" />
+          Start Working Sets
+        </button>
+      ) : (
+        <p className="text-xs text-subtle text-center">Tap each step when done to continue</p>
+      )}
     </div>
   );
 }

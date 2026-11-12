@@ -16,7 +16,8 @@ type ExerciseRow = {
   form_note: string | null;
   youtube_url: string | null;
   instructions: string | null;
-  equipment: string | null;
+  is_bodyweight: boolean;
+  weight_per_side: boolean;
 };
 
 type ProgramDayExerciseRow = {
@@ -61,7 +62,8 @@ function mapToExercise(pde: ProgramDayExerciseRow): Exercise {
     formNote: ex.form_note ?? "",
     youtubeUrl: ex.youtube_url ?? null,
     instructions: ex.instructions ?? null,
-    equipment: ex.equipment ?? null,
+    isBodyweight: ex.is_bodyweight ?? false,
+    weightPerSide: ex.weight_per_side ?? false,
   };
 }
 
@@ -75,7 +77,7 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
     sb
       .from("programs")
       .select(
-        `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises(id, name, muscle_group, alternate_1, alternate_2, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, equipment)))`
+        `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises(id, name, muscle_group, alternate_1, alternate_2, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, is_bodyweight, weight_per_side)))`
       )
       .eq("name", "Nippard Intermediate")
       .single(),

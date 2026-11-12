@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
-import { inferEquipment } from "@/lib/program-data";
 import FailureTechniqueModal from "./FailureTechniqueModal";
 
 interface Props {
@@ -48,7 +47,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }, [previousSets, setIndex, unit]);
 
   const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
-  const equipment = exercise.equipment ?? inferEquipment(exercise.name);
+  const { weightPerSide, isBodyweight } = exercise;
   const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
   const techniqueInfo = isLastSet ? failureTechniques[exercise.lastSetTarget] : null;
@@ -89,21 +88,13 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         )}
       </div>
 
-      {/* Equipment context */}
-      {(equipment === "dumbbell" || equipment === "bodyweight") && (
-        <div className="text-xs text-muted">
-          {equipment === "dumbbell" && "2 dumbbells — enter weight per hand"}
-          {equipment === "bodyweight" && "Bodyweight — enter added weight (0 if none)"}
-        </div>
-      )}
-
       {/* Previous data */}
       {prevSet && (
         <div className="rounded-xl px-4 py-2.5 flex items-center justify-between"
           style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}>
           <span className="text-xs text-muted">Last time</span>
           <span className="font-display font-semibold text-sm text-fg">
-            {equipment === "dumbbell" && "2× "}{toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
+            {weightPerSide && "2× "}{toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
             {prevSet.rpe && <span className="text-muted font-normal"> @ RPE {prevSet.rpe}</span>}
           </span>
         </div>
@@ -114,26 +105,54 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-muted mb-1.5">
-              {equipment === "dumbbell" ? `Each DB (${unit})` : equipment === "bodyweight" ? `Added (${unit})` : `Weight (${unit})`}
+              {weightPerSide ? `Each hand (${unit})` : isBodyweight ? `Added (${unit})` : `Weight (${unit})`}
             </label>
-            <input
-              type="number"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              step="any"
-              min="0"
-              inputMode="decimal"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
-              style={{
-                background: "color-mix(in srgb, var(--fg) 6%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
-              }}
-              placeholder="—"
-              required
-            />
+            {weightPerSide ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 rounded-xl overflow-hidden"
+                  style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}>
+                  <span className="font-display font-bold text-lg text-muted pl-3 shrink-0 select-none">2×</span>
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    step="any"
+                    min="0"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    className="flex-1 py-3 pr-3 text-fg text-center font-display text-3xl font-bold focus:outline-none bg-transparent"
+                    placeholder="—"
+                    required
+                  />
+                </div>
+                {weight && !isNaN(parseFloat(weight)) && parseFloat(weight) > 0 && (
+                  <p className="text-center text-xs text-muted font-display">
+                    = {(parseFloat(weight) * 2)} {unit} total
+                  </p>
+                )}
+              </div>
+            ) : (
+              <input
+                type="number"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                step="any"
+                min="0"
+                inputMode="decimal"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
+                style={{
+                  background: "color-mix(in srgb, var(--fg) 6%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
+                }}
+                placeholder="—"
+                required
+              />
+            )}
           </div>
           <div>
             <label className="block text-xs text-muted mb-1.5">

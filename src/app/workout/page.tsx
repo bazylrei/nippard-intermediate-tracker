@@ -10,19 +10,21 @@ import {
   completeSession,
   logSet,
   getSessionSets,
-  deleteSetLog,
   deleteWorkoutSession,
+  updateSetLog,
   getLastSessionSetsForExercise,
   getPreferences,
 } from "@/lib/db";
 import { DAY_LABELS } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, UserPreferences, Exercise } from "@/lib/types";
-import { cacheGet, cacheSet } from "@/lib/cache";
+import { cacheGet, cacheSet, cacheDelete } from "@/lib/cache";
+import type { ActiveWorkoutInfo } from "@/components/ActiveWorkoutBanner";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
 import RestTimer from "@/components/RestTimer";
-import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink, AlertCircle } from "lucide-react";
+import SetDetailSheet from "@/components/SetDetailSheet";
+import { ArrowLeft, ChevronRight, Repeat2, Trophy, List, X, Play, CheckCircle2, ExternalLink } from "lucide-react";
 import { Suspense } from "react";
 
 type Phase = "overview" | "warmup" | "sets" | "rest";
@@ -47,6 +49,7 @@ function WorkoutContent() {
   const [loading, setLoading] = useState(true);
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
 
   const week = parseInt(searchParams.get("week") ?? "1");
   const dayIndex = parseInt(searchParams.get("day") ?? "0");
@@ -65,6 +68,24 @@ function WorkoutContent() {
     const sets = await getLastSessionSetsForExercise(uid, exId);
     setPrevSets(sets);
   }, []);
+
+  function writeBanner(exIdx: number, exercises: typeof resolvedExercises, wk: number, dIdx: number, dType: string) {
+    const ex = exercises[exIdx];
+    if (!ex) return;
+    const info: ActiveWorkoutInfo = {
+      week: wk, dayIndex: dIdx, dayType: dType,
+      exerciseName: ex.name,
+      exerciseIndex: exIdx,
+      exerciseTotal: exercises.length,
+    };
+    cacheSet("active_workout", info);
+    window.dispatchEvent(new Event("active_workout_changed"));
+  }
+
+  function clearBanner() {
+    cacheDelete("active_workout");
+    window.dispatchEvent(new Event("active_workout_changed"));
+  }
 
   useEffect(() => {
     if (!programReady) return;
@@ -105,7 +126,16 @@ function WorkoutContent() {
       }
       setSession(sess);
 
-      const targetEx = workoutDay?.exercises[sess.currentExerciseIndex ?? 0];
+      const exercises = workoutDay?.exercises ?? [];
+      const resolvedExs = exercises.map((ex) => {
+        const idx = p.alternateSelections[ex.id] ?? 0;
+        if (idx === 1) return { ...ex, name: ex.alternates[0] };
+        if (idx === 2) return { ...ex, name: ex.alternates[1] };
+        return ex;
+      });
+      writeBanner(sess.currentExerciseIndex ?? 0, resolvedExs, week, dayIndex, sess.dayType);
+
+      const targetEx = exercises[sess.currentExerciseIndex ?? 0];
       if (targetEx) await loadPrevSets(user.id, targetEx.id);
 
       setLoading(false);
@@ -123,6 +153,7 @@ function WorkoutContent() {
     setExerciseIndex(exIdx);
     setSetIndex(sIdx);
     await updateSessionProgress(session.id, exIdx, sIdx);
+    writeBanner(exIdx, resolvedExercises, week, dayIndex, session.dayType);
   }
 
   function totalSetsForExercise(ex: Exercise): number {
@@ -157,6 +188,7 @@ function WorkoutContent() {
       });
       if (allDone) {
         await completeSession(session.id);
+        clearBanner();
         setDone(true);
       } else {
         const nextIdx = resolvedExercises.findIndex((ex, i) => {
@@ -164,7 +196,7 @@ function WorkoutContent() {
           return i !== exerciseIndex && exSets.length < totalSetsForExercise(ex);
         });
         const targetIdx = nextIdx !== -1 ? nextIdx : exerciseIndex + 1;
-        await advanceTo(targetIdx, 0);
+        await advanceTo(targetIdx, -1);
         setPhase("warmup");
       }
     } else {
@@ -172,21 +204,20 @@ function WorkoutContent() {
     }
   }
 
-  async function handleGoBack() {
-    if (!session) return;
-    const workingSets = sessionSets.filter((s) => s.setIndex >= 0);
-    if (workingSets.length === 0) return;
-    const lastSet = workingSets[workingSets.length - 1];
-    await deleteSetLog(lastSet.id);
-    const updated = await getSessionSets(session.id);
-    setSessionSets(updated);
-    const exIdx = resolvedExercises.findIndex((ex) => ex.id === lastSet.exerciseId);
-    if (exIdx === -1) return;
-    await advanceTo(exIdx, lastSet.setIndex);
-    setPhase("sets");
+  async function handleEditSet(setId: string, weightKg: number, reps: number, rpe: number | null) {
+    await updateSetLog(setId, weightKg, reps, rpe);
+    if (session) {
+      const updated = await getSessionSets(session.id);
+      setSessionSets(updated);
+    }
+    setViewingSet((prev) => prev ? { ...prev, weight: weightKg, reps, rpe } : null);
   }
 
-  function handleWarmupComplete() { setPhase("sets"); }
+  async function handleWarmupComplete() {
+    setSetIndex(0);
+    setPhase("sets");
+    if (session) await updateSessionProgress(session.id, exerciseIndex, 0);
+  }
   function handleRestDone() { setShowRestTimer(false); }
 
   async function toggleAlternate(exId: string) {
@@ -342,7 +373,7 @@ function WorkoutContent() {
               return (
                 <button
                   key={i}
-                  onClick={() => { advanceTo(i, 0); setPhase("warmup"); setShowExerciseList(false); }}
+                  onClick={async () => { await advanceTo(i, -1); setPhase("warmup"); setShowExerciseList(false); }}
                   className={`w-full glass gloss flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors cursor-pointer ${
                     isCurrent ? "border-primary/30" : ""
                   }`}
@@ -402,12 +433,13 @@ function WorkoutContent() {
             />
           ))}
         </div>
-        {/* Discard / back */}
+        {/* Back / discard */}
         {confirmDiscard ? (
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={async () => {
                 if (session) await deleteWorkoutSession(session.id);
+                clearBanner();
                 router.push("/");
               }}
               className="text-xs font-display font-semibold text-danger cursor-pointer"
@@ -419,13 +451,22 @@ function WorkoutContent() {
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setConfirmDiscard(true)}
-            className="text-subtle hover:text-fg transition-colors cursor-pointer"
-            title="Leave workout"
-          >
-            <ArrowLeft size={20} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => router.push("/")}
+              className="text-subtle hover:text-fg transition-colors cursor-pointer"
+              title="Go home"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <button
+              onClick={() => setConfirmDiscard(true)}
+              className="text-xs text-subtle hover:text-danger transition-colors cursor-pointer font-display"
+              title="Discard workout"
+            >
+              Discard
+            </button>
+          </div>
         )}
       </div>
 
@@ -478,33 +519,37 @@ function WorkoutContent() {
             {Array.from({ length: totalSets }).map((_, i) => {
               const logged = setsForExercise[i];
               const isCurrent = i === setIndex && phase === "sets";
-              return (
+              return logged ? (
+                <button
+                  key={i}
+                  onClick={() => setViewingSet(logged)}
+                  className="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-display font-bold text-sm transition-opacity glass cursor-pointer hover:opacity-80 active:scale-95"
+                  style={{ background: "color-mix(in srgb, var(--accent) 15%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)", color: "var(--accent)" }}
+                >
+                  <span className="text-base leading-none">{logged.reps}</span>
+                  <span className="text-[10px] font-normal opacity-70">reps</span>
+                </button>
+              ) : (
                 <div
                   key={i}
-                  className="flex-1 h-12 rounded-xl flex items-center justify-center font-display font-bold text-sm transition-colors glass"
+                  className="flex-1 h-12 rounded-xl flex items-center justify-center font-display font-bold text-sm glass"
                   style={
-                    logged
-                      ? { background: "color-mix(in srgb, var(--accent) 15%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 30%, transparent)", color: "var(--accent)" }
-                      : isCurrent
+                    isCurrent
                       ? { borderColor: "color-mix(in srgb, var(--fg) 20%, transparent)", color: "var(--fg)" }
                       : { color: "var(--subtle)" }
                   }
                 >
-                  {logged ? logged.reps : i + 1}
+                  {i + 1}
                 </div>
               );
             })}
           </div>
-          {sessionSets.filter((s) => s.setIndex >= 0).length > 0 && (
-            <button onClick={handleGoBack} className="text-xs text-subtle hover:text-muted transition-colors cursor-pointer">
-              ← Undo last set
-            </button>
-          )}
         </div>
 
         {/* Phase content */}
         {phase === "warmup" && hasWarmup ? (
           <WarmupChecklist
+            key={`warmup-${exerciseIndex}`}
             steps={currentWarmupSteps}
             onComplete={handleWarmupComplete}
             onSkip={handleWarmupComplete}
@@ -546,6 +591,16 @@ function WorkoutContent() {
           durationSeconds={restDuration}
           onComplete={handleRestDone}
           onSkip={handleRestDone}
+        />
+      )}
+
+      {viewingSet && (
+        <SetDetailSheet
+          set={viewingSet}
+          exercise={currentExercise}
+          unit={prefs.unit}
+          onClose={() => setViewingSet(null)}
+          onSave={handleEditSet}
         />
       )}
     </div>

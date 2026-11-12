@@ -19,7 +19,7 @@ function ex(
   formNote: string,
   lastSetRpe?: [number, number]
 ): Exercise {
-  return { id, name, alternates, muscleGroup, restSeconds, warmupProtocol, repRange, earlySetRpe, lastSetTarget, lastSetRpe, earlySetCount, lastSetCount, formNote };
+  return { id, name, alternates, muscleGroup, restSeconds, warmupProtocol, repRange, earlySetRpe, lastSetTarget, lastSetRpe, earlySetCount, lastSetCount, formNote, isBodyweight: false, weightPerSide: false };
 }
 
 // ─── Foundation Block (Weeks 1–5) ─────────────────────────────────────────────

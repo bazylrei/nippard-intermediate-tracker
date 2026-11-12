@@ -302,7 +302,7 @@ function HistoryTab({
     const w = parseFloat(editWeight);
     const r = parseInt(editReps, 10);
     if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
-    await updateSetLog(setId, w, r);
+    await updateSetLog(setId, w, r, null);
     setSetsCache((prev) => {
       const next = { ...prev };
       for (const sid in next) {

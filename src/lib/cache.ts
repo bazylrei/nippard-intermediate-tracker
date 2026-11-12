@@ -18,3 +18,10 @@ export function cacheSet(key: string, value: unknown): void {
     // ignore storage errors (private mode, quota)
   }
 }
+
+export function cacheDelete(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch { /* ignore */ }
+}

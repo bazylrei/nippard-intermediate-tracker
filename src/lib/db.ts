@@ -216,9 +216,9 @@ export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   await sb.from("workout_sessions").delete().eq("id", sessionId);
 }
 
-export async function updateSetLog(setId: string, weight: number, reps: number): Promise<void> {
+export async function updateSetLog(setId: string, weight: number, reps: number, rpe: number | null): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").update({ weight_kg: weight, reps }).eq("id", setId);
+  await sb.from("set_logs").update({ weight_kg: weight, reps, rpe }).eq("id", setId);
 }
 
 export async function getCompletedSessions(userId: string): Promise<WorkoutSession[]> {
