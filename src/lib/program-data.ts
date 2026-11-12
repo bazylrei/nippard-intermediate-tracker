@@ -1,11 +1,5 @@
 import type { WeekSchedule, WorkoutPosition } from "./types";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-export function estimateOneRm(weight: number, reps: number): number {
-  return Math.round(weight * (1 + reps / 30));
-}
-
 // ─── Schedule navigation ──────────────────────────────────────────────────────
 // Derived from the loaded program, never from hard-coded week/day counts:
 // programs edited in the builder can have any number of weeks, days per week,

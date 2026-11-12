@@ -19,7 +19,6 @@ interface Props {
 
 export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postHistory, unit, onHome, onProgress }: Props) {
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
-  const resolvedExercises = exercises;
 
   return (
       <div className="min-h-screen bg-bg pb-16">
@@ -36,7 +35,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                 Week {week} · {DAY_LABELS[dayType]}
               </p>
               <p className="text-muted text-xs mt-0.5">
-                {resolvedExercises.length} exercises · {totalWorkingSets} sets
+                {exercises.length} exercises · {totalWorkingSets} sets
               </p>
             </div>
             <div className="flex gap-3 w-full max-w-xs">
@@ -61,7 +60,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
 
           {/* Per-exercise cards */}
           <div className="space-y-4">
-            {resolvedExercises.map((ex) => {
+            {exercises.map((ex) => {
               const exSets = sessionSets.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
               if (exSets.length === 0) return null;
 

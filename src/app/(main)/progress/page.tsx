@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSignedInUser } from "@/lib/auth";
 import {
-  getExerciseHistory, getWeeklyVolume, getPersonalRecords, getRecentWorkouts,
+  getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, getRecentWorkouts,
 } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { DAY_LABELS } from "@/lib/program-data";
@@ -70,13 +70,12 @@ function ProgressContent() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [prData, volData] = await Promise.all([
-        getPersonalRecords(user.id),
+      const [ids, volData] = await Promise.all([
+        getLoggedExerciseIds(user.id),
         getWeeklyVolume(user.id),
       ]);
-      const ids = prData.map((pr) => pr.exerciseId);
       setExercisesWithData(ids);
-      setVolume(volData.sort((a, b) => a.week - b.week));
+      setVolume(volData);
       const firstWithData = ALL_EXERCISES.find((ex) => ids.includes(ex.id));
       if (firstWithData) setSelectedExercise(firstWithData.id);
       setLoading(false);

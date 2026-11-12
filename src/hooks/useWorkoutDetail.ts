@@ -92,5 +92,3 @@ export function useWorkoutDetail(sessionId: string) {
     actions: { updateSet, deleteSet, removeExercise, swapExercise, addExercise, deleteWorkout },
   };
 }
-
-export type WorkoutDetailActions = ReturnType<typeof useWorkoutDetail>["actions"];

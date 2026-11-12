@@ -143,12 +143,3 @@ export interface BuilderProgram {
   days: BuilderDay[];
   userCount: number;
 }
-
-export interface PersonalRecord {
-  exerciseId: string;
-  exerciseName: string;
-  weight: number;
-  reps: number;
-  estimatedOneRm: number;
-  achievedAt: string;
-}
