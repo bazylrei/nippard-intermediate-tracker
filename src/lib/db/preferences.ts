@@ -21,7 +21,7 @@ export async function getPreferences(userId: string): Promise<UserPreferences> {
 }
 
 /** camelCase domain fields → snake_case columns; only fields that are present. */
-export function toPreferencesRow(prefs: Partial<UserPreferences>): TablesUpdate<"user_preferences"> {
+function toPreferencesRow(prefs: Partial<UserPreferences>): TablesUpdate<"user_preferences"> {
   const row: TablesUpdate<"user_preferences"> = {};
   if (prefs.unit !== undefined) row.unit = prefs.unit;
   if (prefs.alternateSelections !== undefined) row.alternate_selections = prefs.alternateSelections;

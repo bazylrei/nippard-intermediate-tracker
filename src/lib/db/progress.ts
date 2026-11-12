@@ -1,5 +1,4 @@
 import { createClient } from "../supabase";
-import { estimateOneRm } from "../program-data";
 import { unwrap } from "./result";
 
 export async function getExerciseHistory(
@@ -24,9 +23,8 @@ export async function getExerciseHistory(
   }));
 }
 
-export async function getWeeklyVolume(
-  userId: string
-): Promise<{ week: number; muscleGroup: string; volume: number }[]> {
+/** Total working-set volume (kg × reps) per program week, completed sessions only, weeks ascending. */
+export async function getWeeklyVolume(userId: string): Promise<{ week: number; volume: number }[]> {
   const sb = createClient();
   const data = unwrap("getWeeklyVolume", await sb
     .from("set_logs")
@@ -35,44 +33,22 @@ export async function getWeeklyVolume(
     .gte("set_index", 0)
     .not("workout_sessions.completed_at", "is", null));
 
-  const volumeMap: Record<string, number> = {};
+  const byWeek = new Map<number, number>();
   for (const set of data ?? []) {
-    const week = set.workout_sessions.week;
-    if (!week) continue;
-    volumeMap[`${week}`] = (volumeMap[`${week}`] ?? 0) + set.weight_kg * set.reps;
+    const { week } = set.workout_sessions;
+    byWeek.set(week, (byWeek.get(week) ?? 0) + set.weight_kg * set.reps);
   }
-
-  return Object.entries(volumeMap).map(([week, volume]) => ({
-    week: parseInt(week),
-    muscleGroup: "total",
-    volume: Math.round(volume),
-  }));
+  return Array.from(byWeek, ([week, volume]) => ({ week, volume: Math.round(volume) }))
+    .sort((a, b) => a.week - b.week);
 }
 
-export async function getPersonalRecords(
-  userId: string
-): Promise<{ exerciseId: string; weight: number; reps: number; estimatedOneRm: number; date: string }[]> {
+/** Ids of every exercise the user has logged a working set for. */
+export async function getLoggedExerciseIds(userId: string): Promise<string[]> {
   const sb = createClient();
-  const data = unwrap("getPersonalRecords", await sb
+  const data = unwrap("getLoggedExerciseIds", await sb
     .from("set_logs")
-    .select("exercise_id, weight_kg, reps, logged_at")
+    .select("exercise_id")
     .eq("user_id", userId)
-    .gte("set_index", 0)
-    .order("logged_at"));
-
-  const prMap: Record<string, { weight: number; reps: number; estimatedOneRm: number; date: string }> = {};
-  for (const r of data ?? []) {
-    const e1rm = estimateOneRm(r.weight_kg, r.reps);
-    const existing = prMap[r.exercise_id];
-    if (!existing || e1rm > existing.estimatedOneRm) {
-      prMap[r.exercise_id] = {
-        weight: r.weight_kg,
-        reps: r.reps,
-        estimatedOneRm: e1rm,
-        date: r.logged_at.split("T")[0],
-      };
-    }
-  }
-
-  return Object.entries(prMap).map(([exerciseId, pr]) => ({ exerciseId, ...pr }));
+    .gte("set_index", 0));
+  return Array.from(new Set((data ?? []).map((r) => r.exercise_id)));
 }

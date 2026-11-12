@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import {
   getWorkoutDetail, updateSetLog, deleteSetLog, deleteExerciseSetsFromSession,
   updateExerciseIdForSets, addSetsToSession, deleteWorkoutSession,
@@ -30,8 +30,8 @@ export function useWorkoutDetail(sessionId: string) {
 
   useEffect(() => {
     async function load() {
-      const user = await getSignedInUser();
-      if (!user) { router.replace("/auth"); return; }
+      const user = await requireSignedInUser(router);
+      if (!user) return;
       setUserId(user.id);
       try {
         const detail = await getWorkoutDetail(sessionId);
@@ -92,5 +92,3 @@ export function useWorkoutDetail(sessionId: string) {
     actions: { updateSet, deleteSet, removeExercise, swapExercise, addExercise, deleteWorkout },
   };
 }
-
-export type WorkoutDetailActions = ReturnType<typeof useWorkoutDetail>["actions"];

@@ -3,22 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
-import NextWorkoutCard from "@/components/home/NextWorkoutCard";
+import FullScreenMessage from "@/components/FullScreenMessage";
+import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
+import { startWorkoutHref } from "@/lib/workout-history";
 import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import { getSessionNumber } from "@/lib/program-data";
 
 export default function Home() {
   const router = useRouter();
   const { program } = useProgramContext();
-  const { feed } = useHomeFeed();
+  const { feed, failed } = useHomeFeed();
 
-  if (!feed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted text-sm font-display">
-        Loading…
-      </div>
-    );
-  }
+  if (failed) return <FullScreenMessage message="Couldn't load your activity. Check your connection and try again." />;
+  if (!feed) return <FullScreenMessage message="Loading…" />;
 
   const { nextSession, hasResume, items } = feed;
   const nextDay = nextSession && program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex];
@@ -34,7 +31,7 @@ export default function Home() {
           sessionNumber={getSessionNumber(nextSession, program)}
           day={nextDay}
           isResume={hasResume}
-          onStart={() => router.push(`/workout?week=${nextSession.week}&day=${nextSession.dayIndex}`)}
+          onStart={() => router.push(startWorkoutHref(nextSession))}
         />
       )}
 

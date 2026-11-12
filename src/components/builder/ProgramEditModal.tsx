@@ -29,38 +29,38 @@ export default function ProgramEditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm space-y-4 p-5">
+      <div className="bg-surface border border-border rounded-2xl w-full max-w-sm space-y-4 p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-zinc-100 text-sm">Edit Program</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={18} /></button>
+          <h2 className="font-semibold text-fg text-sm">Edit Program</h2>
+          <button onClick={onClose} className="text-subtle hover:text-fg"><X size={18} /></button>
         </div>
 
         <label className="block space-y-1">
-          <span className="text-xs text-zinc-500">Name</span>
+          <span className="text-xs text-subtle">Name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoCorrect="off"
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+            className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary"
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs text-zinc-500">Description</span>
+          <span className="text-xs text-subtle">Description</span>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500 resize-none"
+            className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary resize-none"
           />
         </label>
 
         <label className="block space-y-1">
-          <span className="text-xs text-zinc-500">Category</span>
+          <span className="text-xs text-subtle">Category</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+            className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary"
           >
             <option value="">— None —</option>
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -70,14 +70,14 @@ export default function ProgramEditModal({
         <div className="flex gap-2 pt-1">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-elevated text-muted hover:bg-border transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !name.trim()}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-primary text-primary-fg hover:opacity-90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? "Saving…" : <><Check size={15} /> Save</>}
           </button>

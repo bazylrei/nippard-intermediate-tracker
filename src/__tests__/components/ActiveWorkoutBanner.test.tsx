@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { cacheSet, cacheDelete } from "@/lib/cache";
-import type { ActiveWorkoutInfo } from "@/components/ActiveWorkoutBanner";
+import type { ActiveWorkoutInfo } from "@/lib/active-workout";
 
 const mockPush = vi.fn();
 

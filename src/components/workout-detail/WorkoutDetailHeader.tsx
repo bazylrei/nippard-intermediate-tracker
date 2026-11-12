@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Pencil } from "lucide-react";
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { WorkoutSession } from "@/lib/types";
 import { formatLongDate } from "@/lib/dates";
 
@@ -20,7 +20,7 @@ export default function WorkoutDetailHeader({ session, exerciseCount, setCount, 
       </button>
       <div className="flex-1 min-w-0">
         <h1 className="font-display font-bold text-2xl text-fg leading-tight">
-          {DAY_LABELS[session.dayType] ?? session.dayType}
+          {dayLabel(session.dayType)}
         </h1>
         <p className="text-sm text-muted mt-0.5">
           Week {session.week}

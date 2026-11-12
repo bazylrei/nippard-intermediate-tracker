@@ -54,3 +54,13 @@ describe("useHomeFeed", () => {
     expect(db.getRecentWorkouts).toHaveBeenCalledWith("user-1", 20);
   });
 });
+
+describe("useHomeFeed — failures", () => {
+  it("reports failure when loading fails and nothing is cached", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    db.getRecentWorkouts.mockRejectedValue(new Error("offline"));
+    const { result } = renderHook(() => useHomeFeed());
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(result.current.feed).toBeNull();
+  });
+});

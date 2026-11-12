@@ -1,10 +1,10 @@
 "use client";
 
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { kgToDisplay, KG_TO_LBS } from "@/lib/units";
+import { kgToDisplay } from "@/lib/units";
 
 interface Props {
   week: number;
@@ -19,7 +19,6 @@ interface Props {
 
 export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postHistory, unit, onHome, onProgress }: Props) {
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
-  const resolvedExercises = exercises;
 
   return (
       <div className="min-h-screen bg-bg pb-16">
@@ -33,10 +32,10 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
             <div>
               <h1 className="font-display text-4xl font-bold text-fg leading-tight">Workout Complete!</h1>
               <p className="text-muted mt-1 text-sm">
-                Week {week} · {DAY_LABELS[dayType]}
+                Week {week} · {dayLabel(dayType)}
               </p>
               <p className="text-muted text-xs mt-0.5">
-                {resolvedExercises.length} exercises · {totalWorkingSets} sets
+                {exercises.length} exercises · {totalWorkingSets} sets
               </p>
             </div>
             <div className="flex gap-3 w-full max-w-xs">
@@ -48,11 +47,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               </button>
               <button
                 onClick={() => onProgress()}
-                className="flex-1 gloss text-primary-fg font-display font-bold py-3 rounded-2xl transition-opacity cursor-pointer hover:opacity-90 text-sm"
-                style={{
-                  background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
-                }}
+                className="btn-primary flex-1 gloss font-display font-bold py-3 rounded-2xl text-sm"
               >
                 Full Progress
               </button>
@@ -61,21 +56,22 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
 
           {/* Per-exercise cards */}
           <div className="space-y-4">
-            {resolvedExercises.map((ex) => {
+            {exercises.map((ex) => {
               const exSets = sessionSets.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
               if (exSets.length === 0) return null;
 
               const history = postHistory[ex.id] ?? [];
               const chartData = history.slice(-8).map((h, i, arr) => ({
                 session: i + 1,
-                weight: Math.round(h.weight * 10) / 10,
+                weight: kgToDisplay(h.weight, unit),
                 isToday: i === arr.length - 1,
               }));
 
               const todayBest = exSets.reduce((m, s) => s.weight > m.weight ? s : m, exSets[0]);
               const prevPoint = history.length >= 2 ? history[history.length - 2] : null;
               const todayWeight = history[history.length - 1]?.weight ?? todayBest.weight;
-              const delta = prevPoint ? todayWeight - prevPoint.weight : null;
+              // History is in kg; convert the difference so "+2.5lbs vs last" is really lbs.
+              const delta = prevPoint ? kgToDisplay(todayWeight - prevPoint.weight, unit) : null;
               const totalVolume = Math.round(exSets.reduce((sum, s) => sum + s.weight * s.reps, 0));
               const displayWeight = kgToDisplay(todayBest.weight, unit);
 
@@ -112,7 +108,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                       </div>
                     )}
                     <div className="text-xs text-muted">
-                      Vol: <span className="text-fg font-display font-semibold">{Math.round(totalVolume * (unit === "lbs" ? KG_TO_LBS : 1))}{unit}</span>
+                      Vol: <span className="text-fg font-display font-semibold">{Math.round(kgToDisplay(totalVolume, unit))}{unit}</span>
                     </div>
                   </div>
 

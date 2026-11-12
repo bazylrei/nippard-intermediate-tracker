@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  updateSessionProgress,
-  completeSession,
-  logSetAndAdvance,
-  deleteWorkoutSession,
-  updateSetLog,
-} from "@/lib/db";
+import { Suspense, useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { updateSessionProgress, completeSession, logSetAndAdvance, deleteWorkoutSession, updateSetLog } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, Exercise } from "@/lib/types";
 import {
@@ -16,11 +10,11 @@ import {
   planAfterSet,
 } from "@/lib/workout-helpers";
 import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
-import FullScreenMessage from "@/components/workout/FullScreenMessage";
+import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
 import { useSaveError } from "@/hooks/useSaveError";
-import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
@@ -33,14 +27,15 @@ import WorkoutHeader from "@/components/workout/WorkoutHeader";
 import ExerciseInfo from "@/components/workout/ExerciseInfo";
 import SetTiles from "@/components/workout/SetTiles";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
-import { Suspense } from "react";
+import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
+import { SIGN_IN_PATH } from "@/lib/require-user";
 
 const PROGRESS_SAVE_FAILED = "Couldn't save your place in the workout. It will be saved with your next set.";
 
 function WorkoutContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { getWorkoutDay, warmupSteps, programId, ready: programReady } = useProgramContext();
+  const { week, dayIndex, workoutDay } = useWorkoutRoute();
+  const { warmupSteps, programId, ready: programReady, failed: programFailed } = useProgramContext();
   const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const { prefs, setPrefs, toggleAlternate, saveNote } = useWorkoutPrefs(userId);
@@ -52,6 +47,7 @@ function WorkoutContent() {
   const { start: startRestTimer } = useRestTimer();
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
@@ -59,9 +55,6 @@ function WorkoutContent() {
   const [prevSetsByExercise, setPrevSetsByExercise] = useState<Record<string, SetLog[]>>({});
   const saveError = useSaveError();
 
-  const week = parseInt(searchParams.get("week") ?? "1");
-  const dayIndex = parseInt(searchParams.get("day") ?? "0");
-  const workoutDay = useMemo(() => getWorkoutDay(week, dayIndex), [week, dayIndex, getWorkoutDay]);
 
   const resolvedExercises = useMemo(
     () => resolveExercises(workoutDay?.exercises ?? [], useAlternate),
@@ -78,10 +71,21 @@ function WorkoutContent() {
 
     async function init() {
       setDone(false);
-      setLoading(true);
+      setLoadFailed(false);
       setSessionSets([]);
-      const boot = await bootstrapWorkout({ week, dayIndex, programId, workoutDay });
-      if (!boot) { router.replace("/auth"); return; }
+      // Never create a session for a day that doesn't exist — the page shows "Invalid workout".
+      if (!workoutDay) { setLoading(false); return; }
+      setLoading(true);
+      let boot;
+      try {
+        boot = await bootstrapWorkout({ week, dayIndex, programId, workoutDay });
+      } catch (error) {
+        console.error(error);
+        setLoadFailed(true);
+        setLoading(false);
+        return;
+      }
+      if (!boot) { router.replace(SIGN_IN_PATH); return; }
       setUserId(boot.userId);
       setPrefs(boot.prefs);
       setSession(boot.session);
@@ -194,6 +198,8 @@ function WorkoutContent() {
     saveProgress(exerciseIndex, 0);
   }
 
+  if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
+  if (loadFailed) return <FullScreenMessage message="Couldn't start the workout. Check your connection and try again." />;
   if (loading) return <FullScreenMessage message="Loading workout…" />;
   if (!workoutDay || !currentExercise) return <FullScreenMessage message="Invalid workout." />;
 
@@ -330,11 +336,7 @@ function WorkoutContent() {
 
 export default function WorkoutPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-bg text-muted text-sm">
-        Loading…
-      </div>
-    }>
+    <Suspense fallback={<FullScreenMessage message="Loading…" />}>
       <WorkoutContent />
     </Suspense>
   );

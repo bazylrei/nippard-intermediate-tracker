@@ -1,6 +1,6 @@
 "use client";
 
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { Exercise } from "@/lib/types";
 import { ArrowLeft, Play } from "lucide-react";
 
@@ -22,7 +22,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBack, onBe
           </button>
           <div>
             <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Week {week}</p>
-            <h1 className="font-display text-lg font-bold text-fg">{DAY_LABELS[dayType]}</h1>
+            <h1 className="font-display text-lg font-bold text-fg">{dayLabel(dayType)}</h1>
           </div>
         </div>
 
@@ -52,11 +52,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBack, onBe
         <div className="p-4" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
           <button
             onClick={() => onBegin()}
-            className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-lg py-4 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
-            style={{
-              background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
-            }}
+            className="btn-primary gloss w-full flex items-center justify-center gap-2 font-display font-bold text-lg py-4 rounded-2xl"
           >
             <Play size={20} fill="currentColor" />
             Begin Workout

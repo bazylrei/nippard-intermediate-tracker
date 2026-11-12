@@ -6,7 +6,8 @@ import { useWorkoutDetail } from "@/hooks/useWorkoutDetail";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
 import { groupWorkingSets } from "@/lib/workout-history";
-import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import SaveErrorAlert from "@/components/SaveErrorAlert";
+import FullScreenMessage from "@/components/FullScreenMessage";
 import WorkoutDetailHeader from "./WorkoutDetailHeader";
 import ExerciseSetsBlock from "./ExerciseSetsBlock";
 import AddExerciseForm from "./AddExerciseForm";
@@ -18,10 +19,6 @@ interface Props {
   onExit: () => void;
 }
 
-function Message({ text }: { text: string }) {
-  return <div className="min-h-screen flex items-center justify-center text-muted text-sm font-display px-4 text-center">{text}</div>;
-}
-
 export default function WorkoutDetail({ sessionId, onExit }: Props) {
   const { status, session, sets, saveError, actions } = useWorkoutDetail(sessionId);
   const { nameOf, options } = useExerciseCatalog();
@@ -29,9 +26,9 @@ export default function WorkoutDetail({ sessionId, onExit }: Props) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  if (status === "loading") return <Message text="Loading…" />;
-  if (status === "not-found") return <Message text="This workout doesn't exist or has been deleted." />;
-  if (status === "error" || !session) return <Message text="Couldn't load this workout. Check your connection and try again." />;
+  if (status === "loading") return <FullScreenMessage message="Loading…" />;
+  if (status === "not-found") return <FullScreenMessage message="This workout doesn't exist or has been deleted." />;
+  if (status === "error" || !session) return <FullScreenMessage message="Couldn't load this workout. Check your connection and try again." />;
 
   const groups = groupWorkingSets(sets);
   const setCount = groups.reduce((n, g) => n + g.sets.length, 0);

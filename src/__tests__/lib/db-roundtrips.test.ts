@@ -22,6 +22,7 @@ import {
   logSetAndAdvance, getLastSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
+  getWeeklyVolume, getLoggedExerciseIds,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -266,5 +267,31 @@ describe("getRecentWorkouts without a limit", () => {
     responses.push({ data: [], error: null });
     await getRecentWorkouts("user-1");
     expect(fn("limit")).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Progress ────────────────────────────────────────────────────────────────
+
+describe("getWeeklyVolume", () => {
+  it("sums kg × reps per week, rounds, and sorts weeks ascending", async () => {
+    responses.push({ data: [
+      { weight_kg: 100, reps: 5, workout_sessions: { week: 2, completed_at: "x" } },
+      { weight_kg: 50.5, reps: 3, workout_sessions: { week: 1, completed_at: "x" } },
+      { weight_kg: 100, reps: 5, workout_sessions: { week: 2, completed_at: "x" } },
+    ], error: null });
+    expect(await getWeeklyVolume("user-1")).toEqual([
+      { week: 1, volume: 152 },
+      { week: 2, volume: 1000 },
+    ]);
+    expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
+  });
+});
+
+describe("getLoggedExerciseIds", () => {
+  it("returns each logged exercise once, working sets only", async () => {
+    responses.push({ data: [{ exercise_id: "bench" }, { exercise_id: "row" }, { exercise_id: "bench" }], error: null });
+    expect(await getLoggedExerciseIds("user-1")).toEqual(["bench", "row"]);
+    expect(fn("select")).toHaveBeenCalledWith("exercise_id");
+    expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
   });
 });

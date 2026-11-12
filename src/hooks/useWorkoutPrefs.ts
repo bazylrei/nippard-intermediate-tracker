@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { saveExerciseNote, upsertPreferences } from "@/lib/db";
-import { cacheGet, cacheSet } from "@/lib/cache";
+import { cachePrefs, DEFAULT_PREFS, readCachedPrefs } from "@/lib/prefs-cache";
 import type { UserPreferences } from "@/lib/types";
-
-const DEFAULT_PREFS: UserPreferences = { unit: "kg", alternateSelections: {}, exerciseNotes: {} };
 
 /** User preferences during a workout: state, local cache and persistence in one place. */
 export function useWorkoutPrefs(userId: string | null) {
-  const [prefs, setPrefs] = useState<UserPreferences>(() => cacheGet<UserPreferences>("prefs") ?? DEFAULT_PREFS);
+  const [prefs, setPrefs] = useState<UserPreferences>(() => readCachedPrefs() ?? DEFAULT_PREFS);
 
   function update(next: UserPreferences) {
     setPrefs(next);
-    cacheSet("prefs", next);
+    cachePrefs(next);
   }
 
   /** Cycle main → alternate 1 → alternate 2 → main. Optimistic; reverts and rethrows if the save fails. */

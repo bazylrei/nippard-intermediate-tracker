@@ -4,6 +4,7 @@ import "./globals.css";
 import { ProgramProvider } from "@/context/ProgramContext";
 import { RestTimerProvider } from "@/context/RestTimerContext";
 import RestTimerBar from "@/components/RestTimerBar";
+import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
@@ -21,8 +22,8 @@ const barlow = Barlow({
 });
 
 export const metadata: Metadata = {
-  title: "Nippard Intermediate",
-  description: "Jeff Nippard Intermediate Bodybuilding Program tracker",
+  title: ACTIVE_PROGRAM_NAME,
+  description: `${ACTIVE_PROGRAM_NAME} program tracker`,
 };
 
 export const viewport: Viewport = {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import { getIncompleteSession, getLastCompletedWorkout, getRecentWorkouts } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { nextWorkout } from "@/lib/program-data";
@@ -25,15 +25,17 @@ export interface HomeFeed {
   items: WorkoutFeedItem[];
 }
 
-export function useHomeFeed(): { feed: HomeFeed | null } {
+/** `failed` is true only when loading failed and there is no cached feed to show. */
+export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
   const router = useRouter();
   const { program } = useProgramContext();
   const [data, setData] = useState<FeedData | null>(() => cacheGet<FeedData>(CACHE_KEY));
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const user = await getSignedInUser();
-      if (!user) { router.replace("/auth"); return; }
+      const user = await requireSignedInUser(router);
+      if (!user) return;
 
       const [incomplete, lastCompleted, recent] = await Promise.all([
         getIncompleteSession(user.id),
@@ -48,7 +50,7 @@ export function useHomeFeed(): { feed: HomeFeed | null } {
       setData(fresh);
       cacheSet(CACHE_KEY, fresh);
     }
-    void load();
+    load().catch((error) => { console.error(error); setLoadFailed(true); });
   }, [router]);
 
   const feed = useMemo<HomeFeed | null>(() => data && {
@@ -57,5 +59,5 @@ export function useHomeFeed(): { feed: HomeFeed | null } {
     items: data.items,
   }, [data, program]);
 
-  return { feed };
+  return { feed, failed: loadFailed && !data };
 }

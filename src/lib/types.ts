@@ -40,7 +40,8 @@ export type MuscleGroup =
   | "abs"
   | "hips";
 
-export type DayType = "upper-a" | "lower-a" | "back-biceps" | "push" | "lower-b";
+/** A preset key from `DAY_TYPE_PRESETS` or a builder custom type — see lib/day-types. */
+export type DayType = string;
 
 export interface WorkoutDay {
   dayType: DayType;
@@ -142,13 +143,4 @@ export interface BuilderProgram {
   totalWeeks: number;
   days: BuilderDay[];
   userCount: number;
-}
-
-export interface PersonalRecord {
-  exerciseId: string;
-  exerciseName: string;
-  weight: number;
-  reps: number;
-  estimatedOneRm: number;
-  achievedAt: string;
 }

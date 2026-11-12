@@ -2,7 +2,7 @@ import { getSignedInUser } from "./auth";
 import {
   createSession, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
-import { cacheSet } from "./cache";
+import { cachePrefs } from "./prefs-cache";
 import { resolveExercises, writeBanner } from "./workout-helpers";
 import type { Exercise, SetLog, UserPreferences, WorkoutSession } from "./types";
 
@@ -24,21 +24,22 @@ interface Params {
   week: number;
   dayIndex: number;
   programId: string | null;
-  workoutDay: { dayType: string; exercises: Exercise[] } | null | undefined;
+  /** The scheduled day being trained — callers must not start a workout for a day that doesn't exist. */
+  workoutDay: { dayType: string; exercises: Exercise[] };
 }
 
 export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }: Params): Promise<WorkoutBootstrap | null> {
   const user = await getSignedInUser();
   if (!user) return null;
 
-  const exercises = workoutDay?.exercises ?? [];
+  const { exercises, dayType } = workoutDay;
   // Everything the page needs, in one parallel round trip.
   const [prefs, existing, prevSetsByExercise] = await Promise.all([
     getPreferences(user.id),
     getIncompleteSessionWithSets(user.id),
     getLastSetsForExercises(exercises.map((ex) => ex.id)),
   ]);
-  cacheSet("prefs", prefs);
+  cachePrefs(prefs);
 
   const resumable = !!existing && existing.session.week === week && existing.session.dayIndex === dayIndex
     && existing.session.currentExerciseIndex < exercises.length;
@@ -51,7 +52,7 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
     sessionSets = existing.sets;
     phase = session.currentSetIndex === -1 ? "warmup" : "sets";
   } else {
-    session = await createSession(user.id, week, dayIndex, workoutDay?.dayType ?? "upper-a", programId);
+    session = await createSession(user.id, week, dayIndex, dayType, programId);
   }
 
   const exerciseIndex = resumable ? session.currentExerciseIndex : 0;

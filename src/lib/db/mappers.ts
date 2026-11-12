@@ -8,7 +8,7 @@ export function mapSession(row: Tables<"workout_sessions">): WorkoutSession {
     programId: row.program_id ?? null,
     week: row.week,
     dayIndex: row.day_index,
-    dayType: row.day_type as WorkoutSession["dayType"],
+    dayType: row.day_type,
     startedAt: row.started_at,
     completedAt: row.completed_at,
     currentExerciseIndex: row.current_exercise_index ?? 0,

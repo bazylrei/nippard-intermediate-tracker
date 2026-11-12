@@ -1,5 +1,10 @@
 import type { SetLog, WorkoutPosition } from "./types";
 
+/** The one place that knows the URL for training a scheduled day. */
+export function startWorkoutHref({ week, dayIndex }: WorkoutPosition): string {
+  return `/workout?week=${week}&day=${dayIndex}`;
+}
+
 /** The one place that knows the URL of a workout's detail page. */
 export function workoutDetailHref(sessionId: string): string {
   return `/history/${sessionId}`;

@@ -12,6 +12,8 @@ interface ProgramContextValue {
   failureTechniques: Record<string, { label: string; description: string }>;
   programId: string | null;
   ready: boolean;
+  /** The program couldn't be loaded and nothing is cached — screens that need it should say so. */
+  failed: boolean;
   getWorkoutDay: (week: number, dayIndex: number) => WorkoutDay | null;
 }
 
@@ -28,6 +30,7 @@ const ProgramContext = createContext<ProgramContextValue>({
   failureTechniques: {},
   programId: null,
   ready: false,
+  failed: false,
   getWorkoutDay: () => null,
 });
 
@@ -38,17 +41,23 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
   const [failureTechniques, setFailureTechniques] = useState<Record<string, { label: string; description: string }>>(cached?.failureTechniques ?? {});
   const [programId, setProgramId] = useState<string | null>(cached?.programId ?? null);
   const [ready, setReady] = useState(!!cached);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // A failed refresh is fine while a cached program is on screen.
+  const failed = loadFailed && !ready;
 
   useEffect(() => {
     const sb = createClient();
     loadFullProgram(sb).then((data) => {
-      if (!data) return;
+      if (!data) { setLoadFailed(true); return; }
       setProgram(data.program);
       setWarmupSteps(data.warmupSteps);
       setFailureTechniques(data.failureTechniques);
       setProgramId(data.programId);
       cacheSet("program-v1", { ...data });
       setReady(true);
+    }).catch((error) => {
+      console.error(error);
+      setLoadFailed(true);
     });
   }, []);
 
@@ -57,7 +66,7 @@ export function ProgramProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ProgramContext.Provider value={{ program, warmupSteps, failureTechniques, programId, ready, getWorkoutDay }}>
+    <ProgramContext.Provider value={{ program, warmupSteps, failureTechniques, programId, ready, failed, getWorkoutDay }}>
       {children}
     </ProgramContext.Provider>
   );

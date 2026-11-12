@@ -1,6 +1,6 @@
 "use client";
 
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import { List, X, ArrowLeft } from "lucide-react";
 
 interface Props {
@@ -29,7 +29,7 @@ export default function WorkoutHeader({
         </button>
         <div className="flex-1 min-w-0">
           <p className="font-display text-xs font-semibold tracking-widest text-muted uppercase">
-            Week {week} · {DAY_LABELS[dayType]}
+            Week {week} · {dayLabel(dayType)}
           </p>
           <p className="text-xs text-muted">
             Exercise {exerciseIndex + 1} of {exerciseCount}
