@@ -75,7 +75,7 @@ function WorkoutContent() {
     setPrevSets(sets);
   }, []);
 
-  function writeBanner(exIdx: number, exercises: typeof resolvedExercises, wk: number, dIdx: number, dType: string) {
+  const writeBanner = useCallback((exIdx: number, exercises: Exercise[], wk: number, dIdx: number, dType: string) => {
     const ex = exercises[exIdx];
     if (!ex) return;
     const info: ActiveWorkoutInfo = {
@@ -86,7 +86,7 @@ function WorkoutContent() {
     };
     cacheSet("active_workout", info);
     window.dispatchEvent(new Event("active_workout_changed"));
-  }
+  }, []);
 
   function clearBanner() {
     cacheDelete("active_workout");
@@ -148,10 +148,10 @@ function WorkoutContent() {
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, router, workoutDay, loadPrevSets, programReady]);
+  }, [week, dayIndex, router, workoutDay, loadPrevSets, programReady, programId, writeBanner]);
 
   useEffect(() => {
-    if (!userId || !currentExercise) return;
+    if (!userId || !currentExercise?.id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadPrevSets(userId, currentExercise.id);
   }, [exerciseIndex, userId, currentExercise?.id, loadPrevSets]);
