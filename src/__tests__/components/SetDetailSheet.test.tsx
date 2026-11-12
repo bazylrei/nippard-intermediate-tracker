@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import SetDetailSheet from "@/components/SetDetailSheet";
 import type { Exercise, SetLog } from "@/lib/types";
 
@@ -326,8 +326,10 @@ describe("SetDetailSheet — edit mode", () => {
     );
     fireEvent.click(screen.getByText("Edit"));
     // Weight is 100, reps is 8, rpe starts at "8" (from set.rpe=8)
-    fireEvent.click(screen.getByText("Save"));
-    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    await act(async () => {
+      fireEvent.click(screen.getByText("Save"));
+      await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    });
     expect(onSave).toHaveBeenCalledWith("set-1", 100, 8, 8);
   });
 
@@ -351,8 +353,10 @@ describe("SetDetailSheet — edit mode", () => {
     );
     if (rpeButtons.length > 0) fireEvent.click(rpeButtons[0]);
 
-    fireEvent.click(screen.getByText("Save"));
-    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    await act(async () => {
+      fireEvent.click(screen.getByText("Save"));
+      await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    });
     const [, weightArg] = onSave.mock.calls[0] as [string, number, number, null];
     // toKg(220, "lbs") = 220 / 2.20462 ≈ 99.79
     expect(weightArg).toBeCloseTo(220 / 2.20462, 1);
