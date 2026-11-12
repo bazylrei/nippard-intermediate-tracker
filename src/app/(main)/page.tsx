@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
-import FullScreenMessage from "@/components/workout/FullScreenMessage";
-import NextWorkoutCard from "@/components/home/NextWorkoutCard";
+import FullScreenMessage from "@/components/FullScreenMessage";
+import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
+import { startWorkoutHref } from "@/lib/workout-history";
 import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import { getSessionNumber } from "@/lib/program-data";
 
@@ -30,7 +31,7 @@ export default function Home() {
           sessionNumber={getSessionNumber(nextSession, program)}
           day={nextDay}
           isResume={hasResume}
-          onStart={() => router.push(`/workout?week=${nextSession.week}&day=${nextSession.dayIndex}`)}
+          onStart={() => router.push(startWorkoutHref(nextSession))}
         />
       )}
 

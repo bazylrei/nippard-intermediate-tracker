@@ -10,11 +10,11 @@ import {
   planAfterSet,
 } from "@/lib/workout-helpers";
 import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
-import FullScreenMessage from "@/components/workout/FullScreenMessage";
+import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
 import { useSaveError } from "@/hooks/useSaveError";
-import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import SetLogger from "@/components/SetLogger";
 import WarmupChecklist from "@/components/WarmupChecklist";
@@ -28,6 +28,7 @@ import ExerciseInfo from "@/components/workout/ExerciseInfo";
 import SetTiles from "@/components/workout/SetTiles";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
+import { SIGN_IN_PATH } from "@/lib/require-user";
 
 const PROGRESS_SAVE_FAILED = "Couldn't save your place in the workout. It will be saved with your next set.";
 
@@ -84,7 +85,7 @@ function WorkoutContent() {
         setLoading(false);
         return;
       }
-      if (!boot) { router.replace("/auth"); return; }
+      if (!boot) { router.replace(SIGN_IN_PATH); return; }
       setUserId(boot.userId);
       setPrefs(boot.prefs);
       setSession(boot.session);

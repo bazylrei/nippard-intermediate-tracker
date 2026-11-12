@@ -36,11 +36,7 @@ export default function NextWorkoutCard({ week, totalWeeks, sessionNumber, day, 
       <div className="px-5 pb-5">
         <button
           onClick={onStart}
-          className="gloss w-full flex items-center justify-center gap-2 text-primary-fg font-display font-bold text-base py-3.5 rounded-2xl transition-opacity cursor-pointer hover:opacity-90"
-          style={{
-            background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 40%, transparent)",
-          }}
+          className="btn-primary gloss w-full flex items-center justify-center gap-2 font-display font-bold text-base py-3.5 rounded-2xl"
         >
           <Play size={16} fill="currentColor" />
           {isResume ? "Resume workout" : "Start workout"}

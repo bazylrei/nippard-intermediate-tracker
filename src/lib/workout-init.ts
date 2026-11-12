@@ -2,7 +2,7 @@ import { getSignedInUser } from "./auth";
 import {
   createSession, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
-import { cacheSet } from "./cache";
+import { cachePrefs } from "./prefs-cache";
 import { resolveExercises, writeBanner } from "./workout-helpers";
 import type { Exercise, SetLog, UserPreferences, WorkoutSession } from "./types";
 
@@ -39,7 +39,7 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
     getIncompleteSessionWithSets(user.id),
     getLastSetsForExercises(exercises.map((ex) => ex.id)),
   ]);
-  cacheSet("prefs", prefs);
+  cachePrefs(prefs);
 
   const resumable = !!existing && existing.session.week === week && existing.session.dayIndex === dayIndex
     && existing.session.currentExerciseIndex < exercises.length;

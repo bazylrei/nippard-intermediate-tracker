@@ -2,33 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { cacheGet } from "@/lib/cache";
+import { ACTIVE_WORKOUT_EVENT, readActiveWorkout, type ActiveWorkoutInfo } from "@/lib/active-workout";
 import { Dumbbell, ChevronRight } from "lucide-react";
 import { dayLabel } from "@/lib/day-types";
-
-export interface ActiveWorkoutInfo {
-  week: number;
-  dayIndex: number;
-  dayType: string;
-  exerciseName: string;
-  exerciseIndex: number;
-  exerciseTotal: number;
-}
+import { startWorkoutHref } from "@/lib/workout-history";
 
 export default function ActiveWorkoutBanner() {
-  const [workout, setWorkout] = useState<ActiveWorkoutInfo | null>(
-    () => cacheGet<ActiveWorkoutInfo>("active_workout")
-  );
+  const [workout, setWorkout] = useState<ActiveWorkoutInfo | null>(readActiveWorkout);
   const router = useRouter();
 
   useEffect(() => {
     function sync() {
-      setWorkout(cacheGet<ActiveWorkoutInfo>("active_workout"));
+      setWorkout(readActiveWorkout());
     }
-    window.addEventListener("active_workout_changed", sync);
+    window.addEventListener(ACTIVE_WORKOUT_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("active_workout_changed", sync);
+      window.removeEventListener(ACTIVE_WORKOUT_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, []);
@@ -40,7 +30,7 @@ export default function ActiveWorkoutBanner() {
   return (
     <div className="md:hidden fixed left-0 right-0 z-30 px-3" style={{ bottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}>
       <button
-        onClick={() => router.push(`/workout?week=${workout.week}&day=${workout.dayIndex}`)}
+        onClick={() => router.push(startWorkoutHref(workout))}
         className="w-full gloss rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
         style={{
           background: "color-mix(in srgb, var(--surface) 92%, transparent)",

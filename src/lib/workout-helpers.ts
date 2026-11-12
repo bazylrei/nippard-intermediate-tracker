@@ -1,6 +1,5 @@
 import type { Exercise, SetLog } from "./types";
-import type { ActiveWorkoutInfo } from "@/components/ActiveWorkoutBanner";
-import { cacheSet, cacheDelete } from "./cache";
+import { clearActiveWorkout, saveActiveWorkout } from "./active-workout";
 
 export function resolveExercises(exercises: Exercise[], selections: Record<string, number>): Exercise[] {
   return exercises.map((ex) => {
@@ -51,17 +50,14 @@ export function planAfterSet(
 export function writeBanner(exIdx: number, exercises: Exercise[], wk: number, dIdx: number, dType: string): void {
   const ex = exercises[exIdx];
   if (!ex) return;
-  const info: ActiveWorkoutInfo = {
+  saveActiveWorkout({
     week: wk, dayIndex: dIdx, dayType: dType,
     exerciseName: ex.name,
     exerciseIndex: exIdx,
     exerciseTotal: exercises.length,
-  };
-  cacheSet("active_workout", info);
-  window.dispatchEvent(new Event("active_workout_changed"));
+  });
 }
 
 export function clearBanner(): void {
-  cacheDelete("active_workout");
-  window.dispatchEvent(new Event("active_workout_changed"));
+  clearActiveWorkout();
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import NextWorkoutCard from "@/components/home/NextWorkoutCard";
+import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import type { WorkoutDay, WorkoutSession } from "@/lib/types";
 

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import { getPrograms, toggleProgramPublic } from "@/lib/db";
 import type { ProgramRow } from "@/lib/types";
-import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { Globe, Lock, Users, ChevronRight, Wrench } from "lucide-react";
 
@@ -19,8 +19,8 @@ export default function BuilderPage() {
 
   useEffect(() => {
     async function load() {
-      const user = await getSignedInUser();
-      if (!user) { router.replace("/auth"); return; }
+      const user = await requireSignedInUser(router);
+      if (!user) return;
       setUserId(user.id);
       try {
         setPrograms(await getPrograms(user.id));

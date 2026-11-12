@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import {
   getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic,
   getAllExercises, addProgramWeek, addProgramDay, addExerciseToDay, duplicateProgramWeek,
@@ -17,7 +17,7 @@ import AddExerciseModal from "@/components/builder/AddExerciseModal";
 import ExerciseEditModal from "@/components/builder/ExerciseEditModal";
 import ProgramEditModal from "@/components/builder/ProgramEditModal";
 import type { ExerciseInfo } from "@/components/builder/constants";
-import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { lastWeek, nextDayIndex } from "@/lib/program-structure";
 
@@ -61,8 +61,8 @@ function ProgramEditorPage() {
   const { attempt } = saveError;
 
   const load = useCallback(async () => {
-    const user = await getSignedInUser();
-    if (!user) { router.replace("/auth"); return; }
+    const user = await requireSignedInUser(router);
+    if (!user) return;
     setUserId(user.id);
     try {
       const [data, exercises] = await Promise.all([getBuilderProgram(programId), getAllExercises()]);

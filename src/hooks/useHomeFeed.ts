@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import { getIncompleteSession, getLastCompletedWorkout, getRecentWorkouts } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { nextWorkout } from "@/lib/program-data";
@@ -34,8 +34,8 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
 
   useEffect(() => {
     async function load() {
-      const user = await getSignedInUser();
-      if (!user) { router.replace("/auth"); return; }
+      const user = await requireSignedInUser(router);
+      if (!user) return;
 
       const [incomplete, lastCompleted, recent] = await Promise.all([
         getIncompleteSession(user.id),

@@ -47,11 +47,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               </button>
               <button
                 onClick={() => onProgress()}
-                className="flex-1 gloss text-primary-fg font-display font-bold py-3 rounded-2xl transition-opacity cursor-pointer hover:opacity-90 text-sm"
-                style={{
-                  background: "linear-gradient(170deg, color-mix(in srgb, var(--primary) 80%, white) 0%, var(--primary) 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2), 0 4px 20px color-mix(in srgb, var(--primary) 35%, transparent)",
-                }}
+                className="btn-primary flex-1 gloss font-display font-bold py-3 rounded-2xl text-sm"
               >
                 Full Progress
               </button>

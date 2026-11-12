@@ -2,12 +2,12 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { requireSignedInUser } from "@/lib/require-user";
 import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, getRecentWorkouts } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
-import FullScreenMessage from "@/components/workout/FullScreenMessage";
+import FullScreenMessage from "@/components/FullScreenMessage";
 import HistoryTab from "./HistoryTab";
 import ExerciseTab, { type ExerciseHistoryPoint } from "./ExerciseTab";
 import VolumeTab from "./VolumeTab";
@@ -56,8 +56,8 @@ function ProgressContent() {
 
   useEffect(() => {
     async function init() {
-      const user = await getSignedInUser();
-      if (!user) { router.replace("/auth"); return; }
+      const user = await requireSignedInUser(router);
+      if (!user) return;
       setUserId(user.id);
       try {
         const [ids, weekly] = await Promise.all([getLoggedExerciseIds(user.id), getWeeklyVolume(user.id)]);
