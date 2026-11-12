@@ -19,7 +19,7 @@ type CachedDashboard = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { program, ready: programReady } = useProgramContext();
+  const { program } = useProgramContext();
   const cached = cacheGet<CachedDashboard>("dashboard");
   const [loading, setLoading] = useState(!cached);
   const [userId, setUserId] = useState<string | null>(null);

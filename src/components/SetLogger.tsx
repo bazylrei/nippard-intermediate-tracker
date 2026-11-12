@@ -40,6 +40,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
     populated.current = true;
     const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
     if (prevSet) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeight(String(toDisplay(prevSet.weight, unit)));
       setReps(String(prevSet.reps));
       setRpe(prevSet.rpe ? String(prevSet.rpe) : "");

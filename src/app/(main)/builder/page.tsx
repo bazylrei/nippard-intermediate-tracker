@@ -7,8 +7,6 @@ import { getPrograms, toggleProgramPublic } from "@/lib/db";
 import type { ProgramRow } from "@/lib/types";
 import { Globe, Lock, Users, ChevronRight, Wrench } from "lucide-react";
 
-const CATEGORIES = ["Strength", "Hypertrophy", "Powerlifting", "Conditioning", "Other"];
-
 export default function BuilderPage() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);

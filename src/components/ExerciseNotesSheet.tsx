@@ -47,7 +47,7 @@ export default function ExerciseNotesSheet({ exercise, existingNote, onClose, on
             className="rounded-xl px-4 py-3 space-y-1"
             style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}
           >
-            <p className="text-xs font-display font-semibold text-muted uppercase tracking-widest">Coach's cue</p>
+            <p className="text-xs font-display font-semibold text-muted uppercase tracking-widest">Coach&apos;s cue</p>
             <p className="text-sm text-fg leading-relaxed">{exercise.formNote}</p>
           </div>
         )}

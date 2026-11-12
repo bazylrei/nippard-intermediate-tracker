@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { createClient } from "./supabase";
 import type { SetLog, WorkoutSession, UserPreferences, ProgramRow, BuilderProgram, BuilderDay, BuilderExercise } from "./types";
 import { estimateOneRm } from "./program-data";
@@ -456,6 +457,7 @@ export async function updateProgramDayExercise(
   await sb.from("program_day_exercises").update(dbFields).eq("id", pdeId);
 }
 
+// eslint-disable-next-line max-lines-per-function
 export async function getBuilderProgram(programId: string): Promise<BuilderProgram | null> {
   const sb = createClient();
   const { data, error } = await sb
@@ -607,6 +609,7 @@ export async function addExerciseToDay(
   };
 }
 
+// eslint-disable-next-line max-lines-per-function
 export async function duplicateProgramWeek(
   programId: string, sourceWeek: number, targetWeek: number, newTotalWeeks: number
 ): Promise<BuilderDay[]> {

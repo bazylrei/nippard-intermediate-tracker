@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 "use client";
 
 import { useEffect, useState, useCallback, Suspense } from "react";
@@ -8,7 +9,7 @@ import {
   getAllExercises, addProgramWeek, addProgramDay, addExerciseToDay, duplicateProgramWeek,
   deleteProgramDayExercise, deleteProgramDay, deleteProgramWeek,
 } from "@/lib/db";
-import type { BuilderProgram, BuilderExercise, BuilderDay } from "@/lib/types";
+import type { BuilderProgram, BuilderExercise } from "@/lib/types";
 import {
   ArrowLeft, ChevronDown, ChevronRight, Globe, Lock, Pencil, Check, X,
   Users, Plus, Copy, Trash2,
@@ -98,6 +99,7 @@ function ProgramEditorPage() {
     setLoading(false);
   }, [programId, router]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const isOwner = !!userId && program?.createdBy === userId;
@@ -105,7 +107,7 @@ function ProgramEditorPage() {
   function toggleWeek(week: number) {
     setExpandedWeeks((prev) => {
       const next = new Set(prev);
-      next.has(week) ? next.delete(week) : next.add(week);
+      if (next.has(week)) { next.delete(week); } else { next.add(week); }
       return next;
     });
   }

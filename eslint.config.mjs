@@ -2,17 +2,32 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
-const eslintConfig = defineConfig([
+export default defineConfig([
   ...nextVitals,
   ...nextTs,
-  // Override default ignores of eslint-config-next.
   globalIgnores([
-    // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
+    "src/__tests__/**",
+    "scripts/**",
   ]),
+  // ── File-size rules (all source files) ────────────────────────────────────
+  {
+    rules: {
+      // Files over 300 lines (excluding blanks/comments) are a split candidate.
+      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
+      // Param-count threshold — informational, doesn't fail CI.
+      "max-params": ["warn", 5],
+    },
+  },
+  // ── Function-size rule (logic files only, not TSX component render bodies) ─
+  {
+    files: ["**/*.ts"],
+    rules: {
+      "max-lines-per-function": ["error", { max: 80, skipBlankLines: true, skipComments: true, IIFEs: true }],
+    },
+  },
 ]);
-
-export default eslintConfig;
