@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { cacheSet, cacheDelete } from "@/lib/cache";
 import type { ActiveWorkoutInfo } from "@/components/ActiveWorkoutBanner";
 
@@ -83,8 +83,10 @@ describe("ActiveWorkoutBanner", () => {
     expect(screen.getByText("Bench Press")).toBeInTheDocument();
 
     // Update cache and dispatch event
-    cacheSet("active_workout", updatedWorkout);
-    window.dispatchEvent(new Event("active_workout_changed"));
+    await act(async () => {
+      cacheSet("active_workout", updatedWorkout);
+      window.dispatchEvent(new Event("active_workout_changed"));
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Squat")).toBeInTheDocument();
@@ -96,8 +98,10 @@ describe("ActiveWorkoutBanner", () => {
     render(<ActiveWorkoutBanner />);
     expect(screen.getByText("Bench Press")).toBeInTheDocument();
 
-    cacheDelete("active_workout");
-    window.dispatchEvent(new Event("active_workout_changed"));
+    await act(async () => {
+      cacheDelete("active_workout");
+      window.dispatchEvent(new Event("active_workout_changed"));
+    });
 
     await waitFor(() => {
       expect(screen.queryByText("Bench Press")).not.toBeInTheDocument();
