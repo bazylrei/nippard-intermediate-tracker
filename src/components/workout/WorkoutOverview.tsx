@@ -1,6 +1,6 @@
 "use client";
 
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { Exercise } from "@/lib/types";
 import { ArrowLeft, Play } from "lucide-react";
 
@@ -22,7 +22,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBack, onBe
           </button>
           <div>
             <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Week {week}</p>
-            <h1 className="font-display text-lg font-bold text-fg">{DAY_LABELS[dayType]}</h1>
+            <h1 className="font-display text-lg font-bold text-fg">{dayLabel(dayType)}</h1>
           </div>
         </div>
 

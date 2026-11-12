@@ -5,9 +5,10 @@ import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+let query = "week=1&day=0";
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
-  useSearchParams: () => new URLSearchParams("week=1&day=0"),
+  useSearchParams: () => new URLSearchParams(query),
 }));
 
 const db = vi.hoisted(() => ({
@@ -33,11 +34,12 @@ const exercise = (id: string, name: string): Exercise => ({
   earlySetCount: 1, lastSetCount: 1, formNote: "", isBodyweight: false, weightPerSide: false,
 }) as Exercise;
 
-let workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
+let workoutDay: { dayType: string; exercises: Exercise[] } | null = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
+let programFailed = false;
 // Stable reference: the page memoises on getWorkoutDay.
 const getWorkoutDay = () => workoutDay;
 vi.mock("@/context/ProgramContext", () => ({
-  useProgramContext: () => ({ getWorkoutDay, warmupSteps: {}, programId: null, ready: true, failureTechniques: {} }),
+  useProgramContext: () => ({ getWorkoutDay, warmupSteps: {}, programId: null, ready: true, failed: programFailed, failureTechniques: {} }),
 }));
 
 import WorkoutPage from "@/app/workout/page";
@@ -72,6 +74,8 @@ async function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  query = "week=1&day=0";
+  programFailed = false;
   workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
   bootWith();
   for (const fn of [db.updateSessionProgress, db.completeSession, db.logSetAndAdvance, db.deleteWorkoutSession]) {
@@ -142,5 +146,36 @@ describe("WorkoutPage save failures are visible, never silent", () => {
 
     await waitFor(() => expect(screen.getAllByText("Cable Fly").length).toBeGreaterThan(0));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your place");
+  });
+});
+
+// ─── Starting a workout safely ───────────────────────────────────────────────
+
+describe("WorkoutPage — invalid or failed starts", () => {
+  it("does not create a session for a day the program doesn't have", async () => {
+    workoutDay = null;
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getByText("Invalid workout.")).toBeInTheDocument();
+    expect(boot.bootstrapWorkout).not.toHaveBeenCalled();
+  });
+
+  it("treats a malformed URL as invalid instead of guessing week 1 / day 0", async () => {
+    query = "week=abc&day=0";
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getByText("Invalid workout.")).toBeInTheDocument();
+    expect(boot.bootstrapWorkout).not.toHaveBeenCalled();
+  });
+
+  it("shows an error instead of loading forever when start-up fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    boot.bootstrapWorkout.mockRejectedValue(new Error("offline"));
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getByText(/Couldn't start the workout/)).toBeInTheDocument();
+  });
+
+  it("explains when the program itself couldn't be loaded", async () => {
+    programFailed = true;
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getByText(/Couldn't load your program/)).toBeInTheDocument();
   });
 });

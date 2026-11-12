@@ -4,8 +4,8 @@ import type { WeekSchedule } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1", email: "me@example.com" }) }));
-vi.mock("@/lib/supabase", () => ({ createClient: () => ({ auth: { signOut: vi.fn() } }) }));
+const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn(), signOut: vi.fn() }));
+vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({
   getIncompleteSession: vi.fn(),
@@ -26,6 +26,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  auth.getSignedInUser.mockResolvedValue({ id: "user-1", email: "me@example.com" });
+  auth.signOut.mockResolvedValue(undefined);
   db.getIncompleteSession.mockResolvedValue(null);
   db.getCompletedSlots.mockResolvedValue([
     { sessionId: "s2", week: 1, dayIndex: 1 },
@@ -93,5 +95,28 @@ describe("Program page — settings", () => {
     fireEvent.blur(input);
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your body stats");
     expect(screen.getByLabelText("Body weight (kg)")).toHaveValue(80);
+  });
+});
+
+describe("Program page — loading and sign-out", () => {
+  it("explains instead of loading forever when the first load fails", async () => {
+    db.getCompletedSlots.mockRejectedValue(new Error("offline"));
+    render(<MyProgram />);
+    expect(await screen.findByText(/Couldn't load your program/)).toBeInTheDocument();
+  });
+
+  it("signs out through lib/auth and goes to the sign-in page", async () => {
+    await renderPage();
+    fireEvent.click(screen.getAllByRole("button")[1]);
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/auth"));
+    expect(auth.signOut).toHaveBeenCalled();
+  });
+
+  it("stays put and shows an alert when signing out fails", async () => {
+    auth.signOut.mockRejectedValue(new Error("offline"));
+    await renderPage();
+    fireEvent.click(screen.getAllByRole("button")[1]);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't sign out");
+    expect(router.replace).not.toHaveBeenCalledWith("/auth");
   });
 });

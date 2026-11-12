@@ -11,3 +11,20 @@ export async function getSignedInUser(): Promise<User | null> {
   const { data } = await createClient().auth.getSession();
   return data.session?.user ?? null;
 }
+
+/** Throws the Auth error (with its user-facing message) on failure. */
+export async function signIn(email: string, password: string): Promise<void> {
+  const { error } = await createClient().auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+/** Throws the Auth error (with its user-facing message) on failure. */
+export async function signUp(email: string, password: string): Promise<void> {
+  const { error } = await createClient().auth.signUp({ email, password });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  const { error } = await createClient().auth.signOut();
+  if (error) throw error;
+}

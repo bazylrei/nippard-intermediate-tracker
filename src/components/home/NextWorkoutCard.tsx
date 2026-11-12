@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { WorkoutDay } from "@/lib/types";
 
 const PREVIEW_COUNT = 3;
@@ -24,7 +24,7 @@ export default function NextWorkoutCard({ week, totalWeeks, sessionNumber, day, 
         <span className="font-display font-bold text-xs text-muted">Session {sessionNumber}</span>
       </div>
       <div className="px-5 pt-2 pb-3">
-        <h2 className="font-display font-bold text-2xl text-fg leading-tight">{DAY_LABELS[day.dayType]}</h2>
+        <h2 className="font-display font-bold text-2xl text-fg leading-tight">{dayLabel(day.dayType)}</h2>
         <p className="text-sm text-muted mt-0.5">
           Week {week} of {totalWeeks} · {day.exercises.length} exercises
         </p>

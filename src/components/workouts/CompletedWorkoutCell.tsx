@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CheckCircle2, ChevronRight } from "lucide-react";
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { WorkoutFeedItem } from "@/lib/feed";
 import { formatRelativeDay } from "@/lib/dates";
 import { workoutDetailHref } from "@/lib/workout-history";
@@ -16,7 +16,7 @@ export default function CompletedWorkoutCell({ item }: { item: WorkoutFeedItem }
       <CheckCircle2 size={20} className="text-accent shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="font-display font-semibold text-sm text-fg truncate">
-          {DAY_LABELS[session.dayType] ?? session.dayType}
+          {dayLabel(session.dayType)}
           <span className="text-muted font-normal"> · Week {session.week}</span>
         </p>
         <p className="text-xs text-muted mt-0.5">

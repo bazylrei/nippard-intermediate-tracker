@@ -37,11 +37,3 @@ export function getSessionNumber(position: WorkoutPosition, schedule: WeekSchedu
 export function getTotalSessions(schedule: WeekSchedule[]): number {
   return orderedPositions(schedule).length;
 }
-
-export const DAY_LABELS: Record<string, string> = {
-  "upper-a": "Upper — Strength",
-  "lower-a": "Lower — Strength",
-  "back-biceps": "Pull — Hypertrophy",
-  push: "Push — Hypertrophy",
-  "lower-b": "Legs — Hypertrophy",
-};

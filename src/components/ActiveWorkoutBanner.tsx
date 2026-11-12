@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cacheGet } from "@/lib/cache";
 import { Dumbbell, ChevronRight } from "lucide-react";
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 
 export interface ActiveWorkoutInfo {
   week: number;
@@ -35,7 +35,7 @@ export default function ActiveWorkoutBanner() {
 
   if (!workout) return null;
 
-  const dayLabel = DAY_LABELS[workout.dayType] ?? workout.dayType;
+  const label = dayLabel(workout.dayType);
 
   return (
     <div className="md:hidden fixed left-0 right-0 z-30 px-3" style={{ bottom: "calc(56px + env(safe-area-inset-bottom, 0px))" }}>
@@ -58,7 +58,7 @@ export default function ActiveWorkoutBanner() {
         </div>
         <div className="flex-1 min-w-0 text-left">
           <p className="text-[11px] text-muted leading-none mb-0.5">
-            Week {workout.week} · {dayLabel}
+            Week {workout.week} · {label}
           </p>
           <p className="font-display font-semibold text-sm text-fg truncate leading-tight">
             {workout.exerciseName}

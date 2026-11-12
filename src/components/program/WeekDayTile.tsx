@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { WorkoutDay } from "@/lib/types";
 
 interface Props {
@@ -27,7 +27,7 @@ export default function WeekDayTile({ day, number, isDone, isNext, href }: Props
         {(isNext || href) && <ChevronRight size={14} className={isNext ? "text-primary" : "text-subtle"} />}
       </div>
       <p className={`font-display font-semibold text-sm leading-tight ${isNext ? "text-fg" : "text-muted"}`}>
-        {DAY_LABELS[day.dayType]}
+        {dayLabel(day.dayType)}
       </p>
       <p className="text-xs text-subtle mt-0.5">{day.exercises.length} exercises</p>
     </>

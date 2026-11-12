@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
-import { getSignedInUser } from "@/lib/auth";
+import { getSignedInUser, signOut } from "@/lib/auth";
+import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getCompletedSlots, getIncompleteSession, getPreferences, upsertPreferences, type CompletedSlot } from "@/lib/db";
-import { DAY_LABELS, getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
+import { getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { UserPreferences, WorkoutPosition } from "@/lib/types";
 import { latestSessionBySlot, workoutDetailHref } from "@/lib/workout-history";
@@ -13,6 +14,7 @@ import WeekDayTile from "@/components/program/WeekDayTile";
 import SettingsPanel from "@/components/program/SettingsPanel";
 import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
+import FullScreenMessage from "@/components/workout/FullScreenMessage";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import { Dumbbell, Play, LogOut, Settings } from "lucide-react";
 
@@ -31,6 +33,7 @@ export default function MyProgram() {
   const { program } = useProgramContext();
   const cached = cacheGet<CachedDashboard>(CACHE_KEY);
   const [loading, setLoading] = useState(!cached);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState(cached?.email ?? "");
   const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
@@ -45,11 +48,18 @@ export default function MyProgram() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [incomplete, slots, p] = await Promise.all([
-        getIncompleteSession(user.id),
-        getCompletedSlots(user.id),
-        getPreferences(user.id),
-      ]);
+      let incomplete, slots, p;
+      try {
+        [incomplete, slots, p] = await Promise.all([
+          getIncompleteSession(user.id),
+          getCompletedSlots(user.id),
+          getPreferences(user.id),
+        ]);
+      } catch (error) {
+        console.error(error);
+        setLoadFailed(true);
+        return;
+      }
       const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
       const resolvedEmail = user.email ?? "";
       setResume(resumeAt);
@@ -60,13 +70,11 @@ export default function MyProgram() {
       cacheSet("prefs", p);
       setLoading(false);
     }
-    init();
+    void init();
   }, [router]);
 
   async function handleSignOut() {
-    const sb = createClient();
-    await sb.auth.signOut();
-    router.replace("/auth");
+    if (await saveError.attempt(signOut, "Couldn't sign out. Try again.")) router.replace("/auth");
   }
 
   function applyPrefs(next: UserPreferences) {
@@ -95,13 +103,9 @@ export default function MyProgram() {
     router.push(`/workout?week=${nextSession.week}&day=${nextSession.dayIndex}`);
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-muted text-sm font-display">
-        Loading…
-      </div>
-    );
-  }
+  // With a cached dashboard on screen, a failed refresh just leaves it as is.
+  if (loading && loadFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
+  if (loading) return <FullScreenMessage message="Loading…" />;
 
   // Derived from the program's real schedule — it can have any number of weeks and days.
   const nextSession = resume ?? nextWorkout(completed[0] ?? null, program);
@@ -124,7 +128,7 @@ export default function MyProgram() {
             <Dumbbell className="text-primary" size={20} />
           </div>
           <div>
-            <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">Nippard Intermediate</h1>
+            <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">{ACTIVE_PROGRAM_NAME}</h1>
             <p className="text-xs text-muted">{email}</p>
           </div>
         </div>
@@ -178,7 +182,7 @@ export default function MyProgram() {
 
           <div className="px-5 pt-2 pb-4 border-b" style={{ borderColor: "color-mix(in srgb, var(--fg) 7%, transparent)" }}>
             <h2 className="font-display font-bold text-3xl text-fg leading-tight">
-              {DAY_LABELS[nextDay.dayType]}
+              {dayLabel(nextDay.dayType)}
             </h2>
             <p className="text-sm text-muted mt-0.5">Week {nextSession.week} of {totalWeeks}</p>
           </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import { DAY_LABELS } from "@/lib/program-data";
+import { dayLabel } from "@/lib/day-types";
 import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { kgToDisplay, KG_TO_LBS } from "@/lib/units";
+import { kgToDisplay } from "@/lib/units";
 
 interface Props {
   week: number;
@@ -32,7 +32,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
             <div>
               <h1 className="font-display text-4xl font-bold text-fg leading-tight">Workout Complete!</h1>
               <p className="text-muted mt-1 text-sm">
-                Week {week} · {DAY_LABELS[dayType]}
+                Week {week} · {dayLabel(dayType)}
               </p>
               <p className="text-muted text-xs mt-0.5">
                 {exercises.length} exercises · {totalWorkingSets} sets
@@ -67,14 +67,15 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               const history = postHistory[ex.id] ?? [];
               const chartData = history.slice(-8).map((h, i, arr) => ({
                 session: i + 1,
-                weight: Math.round(h.weight * 10) / 10,
+                weight: kgToDisplay(h.weight, unit),
                 isToday: i === arr.length - 1,
               }));
 
               const todayBest = exSets.reduce((m, s) => s.weight > m.weight ? s : m, exSets[0]);
               const prevPoint = history.length >= 2 ? history[history.length - 2] : null;
               const todayWeight = history[history.length - 1]?.weight ?? todayBest.weight;
-              const delta = prevPoint ? todayWeight - prevPoint.weight : null;
+              // History is in kg; convert the difference so "+2.5lbs vs last" is really lbs.
+              const delta = prevPoint ? kgToDisplay(todayWeight - prevPoint.weight, unit) : null;
               const totalVolume = Math.round(exSets.reduce((sum, s) => sum + s.weight * s.reps, 0));
               const displayWeight = kgToDisplay(todayBest.weight, unit);
 
@@ -111,7 +112,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                       </div>
                     )}
                     <div className="text-xs text-muted">
-                      Vol: <span className="text-fg font-display font-semibold">{Math.round(totalVolume * (unit === "lbs" ? KG_TO_LBS : 1))}{unit}</span>
+                      Vol: <span className="text-fg font-display font-semibold">{Math.round(kgToDisplay(totalVolume, unit))}{unit}</span>
                     </div>
                   </div>
 

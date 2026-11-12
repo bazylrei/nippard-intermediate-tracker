@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Exercise, WeekSchedule, WorkoutDay } from "./types";
 
+/**
+ * The program the app trains. There is no per-user program selection yet, so
+ * this is the single place that decides which program is "active".
+ */
+export const ACTIVE_PROGRAM_NAME = "Nippard Intermediate";
+
 type WarmupProtocolRow = { id: string; steps: string[] };
 type FailureTechniqueRow = { id: string; label: string; description: string };
 
@@ -79,7 +85,7 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
       .select(
         `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises(id, name, muscle_group, alternate_1, alternate_2, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, is_bodyweight, weight_per_side)))`
       )
-      .eq("name", "Nippard Intermediate")
+      .eq("name", ACTIVE_PROGRAM_NAME)
       .single(),
     sb.from("warmup_protocols").select("id, steps"),
     sb.from("failure_techniques").select("id, label, description"),
@@ -111,7 +117,7 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
       weekMap.set(day.week, []);
     }
     weekMap.get(day.week)![day.day_index] = {
-      dayType: day.day_type as WorkoutDay["dayType"],
+      dayType: day.day_type,
       exercises: [...day.program_day_exercises]
         .sort((a, b) => a.position - b.position)
         .map(mapToExercise),

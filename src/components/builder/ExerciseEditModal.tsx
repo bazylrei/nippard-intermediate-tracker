@@ -53,21 +53,21 @@ export default function ExerciseEditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] flex flex-col">
+      <div className="bg-surface border border-border rounded-2xl w-full max-w-sm p-5 space-y-4 max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between shrink-0">
-          <h2 className="font-semibold text-zinc-100 text-sm">Edit Exercise Slot</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={18} /></button>
+          <h2 className="font-semibold text-fg text-sm">Edit Exercise Slot</h2>
+          <button onClick={onClose} className="text-subtle hover:text-fg"><X size={18} /></button>
         </div>
 
         {/* Exercise picker toggle */}
         <div className="shrink-0 space-y-1.5">
-          <span className="text-xs text-zinc-500">Exercise</span>
+          <span className="text-xs text-subtle">Exercise</span>
           <button
             onClick={() => setShowPicker((v) => !v)}
-            className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-zinc-100 hover:border-orange-500 transition-colors"
+            className="w-full flex items-center justify-between bg-elevated border border-border rounded-xl px-3 py-2.5 text-sm text-fg hover:border-primary transition-colors"
           >
             <span className="truncate">{selectedName}</span>
-            <ChevronDown size={14} className={`text-zinc-500 transition-transform shrink-0 ml-2 ${showPicker ? "rotate-180" : ""}`} />
+            <ChevronDown size={14} className={`text-subtle transition-transform shrink-0 ml-2 ${showPicker ? "rotate-180" : ""}`} />
           </button>
         </div>
 
@@ -80,12 +80,12 @@ export default function ExerciseEditModal({
               onChange={(e) => setSearch(e.target.value)}
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500 mb-2 shrink-0"
+              className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary mb-2 shrink-0"
             />
             <div className="overflow-y-auto flex-1 -mx-1 px-1">
               {Object.entries(grouped).map(([group, exs]) => (
                 <div key={group}>
-                  <p className="sticky top-0 bg-zinc-900 text-xs text-zinc-500 font-semibold uppercase tracking-wide px-1 py-1.5">
+                  <p className="sticky top-0 bg-surface text-xs text-subtle font-semibold uppercase tracking-wide px-1 py-1.5">
                     {group}
                   </p>
                   {exs.map((ex) => (
@@ -93,7 +93,7 @@ export default function ExerciseEditModal({
                       key={ex.id}
                       onClick={() => { setExerciseId(ex.id); setShowPicker(false); setSearch(""); }}
                       className={`w-full text-left px-2 py-2 rounded-lg text-sm transition-colors ${
-                        ex.id === exerciseId ? "bg-orange-500/10 text-orange-400" : "text-zinc-200 hover:bg-zinc-800"
+                        ex.id === exerciseId ? "bg-primary/10 text-primary" : "text-fg hover:bg-elevated"
                       }`}
                     >
                       {ex.name}
@@ -101,7 +101,7 @@ export default function ExerciseEditModal({
                   ))}
                 </div>
               ))}
-              {filtered.length === 0 && <p className="text-xs text-zinc-600 text-center py-4">No matches.</p>}
+              {filtered.length === 0 && <p className="text-xs text-subtle text-center py-4">No matches.</p>}
             </div>
           </div>
         ) : (
@@ -114,24 +114,24 @@ export default function ExerciseEditModal({
                 { label: "Last sets",    value: lastSets,  set: setLastSets },
               ].map(({ label, value, set }) => (
                 <label key={label} className="space-y-1">
-                  <span className="text-xs text-zinc-500">{label}</span>
+                  <span className="text-xs text-subtle">{label}</span>
                   <input
                     type="number"
                     inputMode="numeric"
                     value={value}
                     onChange={(e) => set(e.target.value)}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                    className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary"
                   />
                 </label>
               ))}
             </div>
 
             <label className="block space-y-1">
-              <span className="text-xs text-zinc-500">Last set technique</span>
+              <span className="text-xs text-subtle">Last set technique</span>
               <select
                 value={lastSetTarget}
                 onChange={(e) => setLastSetTarget(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-orange-500"
+                className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary"
               >
                 {FAILURE_TECHNIQUES.map((f) => (
                   <option key={f.value} value={f.value}>{f.label}</option>
@@ -142,14 +142,14 @@ export default function ExerciseEditModal({
             <div className="flex gap-2 pt-1">
               <button
                 onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-elevated text-muted hover:bg-border transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-primary text-primary-fg hover:opacity-90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? "Saving…" : <><Check size={15} /> Save</>}
               </button>

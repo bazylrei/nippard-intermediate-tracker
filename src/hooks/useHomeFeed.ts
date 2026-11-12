@@ -25,10 +25,12 @@ export interface HomeFeed {
   items: WorkoutFeedItem[];
 }
 
-export function useHomeFeed(): { feed: HomeFeed | null } {
+/** `failed` is true only when loading failed and there is no cached feed to show. */
+export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
   const router = useRouter();
   const { program } = useProgramContext();
   const [data, setData] = useState<FeedData | null>(() => cacheGet<FeedData>(CACHE_KEY));
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -48,7 +50,7 @@ export function useHomeFeed(): { feed: HomeFeed | null } {
       setData(fresh);
       cacheSet(CACHE_KEY, fresh);
     }
-    void load();
+    load().catch((error) => { console.error(error); setLoadFailed(true); });
   }, [router]);
 
   const feed = useMemo<HomeFeed | null>(() => data && {
@@ -57,5 +59,5 @@ export function useHomeFeed(): { feed: HomeFeed | null } {
     items: data.items,
   }, [data, program]);
 
-  return { feed };
+  return { feed, failed: loadFailed && !data };
 }
