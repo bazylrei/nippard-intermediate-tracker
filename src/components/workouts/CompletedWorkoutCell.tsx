@@ -1,11 +1,17 @@
-import { CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import { DAY_LABELS } from "@/lib/program-data";
 import { formatRelativeDay, type WorkoutFeedItem } from "@/lib/feed";
+import { workoutDetailHref } from "@/lib/workout-history";
 
-export default function WorkoutFeedCard({ item }: { item: WorkoutFeedItem }) {
+/** The one row used wherever a completed workout is listed (Home feed, Progress history). */
+export default function CompletedWorkoutCell({ item }: { item: WorkoutFeedItem }) {
   const { session, exerciseCount, setCount } = item;
   return (
-    <div className="glass gloss rounded-2xl p-4 flex items-center gap-3">
+    <Link
+      href={workoutDetailHref(session.id)}
+      className="glass gloss rounded-2xl p-4 flex items-center gap-3 transition-opacity hover:opacity-90"
+    >
       <CheckCircle2 size={20} className="text-accent shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="font-display font-semibold text-sm text-fg truncate">
@@ -19,6 +25,7 @@ export default function WorkoutFeedCard({ item }: { item: WorkoutFeedItem }) {
       <span className="text-xs text-subtle shrink-0">
         {session.completedAt ? formatRelativeDay(session.completedAt) : ""}
       </span>
-    </div>
+      <ChevronRight size={16} className="text-subtle shrink-0" />
+    </Link>
   );
 }

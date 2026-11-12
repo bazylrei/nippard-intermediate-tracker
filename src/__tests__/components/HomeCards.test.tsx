@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import NextWorkoutCard from "@/components/home/NextWorkoutCard";
-import WorkoutFeedCard from "@/components/home/WorkoutFeedCard";
+import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import type { WorkoutDay, WorkoutSession } from "@/lib/types";
 
 const ex = (name: string) => ({ name });
@@ -33,16 +33,21 @@ describe("NextWorkoutCard", () => {
   });
 });
 
-describe("WorkoutFeedCard", () => {
+describe("CompletedWorkoutCell", () => {
   const session = {
     id: "s1", dayType: "upper-a", week: 4, completedAt: new Date().toISOString(),
   } as unknown as WorkoutSession;
 
   it("renders label, week, counts and relative date", () => {
-    render(<WorkoutFeedCard item={{ session, exerciseCount: 6, setCount: 18 }} />);
+    render(<CompletedWorkoutCell item={{ session, exerciseCount: 6, setCount: 18 }} />);
     expect(screen.getByText("Upper — Strength")).toBeInTheDocument();
     expect(screen.getByText(/Week 4/)).toBeInTheDocument();
     expect(screen.getByText("6 exercises · 18 sets")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
+  });
+
+  it("links to the workout's detail page", () => {
+    render(<CompletedWorkoutCell item={{ session, exerciseCount: 6, setCount: 18 }} />);
+    expect(screen.getByRole("link")).toHaveAttribute("href", "/history/s1");
   });
 });

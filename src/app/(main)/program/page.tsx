@@ -4,18 +4,21 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getSignedInUser } from "@/lib/auth";
-import { getLastCompletedWorkout, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
+import { getCompletedSlots, getIncompleteSession, getPreferences, upsertPreferences, type CompletedSlot } from "@/lib/db";
 import { DAY_LABELS, getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { UserPreferences, WorkoutPosition } from "@/lib/types";
+import { latestSessionBySlot, workoutDetailHref } from "@/lib/workout-history";
+import WeekDayTile from "@/components/program/WeekDayTile";
 import { cacheGet, cacheSet } from "@/lib/cache";
-import { Dumbbell, Play, LogOut, Settings, ChevronRight } from "lucide-react";
+import { Dumbbell, Play, LogOut, Settings } from "lucide-react";
 
-const CACHE_KEY = "dashboard-v2";
+const CACHE_KEY = "dashboard-v3";
 
 type CachedDashboard = {
   resume: WorkoutPosition | null;
-  lastCompleted: WorkoutPosition | null;
+  /** Newest first; the first entry is the last completed workout. */
+  completed: CompletedSlot[];
   prefs: UserPreferences;
   email: string;
 };
@@ -28,7 +31,7 @@ export default function MyProgram() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState(cached?.email ?? "");
   const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
-  const [lastCompleted, setLastCompleted] = useState<WorkoutPosition | null>(cached?.lastCompleted ?? null);
+  const [completed, setCompleted] = useState<CompletedSlot[]>(cached?.completed ?? []);
   const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {}, exerciseNotes: {} });
   const [showSettings, setShowSettings] = useState(false);
 
@@ -38,18 +41,18 @@ export default function MyProgram() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [incomplete, last, p] = await Promise.all([
+      const [incomplete, slots, p] = await Promise.all([
         getIncompleteSession(user.id),
-        getLastCompletedWorkout(user.id),
+        getCompletedSlots(user.id),
         getPreferences(user.id),
       ]);
       const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
       const resolvedEmail = user.email ?? "";
       setResume(resumeAt);
-      setLastCompleted(last);
+      setCompleted(slots);
       setPrefs(p);
       setEmail(resolvedEmail);
-      cacheSet(CACHE_KEY, { resume: resumeAt, lastCompleted: last, prefs: p, email: resolvedEmail });
+      cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots, prefs: p, email: resolvedEmail });
       cacheSet("prefs", p);
       setLoading(false);
     }
@@ -66,7 +69,7 @@ export default function MyProgram() {
     if (!userId) return;
     const next: UserPreferences = { ...prefs, unit: prefs.unit === "kg" ? "lbs" : "kg" };
     setPrefs(next);
-    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
+    cacheSet(CACHE_KEY, { resume, completed, prefs: next, email });
     cacheSet("prefs", next);
     await upsertPreferences(userId, { unit: next.unit });
   }
@@ -75,7 +78,7 @@ export default function MyProgram() {
     if (!userId) return;
     const next: UserPreferences = { ...prefs, bodyWeightKg, heightCm };
     setPrefs(next);
-    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
+    cacheSet(CACHE_KEY, { resume, completed, prefs: next, email });
     cacheSet("prefs", next);
     try {
       const sb = (await import("@/lib/supabase")).createClient();
@@ -102,7 +105,8 @@ export default function MyProgram() {
   }
 
   // Derived from the program's real schedule — it can have any number of weeks and days.
-  const nextSession = resume ?? nextWorkout(lastCompleted, program);
+  const nextSession = resume ?? nextWorkout(completed[0] ?? null, program);
+  const sessionAt = latestSessionBySlot(completed);
   const hasResume = !!resume;
   const totalWeeks = program.length;
   const nextDay = nextSession ? program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
@@ -269,31 +273,18 @@ export default function MyProgram() {
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           {weekDays.map((day, i) => {
-            const isNext = i === nextSession?.dayIndex;
+            const week = nextSession?.week ?? 1;
             const isDone = nextSession ? i < nextSession.dayIndex : false;
+            const sessionId = isDone ? sessionAt({ week, dayIndex: i }) : undefined;
             return (
-              <div
+              <WeekDayTile
                 key={i}
-                className={`glass gloss rounded-2xl p-4 transition-opacity ${isDone ? "opacity-50" : ""}`}
-                style={isNext ? { borderColor: "color-mix(in srgb, var(--primary) 35%, transparent)" } : {}}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-display font-bold text-xs ${
-                    isDone
-                      ? "bg-accent/20 text-accent"
-                      : isNext
-                      ? "bg-primary/20 text-primary"
-                      : "text-muted"
-                  }`} style={!isDone && !isNext ? { background: "color-mix(in srgb, var(--fg) 8%, transparent)" } : {}}>
-                    {isDone ? "✓" : i + 1}
-                  </span>
-                  {isNext && <ChevronRight size={14} className="text-primary" />}
-                </div>
-                <p className={`font-display font-semibold text-sm leading-tight ${isNext ? "text-fg" : "text-muted"}`}>
-                  {DAY_LABELS[day.dayType]}
-                </p>
-                <p className="text-xs text-subtle mt-0.5">{day.exercises.length} exercises</p>
-              </div>
+                day={day}
+                number={i + 1}
+                isDone={isDone}
+                isNext={i === nextSession?.dayIndex}
+                href={sessionId && workoutDetailHref(sessionId)}
+              />
             );
           })}
         </div>

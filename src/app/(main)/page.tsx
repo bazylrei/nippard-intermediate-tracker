@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
 import NextWorkoutCard from "@/components/home/NextWorkoutCard";
-import WorkoutFeedCard from "@/components/home/WorkoutFeedCard";
+import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import { getSessionNumber } from "@/lib/program-data";
 
 export default function Home() {
@@ -45,7 +45,7 @@ export default function Home() {
         <p className="text-sm text-muted px-1">No workouts yet — your completed sessions will show up here.</p>
       ) : (
         <div className="space-y-2.5">
-          {items.map((item) => <WorkoutFeedCard key={item.session.id} item={item} />)}
+          {items.map((item) => <CompletedWorkoutCell key={item.session.id} item={item} />)}
         </div>
       )}
     </div>
