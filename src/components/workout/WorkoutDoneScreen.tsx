@@ -4,6 +4,7 @@ import { DAY_LABELS } from "@/lib/program-data";
 import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { kgToDisplay, KG_TO_LBS } from "@/lib/units";
 
 interface Props {
   week: number;
@@ -76,9 +77,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               const todayWeight = history[history.length - 1]?.weight ?? todayBest.weight;
               const delta = prevPoint ? todayWeight - prevPoint.weight : null;
               const totalVolume = Math.round(exSets.reduce((sum, s) => sum + s.weight * s.reps, 0));
-              const displayWeight = unit === "lbs"
-                ? Math.round(todayBest.weight * 2.20462 * 4) / 4
-                : todayBest.weight;
+              const displayWeight = kgToDisplay(todayBest.weight, unit);
 
               return (
                 <div key={ex.id} className="glass gloss rounded-2xl p-4 space-y-3">
@@ -113,7 +112,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                       </div>
                     )}
                     <div className="text-xs text-muted">
-                      Vol: <span className="text-fg font-display font-semibold">{Math.round(totalVolume * (unit === "lbs" ? 2.20462 : 1))}{unit}</span>
+                      Vol: <span className="text-fg font-display font-semibold">{Math.round(totalVolume * (unit === "lbs" ? KG_TO_LBS : 1))}{unit}</span>
                     </div>
                   </div>
 

@@ -10,6 +10,7 @@ vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program
 const db = vi.hoisted(() => ({
   getWorkoutDetail: vi.fn(),
   getAllExercises: vi.fn(),
+  getPreferences: vi.fn(),
   updateSetLog: vi.fn(),
   deleteSetLog: vi.fn(),
   deleteExerciseSetsFromSession: vi.fn(),
@@ -19,6 +20,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db", () => db);
 
+import { cacheSet } from "@/lib/cache";
 import WorkoutDetail from "@/components/workout-detail/WorkoutDetail";
 import { parseNewSets } from "@/components/workout-detail/AddExerciseForm";
 
@@ -30,6 +32,7 @@ const set = (id: string, exerciseId: string, setIndex: number, weight = 100) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   db.getAllExercises.mockResolvedValue([
     { id: "bench", name: "Bench Press", muscleGroup: "chest", warmupProtocol: "none" },
     { id: "dips", name: "Dips", muscleGroup: "chest", warmupProtocol: "none" },
@@ -38,6 +41,7 @@ beforeEach(() => {
     session,
     sets: [set("w", "bench", -1, 40), set("a", "bench", 0), set("b", "bench", 1, 105)],
   });
+  db.getPreferences.mockResolvedValue({ unit: "kg", alternateSelections: {}, exerciseNotes: {} });
   db.updateSetLog.mockResolvedValue(undefined);
   db.updateExerciseIdForSets.mockResolvedValue(undefined);
   db.deleteWorkoutSession.mockResolvedValue(undefined);
@@ -140,6 +144,38 @@ describe("WorkoutDetail — editing", () => {
   });
 });
 
+describe("WorkoutDetail — lbs users", () => {
+  beforeEach(() => {
+    db.getPreferences.mockResolvedValue({ unit: "lbs", alternateSelections: {}, exerciseNotes: {} });
+  });
+
+  it("shows weights in lbs once the preference loads", async () => {
+    await renderDetail();
+    expect(await screen.findByText("220.5lbs × 8 reps")).toBeInTheDocument(); // 100kg
+  });
+
+  it("uses the cached unit straight away", async () => {
+    cacheSet("prefs", { unit: "lbs", alternateSelections: {}, exerciseNotes: {} });
+    db.getPreferences.mockReturnValue(new Promise(() => {})); // never resolves
+    await renderDetail();
+    expect(screen.getByText("220.5lbs × 8 reps")).toBeInTheDocument();
+  });
+
+  it("edits in lbs and stores kg", async () => {
+    await renderDetail();
+    await screen.findByText("220.5lbs × 8 reps");
+    fireEvent.click(screen.getByRole("button", { name: /Edit/ }));
+    fireEvent.click(screen.getByLabelText("Edit set 1"));
+    const input = screen.getByLabelText("Weight (lbs)");
+    expect(input).toHaveValue(220.5);
+    fireEvent.change(input, { target: { value: "225" } });
+    fireEvent.click(screen.getByLabelText("Save set"));
+    await waitFor(() => expect(db.updateSetLog).toHaveBeenCalled());
+    const [, kg] = db.updateSetLog.mock.calls[0];
+    expect(kg).toBeCloseTo(225 / 2.20462, 6);
+  });
+});
+
 describe("parseNewSets", () => {
   it("keeps only rows with a positive weight and reps", () => {
     expect(parseNewSets([
@@ -147,6 +183,11 @@ describe("parseNewSets", () => {
       { weight: "", reps: "10" },
       { weight: "0", reps: "5" },
       { weight: "15.5", reps: "abc" },
-    ])).toEqual([{ weight: 20, reps: 10 }]);
+    ], "kg")).toEqual([{ weight: 20, reps: 10 }]);
+  });
+
+  it("converts lbs to kg", () => {
+    const [row] = parseNewSets([{ weight: "45", reps: "10" }], "lbs");
+    expect(row.weight).toBeCloseTo(45 / 2.20462, 6);
   });
 });

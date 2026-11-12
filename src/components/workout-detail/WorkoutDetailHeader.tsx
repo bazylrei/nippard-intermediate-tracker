@@ -1,6 +1,7 @@
 import { ArrowLeft, Check, Pencil } from "lucide-react";
 import { DAY_LABELS } from "@/lib/program-data";
 import type { WorkoutSession } from "@/lib/types";
+import { formatLongDate } from "@/lib/dates";
 
 interface Props {
   session: WorkoutSession;
@@ -9,10 +10,6 @@ interface Props {
   editing: boolean;
   onToggleEdit: () => void;
   onBack: () => void;
-}
-
-function formatLongDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
 
 export default function WorkoutDetailHeader({ session, exerciseCount, setCount, editing, onToggleEdit, onBack }: Props) {

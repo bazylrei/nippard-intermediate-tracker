@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useWorkoutDetail } from "@/hooks/useWorkoutDetail";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
+import { useWeightUnit } from "@/hooks/useWeightUnit";
 import { groupWorkingSets } from "@/lib/workout-history";
 import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
 import WorkoutDetailHeader from "./WorkoutDetailHeader";
@@ -24,6 +25,7 @@ function Message({ text }: { text: string }) {
 export default function WorkoutDetail({ sessionId, onExit }: Props) {
   const { status, session, sets, saveError, actions } = useWorkoutDetail(sessionId);
   const { nameOf, options } = useExerciseCatalog();
+  const unit = useWeightUnit();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -69,6 +71,7 @@ export default function WorkoutDetail({ sessionId, onExit }: Props) {
             name={nameOf(exerciseId)}
             sets={exerciseSets}
             editing={editing}
+            unit={unit}
             options={options}
             onSwap={(toId) => actions.swapExercise(exerciseId, toId)}
             onRemove={() => actions.removeExercise(exerciseId)}
@@ -81,7 +84,7 @@ export default function WorkoutDetail({ sessionId, onExit }: Props) {
       {editing && (
         <>
           {adding ? (
-            <AddExerciseForm options={options} onSave={actions.addExercise} onCancel={() => setAdding(false)} />
+            <AddExerciseForm options={options} unit={unit} onSave={actions.addExercise} onCancel={() => setAdding(false)} />
           ) : (
             <button onClick={() => setAdding(true)} className="flex items-center justify-center gap-1.5 w-full py-3 rounded-2xl text-sm font-display font-semibold text-muted hover:text-primary border border-dashed border-border transition-colors cursor-pointer">
               <Plus size={15} /> Add exercise

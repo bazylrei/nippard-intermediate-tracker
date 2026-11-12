@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { DAY_LABELS } from "@/lib/program-data";
-import { formatRelativeDay, type WorkoutFeedItem } from "@/lib/feed";
+import type { WorkoutFeedItem } from "@/lib/feed";
+import { formatRelativeDay } from "@/lib/dates";
 import { workoutDetailHref } from "@/lib/workout-history";
 
 /** The one row used wherever a completed workout is listed (Home feed, Progress history). */

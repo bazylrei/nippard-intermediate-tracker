@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Pencil, Check } from "lucide-react";
 import type { SetLog, Exercise } from "@/lib/types";
+import { kgToDisplay, displayToKg } from "@/lib/units";
 
 interface Props {
   set: SetLog;
@@ -12,20 +13,11 @@ interface Props {
   onSave: (setId: string, weightKg: number, reps: number, rpe: number | null) => Promise<void>;
 }
 
-const KG_TO_LBS = 2.20462;
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
-
-function toDisplay(kg: number, unit: "kg" | "lbs"): number {
-  return unit === "lbs" ? Math.round(kg * KG_TO_LBS * 4) / 4 : kg;
-}
-
-function toKg(val: number, unit: "kg" | "lbs"): number {
-  return unit === "lbs" ? val / KG_TO_LBS : val;
-}
 
 export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }: Props) {
   const [editing, setEditing] = useState(false);
-  const [weight, setWeight] = useState(String(toDisplay(set.weight, unit)));
+  const [weight, setWeight] = useState(String(kgToDisplay(set.weight, unit)));
   const [reps, setReps] = useState(String(set.reps));
   const [rpe, setRpe] = useState(set.rpe ? String(set.rpe) : "");
   const [saving, setSaving] = useState(false);
@@ -41,7 +33,7 @@ export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }:
     setSaving(true);
     setError(null);
     try {
-      await onSave(set.id, toKg(w, unit), r, rpe ? parseFloat(rpe) : null);
+      await onSave(set.id, displayToKg(w, unit), r, rpe ? parseFloat(rpe) : null);
       setEditing(false);
     } catch (err) {
       console.error(err);
@@ -144,7 +136,7 @@ export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }:
 
             <div className="flex gap-2">
               <button
-                onClick={() => { setEditing(false); setWeight(String(toDisplay(set.weight, unit))); setReps(String(set.reps)); setRpe(set.rpe ? String(set.rpe) : ""); }}
+                onClick={() => { setEditing(false); setWeight(String(kgToDisplay(set.weight, unit))); setReps(String(set.reps)); setRpe(set.rpe ? String(set.rpe) : ""); }}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold text-muted cursor-pointer"
                 style={{ background: "color-mix(in srgb, var(--fg) 7%, transparent)" }}
               >
@@ -171,7 +163,7 @@ export default function SetDetailSheet({ set, exercise, unit, onClose, onSave }:
                 <p className="text-xs text-muted mb-1">Weight</p>
                 <p className="font-display font-bold text-2xl text-fg">
                   {weightPerSide && <span className="text-sm text-muted mr-0.5">2×</span>}
-                  {toDisplay(set.weight, unit)}
+                  {kgToDisplay(set.weight, unit)}
                 </p>
                 <p className="text-xs text-muted">{unit}</p>
               </div>

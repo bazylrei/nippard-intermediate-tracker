@@ -4,28 +4,32 @@ import { useState } from "react";
 import { X, Plus } from "lucide-react";
 import type { ExerciseOption } from "@/hooks/useExerciseCatalog";
 import type { NewSet } from "@/hooks/useWorkoutDetail";
+import { displayToKg, type WeightUnit } from "@/lib/units";
 import ExercisePicker from "./ExercisePicker";
 
 interface Props {
   options: ExerciseOption[];
-  /** Resolves true when saved; the form stays open on failure so nothing typed is lost. */
+  unit: WeightUnit;
+  /** Weights in kg. Resolves true when saved; the form stays open on failure so nothing typed is lost. */
   onSave: (exerciseId: string, sets: NewSet[]) => Promise<boolean>;
   onCancel: () => void;
 }
 
 const inputClass = "bg-elevated border border-border rounded-lg px-2 py-1 text-fg text-sm text-center focus:outline-none focus:border-primary";
 
-export function parseNewSets(rows: { weight: string; reps: string }[]): NewSet[] {
+/** Valid rows only, with weights typed in `unit` converted to kg. */
+export function parseNewSets(rows: { weight: string; reps: string }[], unit: WeightUnit): NewSet[] {
   return rows
     .map((r) => ({ weight: parseFloat(r.weight), reps: parseInt(r.reps, 10) }))
-    .filter((r) => !isNaN(r.weight) && !isNaN(r.reps) && r.weight > 0 && r.reps > 0);
+    .filter((r) => !isNaN(r.weight) && !isNaN(r.reps) && r.weight > 0 && r.reps > 0)
+    .map((r) => ({ ...r, weight: displayToKg(r.weight, unit) }));
 }
 
-export default function AddExerciseForm({ options, onSave, onCancel }: Props) {
+export default function AddExerciseForm({ options, unit, onSave, onCancel }: Props) {
   const [exercise, setExercise] = useState<ExerciseOption | null>(null);
   const [rows, setRows] = useState([{ weight: "", reps: "" }]);
   const [saving, setSaving] = useState(false);
-  const validSets = parseNewSets(rows);
+  const validSets = parseNewSets(rows, unit);
 
   async function handleSave() {
     if (!exercise || validSets.length === 0) return;
@@ -57,7 +61,7 @@ export default function AddExerciseForm({ options, onSave, onCancel }: Props) {
         {rows.map((row, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="text-xs text-muted w-6 font-display">S{i + 1}</span>
-            <input type="number" value={row.weight} onChange={(e) => updateRow(i, "weight", e.target.value)} placeholder="kg" aria-label={`Set ${i + 1} weight`} className={`w-20 ${inputClass}`} />
+            <input type="number" value={row.weight} onChange={(e) => updateRow(i, "weight", e.target.value)} placeholder={unit} aria-label={`Set ${i + 1} weight`} className={`w-20 ${inputClass}`} />
             <span className="text-muted text-xs">×</span>
             <input type="number" value={row.reps} onChange={(e) => updateRow(i, "reps", e.target.value)} placeholder="reps" aria-label={`Set ${i + 1} reps`} className={`w-16 ${inputClass}`} />
             {rows.length > 1 && (

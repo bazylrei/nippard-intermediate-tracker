@@ -8,6 +8,7 @@ import {
 } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { DAY_LABELS } from "@/lib/program-data";
+import { formatCalendarDate } from "@/lib/dates";
 import { useProgramContext } from "@/context/ProgramContext";
 import HistoryTab from "./HistoryTab";
 import EmptyState from "./EmptyState";
@@ -20,12 +21,6 @@ import {
 type Tab = "exercise" | "volume" | "history";
 const TAB_KEYS: readonly Tab[] = ["exercise", "volume", "history"];
 const isTab = (v: string | null): v is Tab => TAB_KEYS.includes(v as Tab);
-
-function formatDate(iso: string): string {
-  const [, m, d] = iso.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m) - 1]} ${parseInt(d)}`;
-}
 
 export default function ProgressPage() {
   return (
@@ -184,11 +179,11 @@ function ProgressContent() {
                       <div className="bg-surface border border-border rounded-2xl p-3">
                         <LineChart width={chartWidth - 24} height={200} data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                          <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={formatDate} />
+                          <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={formatCalendarDate} />
                           <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
                           <Tooltip
                             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--fg)" }}
-                            labelFormatter={(l) => formatDate(String(l))}
+                            labelFormatter={(l) => formatCalendarDate(String(l))}
                             formatter={(v) => [`${Number(v)} kg`, "Weight"]}
                           />
                           <Line type="monotone" dataKey="weight" stroke="var(--primary)" strokeWidth={2} dot={{ fill: "var(--primary)", r: 4 }} />
@@ -200,7 +195,7 @@ function ProgressContent() {
                         <div key={i} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center justify-between">
                           <div>
                             <p className="font-display font-semibold text-sm text-fg">{h.weight}kg × {h.reps} reps</p>
-                            <p className="text-xs text-muted mt-0.5">{formatDate(h.date)}</p>
+                            <p className="text-xs text-muted mt-0.5">{formatCalendarDate(h.date)}</p>
                           </div>
                           {h.dayType && (
                             <span className="text-xs font-display font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">

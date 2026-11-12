@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import type { SetLog } from "@/lib/types";
+import type { WeightUnit } from "@/lib/units";
 import type { ExerciseOption } from "@/hooks/useExerciseCatalog";
 import ExercisePicker from "./ExercisePicker";
 import SetRow from "./SetRow";
@@ -12,6 +13,7 @@ interface Props {
   name: string;
   sets: SetLog[];
   editing: boolean;
+  unit: WeightUnit;
   options: ExerciseOption[];
   onSwap: (toExerciseId: string) => Promise<boolean>;
   onRemove: () => Promise<boolean>;
@@ -22,7 +24,7 @@ interface Props {
 type Mode = "view" | "swap" | "confirm-remove";
 
 export default function ExerciseSetsBlock({
-  exerciseId, name, sets, editing, options, onSwap, onRemove, onSaveSet, onDeleteSet,
+  exerciseId, name, sets, editing, unit, options, onSwap, onRemove, onSaveSet, onDeleteSet,
 }: Props) {
   const [mode, setMode] = useState<Mode>("view");
   const [busy, setBusy] = useState(false);
@@ -74,6 +76,7 @@ export default function ExerciseSetsBlock({
             set={set}
             number={i + 1}
             editing={editing}
+            unit={unit}
             onSave={(weight, reps) => onSaveSet(set.id, weight, reps, set.rpe)}
             onDelete={() => onDeleteSet(set.id)}
           />
