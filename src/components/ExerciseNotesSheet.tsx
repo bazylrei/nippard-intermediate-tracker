@@ -14,12 +14,21 @@ interface Props {
 export default function ExerciseNotesSheet({ exercise, existingNote, onClose, onSave }: Props) {
   const [note, setNote] = useState(existingNote);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  /** Closes only once the note is saved; on failure stays open so nothing typed is lost. */
   async function handleSave() {
     setSaving(true);
-    await onSave(note);
-    setSaving(false);
-    onClose();
+    setError(null);
+    try {
+      await onSave(note);
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError("Couldn't save your note. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -66,6 +75,8 @@ export default function ExerciseNotesSheet({ exercise, existingNote, onClose, on
             }}
           />
         </div>
+
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
         <div className="flex gap-2">
           <button

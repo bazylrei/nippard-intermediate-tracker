@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { getSignedInUser } from "@/lib/auth";
 import {
   getExerciseHistory, getWeeklyVolume, getPersonalRecords,
   getCompletedSessions, getAllExercises,
@@ -64,8 +64,7 @@ export default function ProgressPage() {
 
   useEffect(() => {
     async function init() {
-      const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 

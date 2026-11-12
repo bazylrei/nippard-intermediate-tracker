@@ -1,18 +1,19 @@
 import { Play } from "lucide-react";
-import { DAY_LABELS, getSessionNumber } from "@/lib/program-data";
+import { DAY_LABELS } from "@/lib/program-data";
 import type { WorkoutDay } from "@/lib/types";
 
 const PREVIEW_COUNT = 3;
 
 interface Props {
   week: number;
-  dayIndex: number;
+  totalWeeks: number;
+  sessionNumber: number;
   day: WorkoutDay;
   isResume: boolean;
   onStart: () => void;
 }
 
-export default function NextWorkoutCard({ week, dayIndex, day, isResume, onStart }: Props) {
+export default function NextWorkoutCard({ week, totalWeeks, sessionNumber, day, isResume, onStart }: Props) {
   const extra = day.exercises.length - PREVIEW_COUNT;
   return (
     <div className="glass gloss rounded-2xl overflow-hidden">
@@ -20,12 +21,12 @@ export default function NextWorkoutCard({ week, dayIndex, day, isResume, onStart
         <span className="font-display font-bold text-xs uppercase tracking-widest text-primary">
           {isResume ? "Resume workout" : "Suggested next"}
         </span>
-        <span className="font-display font-bold text-xs text-muted">Session {getSessionNumber(week, dayIndex)}</span>
+        <span className="font-display font-bold text-xs text-muted">Session {sessionNumber}</span>
       </div>
       <div className="px-5 pt-2 pb-3">
         <h2 className="font-display font-bold text-2xl text-fg leading-tight">{DAY_LABELS[day.dayType]}</h2>
         <p className="text-sm text-muted mt-0.5">
-          Week {week} of 12 · {day.exercises.length} exercises
+          Week {week} of {totalWeeks} · {day.exercises.length} exercises
         </p>
         <p className="text-xs text-subtle mt-2">
           {day.exercises.slice(0, PREVIEW_COUNT).map((e) => e.name).join(" · ")}

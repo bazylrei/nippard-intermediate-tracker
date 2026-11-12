@@ -167,3 +167,23 @@ describe("ExerciseNotesSheet", () => {
     await waitFor(() => expect(screen.queryByText("Saving…")).not.toBeInTheDocument());
   });
 });
+
+describe("ExerciseNotesSheet — save failure", () => {
+  it("stays open with an error and re-enables Save when saving fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const onClose = vi.fn();
+    render(
+      <ExerciseNotesSheet
+        exercise={baseExercise}
+        existingNote="rack 7"
+        onClose={onClose}
+        onSave={vi.fn().mockRejectedValue(new Error("offline"))}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Save/ }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your note");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Save/ })).not.toBeDisabled();
+  });
+});

@@ -1,44 +1,43 @@
 import { createClient } from "../supabase";
+import type { TablesUpdate } from "../database.types";
 import type { ProgramRow, BuilderProgram, BuilderDay, BuilderExercise } from "../types";
+import { unwrap } from "./result";
+
+/** Distinct users per program, counted server-side (RLS hides other users' sessions from the client). */
+async function getProgramUserCounts(programIds: string[]): Promise<Record<string, number>> {
+  const sb = createClient();
+  const data = unwrap("getProgramUserCounts", await sb.rpc("program_user_counts", { p_program_ids: programIds }));
+  return Object.fromEntries((data ?? []).map((r) => [r.program_id, r.user_count]));
+}
 
 export async function getPrograms(userId: string): Promise<ProgramRow[]> {
   const sb = createClient();
-  const { data: programs } = await sb
+  const programs = unwrap("getPrograms", await sb
     .from("programs")
     .select("id, name, description, category, total_weeks, created_by, is_public, created_at")
     .or(`is_public.eq.true,created_by.eq.${userId}`)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false }));
 
   if (!programs?.length) return [];
 
-  const { data: counts } = await sb
-    .from("workout_sessions")
-    .select("program_id, user_id")
-    .in("program_id", programs.map((p: { id: string }) => p.id));
+  const counts = await getProgramUserCounts(programs.map((p) => p.id));
 
-  const countMap: Record<string, Set<string>> = {};
-  for (const row of counts ?? []) {
-    const r = row as { program_id: string; user_id: string };
-    if (!countMap[r.program_id]) countMap[r.program_id] = new Set();
-    countMap[r.program_id].add(r.user_id);
-  }
-
-  return programs.map((p: Record<string, unknown>) => ({
-    id: p.id as string,
-    name: p.name as string,
-    description: (p.description as string | null) ?? null,
-    category: (p.category as string | null) ?? null,
-    totalWeeks: p.total_weeks as number,
-    createdBy: (p.created_by as string | null) ?? null,
-    isPublic: p.is_public as boolean,
-    createdAt: p.created_at as string,
-    userCount: countMap[p.id as string]?.size ?? 0,
+  return programs.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? null,
+    category: p.category ?? null,
+    totalWeeks: p.total_weeks,
+    createdBy: p.created_by ?? null,
+    isPublic: p.is_public,
+    createdAt: p.created_at,
+    userCount: counts[p.id] ?? 0,
   }));
 }
 
 export async function toggleProgramPublic(programId: string, isPublic: boolean): Promise<void> {
   const sb = createClient();
-  await sb.from("programs").update({ is_public: isPublic }).eq("id", programId);
+  unwrap("toggleProgramPublic", await sb.from("programs").update({ is_public: isPublic }).eq("id", programId));
 }
 
 export async function updateProgram(
@@ -46,21 +45,21 @@ export async function updateProgram(
   fields: { name?: string; description?: string; category?: string }
 ): Promise<void> {
   const sb = createClient();
-  await sb.from("programs").update(fields).eq("id", programId);
+  unwrap("updateProgram", await sb.from("programs").update(fields).eq("id", programId));
 }
 
 export async function getAllExercises(): Promise<{ id: string; name: string; muscleGroup: string; warmupProtocol: string }[]> {
   const sb = createClient();
-  const { data } = await sb
+  const data = unwrap("getAllExercises", await sb
     .from("exercises")
     .select("id, name, muscle_group, warmup_protocol")
     .order("muscle_group")
-    .order("name");
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    id: r.id as string,
-    name: r.name as string,
-    muscleGroup: r.muscle_group as string,
-    warmupProtocol: r.warmup_protocol as string,
+    .order("name"));
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    muscleGroup: r.muscle_group,
+    warmupProtocol: r.warmup_protocol,
   }));
 }
 
@@ -78,7 +77,7 @@ export async function updateProgramDayExercise(
   }
 ): Promise<void> {
   const sb = createClient();
-  const dbFields: Record<string, unknown> = {};
+  const dbFields: TablesUpdate<"program_day_exercises"> = {};
   if (fields.exerciseId !== undefined) dbFields.exercise_id = fields.exerciseId;
   if (fields.repRangeMin !== undefined) dbFields.rep_range_min = fields.repRangeMin;
   if (fields.repRangeMax !== undefined) dbFields.rep_range_max = fields.repRangeMax;
@@ -87,7 +86,7 @@ export async function updateProgramDayExercise(
   if (fields.earlySetRpeMin !== undefined) dbFields.early_set_rpe_min = fields.earlySetRpeMin;
   if (fields.earlySetRpeMax !== undefined) dbFields.early_set_rpe_max = fields.earlySetRpeMax;
   if (fields.lastSetTarget !== undefined) dbFields.last_set_target = fields.lastSetTarget;
-  await sb.from("program_day_exercises").update(dbFields).eq("id", pdeId);
+  unwrap("updateProgramDayExercise", await sb.from("program_day_exercises").update(dbFields).eq("id", pdeId));
 }
 
 type RawPDE = {
@@ -105,7 +104,7 @@ type RawPDE = {
   exercises: { id: string; name: string; warmup_protocol: string };
 };
 
-type RawDay = {
+export type RawDay = {
   id: string;
   week: number;
   day_index: number;
@@ -113,7 +112,17 @@ type RawDay = {
   program_day_exercises: RawPDE[];
 };
 
-function mapRawDay(day: RawDay): BuilderDay {
+/** Columns needed to build a BuilderDay; select from `program_days`. */
+export const BUILDER_DAY_SELECT = `
+  id, week, day_index, day_type,
+  program_day_exercises(
+    id, position, rep_range_min, rep_range_max, early_set_count, last_set_count,
+    early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target,
+    exercises(id, name, warmup_protocol)
+  )
+` as const;
+
+export function mapRawDay(day: RawDay): BuilderDay {
   return {
     pdId: day.id,
     week: day.week,
@@ -140,65 +149,53 @@ function mapRawDay(day: RawDay): BuilderDay {
   };
 }
 
+export function sortDays(days: BuilderDay[]): BuilderDay[] {
+  return days.sort((a, b) => a.week !== b.week ? a.week - b.week : a.dayIndex - b.dayIndex);
+}
+
 export async function getBuilderProgram(programId: string): Promise<BuilderProgram | null> {
   const sb = createClient();
-  const { data, error } = await sb
-    .from("programs")
-    .select(`
-      id, name, description, category, total_weeks, created_by, is_public,
-      program_days(
-        id, week, day_index, day_type,
-        program_day_exercises(
-          id, position, rep_range_min, rep_range_max, early_set_count, last_set_count,
-          early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target,
-          exercises(id, name, warmup_protocol)
-        )
-      )
-    `)
-    .eq("id", programId)
-    .single();
+  // Program, its days and its user count are independent — fetch them in parallel.
+  const [programRes, daysRes, counts] = await Promise.all([
+    sb.from("programs")
+      .select("id, name, description, category, total_weeks, created_by, is_public")
+      .eq("id", programId)
+      .maybeSingle(),
+    sb.from("program_days").select(BUILDER_DAY_SELECT).eq("program_id", programId),
+    getProgramUserCounts([programId]),
+  ]);
 
-  if (error || !data) return null;
+  const p = unwrap("getBuilderProgram", programRes);
+  if (!p) return null;
+  const days = unwrap("getBuilderProgram days", daysRes);
 
-  const { data: countData } = await sb
-    .from("workout_sessions")
-    .select("user_id")
-    .eq("program_id", programId);
-
-  const userCount = new Set((countData ?? []).map((r: { user_id: string }) => r.user_id)).size;
-  const days = ((data.program_days as unknown as RawDay[]) ?? [])
-    .map(mapRawDay)
-    .sort((a, b) => a.week !== b.week ? a.week - b.week : a.dayIndex - b.dayIndex);
-
-  const p = data as Record<string, unknown>;
   return {
-    id: p.id as string,
-    name: p.name as string,
-    description: (p.description as string | null) ?? null,
-    category: (p.category as string | null) ?? null,
-    isPublic: p.is_public as boolean,
-    createdBy: (p.created_by as string | null) ?? null,
-    totalWeeks: p.total_weeks as number,
-    days,
-    userCount,
+    id: p.id,
+    name: p.name,
+    description: p.description ?? null,
+    category: p.category ?? null,
+    isPublic: p.is_public,
+    createdBy: p.created_by ?? null,
+    totalWeeks: p.total_weeks,
+    days: sortDays((days ?? []).map(mapRawDay)),
+    userCount: counts[programId] ?? 0,
   };
 }
 
 export async function addProgramWeek(programId: string, totalWeeks: number): Promise<void> {
   const sb = createClient();
-  await sb.from("programs").update({ total_weeks: totalWeeks }).eq("id", programId);
+  unwrap("addProgramWeek", await sb.from("programs").update({ total_weeks: totalWeeks }).eq("id", programId));
 }
 
 export async function addProgramDay(
   programId: string, week: number, dayIndex: number, dayType: string
 ): Promise<BuilderDay> {
   const sb = createClient();
-  const { data, error } = await sb
+  const data = unwrap("addProgramDay", await sb
     .from("program_days")
     .insert({ program_id: programId, week, day_index: dayIndex, day_type: dayType })
     .select("id, week, day_index, day_type")
-    .single();
-  if (error) throw error;
+    .single());
   return { pdId: data.id, week: data.week, dayIndex: data.day_index, dayType: data.day_type, exercises: [] };
 }
 
@@ -206,7 +203,7 @@ export async function addExerciseToDay(
   pdId: string, exerciseId: string, exerciseName: string, warmupProtocol: string, position: number
 ): Promise<BuilderExercise> {
   const sb = createClient();
-  const { data, error } = await sb
+  const r = unwrap("addExerciseToDay", await sb
     .from("program_day_exercises")
     .insert({
       program_day_id: pdId,
@@ -223,44 +220,38 @@ export async function addExerciseToDay(
       last_set_target: "failure",
     })
     .select("id, position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target")
-    .single();
-  if (error) throw error;
-  const r = data as Record<string, unknown>;
+    .single());
   return {
-    pdeId: r.id as string,
+    pdeId: r.id,
     exerciseId,
     name: exerciseName,
-    position: r.position as number,
-    repRangeMin: r.rep_range_min as number,
-    repRangeMax: r.rep_range_max as number,
-    earlySetCount: r.early_set_count as number,
-    lastSetCount: r.last_set_count as number,
-    earlySetRpeMin: r.early_set_rpe_min as number,
-    earlySetRpeMax: r.early_set_rpe_max as number,
-    lastSetRpeMin: r.last_set_rpe_min as number | null,
-    lastSetRpeMax: r.last_set_rpe_max as number | null,
-    lastSetTarget: r.last_set_target as string,
+    position: r.position,
+    repRangeMin: r.rep_range_min,
+    repRangeMax: r.rep_range_max,
+    earlySetCount: r.early_set_count,
+    lastSetCount: r.last_set_count,
+    earlySetRpeMin: r.early_set_rpe_min,
+    earlySetRpeMax: r.early_set_rpe_max,
+    lastSetRpeMin: r.last_set_rpe_min,
+    lastSetRpeMax: r.last_set_rpe_max,
+    lastSetTarget: r.last_set_target,
     warmupProtocol,
   };
 }
 
 export async function deleteProgramDayExercise(pdeId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("program_day_exercises").delete().eq("id", pdeId);
+  unwrap("deleteProgramDayExercise", await sb.from("program_day_exercises").delete().eq("id", pdeId));
 }
 
+/** Exercises are removed by ON DELETE CASCADE. */
 export async function deleteProgramDay(pdId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("program_day_exercises").delete().eq("program_day_id", pdId);
-  await sb.from("program_days").delete().eq("id", pdId);
+  unwrap("deleteProgramDay", await sb.from("program_days").delete().eq("id", pdId));
 }
 
+/** Exercises are removed by ON DELETE CASCADE. */
 export async function deleteProgramWeek(programId: string, week: number): Promise<void> {
   const sb = createClient();
-  const { data: days } = await sb.from("program_days").select("id").eq("program_id", programId).eq("week", week);
-  if (days?.length) {
-    const ids = (days as { id: string }[]).map((d) => d.id);
-    await sb.from("program_day_exercises").delete().in("program_day_id", ids);
-    await sb.from("program_days").delete().in("id", ids);
-  }
+  unwrap("deleteProgramWeek", await sb.from("program_days").delete().eq("program_id", programId).eq("week", week));
 }

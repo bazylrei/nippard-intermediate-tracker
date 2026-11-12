@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { getSignedInUser } from "@/lib/auth";
 import {
   getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic,
   getAllExercises, addProgramWeek, addProgramDay, addExerciseToDay, duplicateProgramWeek,
@@ -54,8 +54,7 @@ function ProgramEditorPage() {
   const [duplicatingWeek, setDuplicatingWeek] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    const sb = createClient();
-    const { data: { user } } = await sb.auth.getUser();
+    const user = await getSignedInUser();
     if (!user) { router.replace("/auth"); return; }
     setUserId(user.id);
     const [data, exercises] = await Promise.all([getBuilderProgram(programId), getAllExercises()]);

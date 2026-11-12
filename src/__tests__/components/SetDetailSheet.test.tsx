@@ -399,3 +399,24 @@ describe("SetDetailSheet — edit mode", () => {
     expect(rpe9!.className).not.toContain("bg-primary");
   });
 });
+
+describe("SetDetailSheet — save failure", () => {
+  it("keeps the edit form open with an error when saving fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <SetDetailSheet
+        set={baseSet}
+        exercise={baseExercise}
+        unit="kg"
+        onClose={vi.fn()}
+        onSave={vi.fn().mockRejectedValue(new Error("offline"))}
+      />
+    );
+    enterEditMode();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Save/ })); });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your changes");
+    expect(screen.getAllByRole("spinbutton").length).toBeGreaterThan(0); // still editing
+    expect(screen.getByRole("button", { name: /Save/ })).not.toBeDisabled();
+  });
+});

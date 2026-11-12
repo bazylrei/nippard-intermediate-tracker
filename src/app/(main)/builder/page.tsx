@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase";
+import { getSignedInUser } from "@/lib/auth";
 import { getPrograms, toggleProgramPublic } from "@/lib/db";
 import type { ProgramRow } from "@/lib/types";
 import { Globe, Lock, Users, ChevronRight, Wrench } from "lucide-react";
@@ -15,8 +15,7 @@ export default function BuilderPage() {
 
   useEffect(() => {
     async function load() {
-      const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
       const rows = await getPrograms(user.id);

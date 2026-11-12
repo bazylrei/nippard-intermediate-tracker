@@ -1,35 +1,59 @@
 import { createClient } from "../supabase";
 import type { SetLog } from "../types";
 import { mapSetLog } from "./mappers";
+import { unwrap } from "./result";
 
-export async function logSet(set: Omit<SetLog, "id" | "loggedAt">): Promise<void> {
+export interface LogSetInput {
+  /** Client-generated UUID; doubles as an idempotency key so retries never duplicate a set. */
+  id: string;
+  sessionId: string;
+  exerciseId: string;
+  setIndex: number;
+  isLastSet: boolean;
+  weight: number;
+  reps: number;
+  rpe: number | null;
+  failureHit: boolean | null;
+  /** Session progress to store in the same transaction. */
+  nextExerciseIndex: number;
+  nextSetIndex: number;
+  completeSession: boolean;
+}
+
+/** Insert a set and advance (or complete) the session atomically, in one round trip. */
+export async function logSetAndAdvance(input: LogSetInput): Promise<SetLog> {
   const sb = createClient();
-  await sb.from("set_logs").insert({
-    session_id: set.sessionId,
-    user_id: set.userId ?? undefined,
-    exercise_id: set.exerciseId,
-    set_index: set.setIndex,
-    is_last_set: set.isLastSet,
-    weight_kg: set.weight,
-    reps: set.reps,
-    rpe: set.rpe,
-    failure_hit: set.failureHit,
-  });
+  const row = unwrap("logSetAndAdvance", await sb.rpc("log_set", {
+    p_id: input.id,
+    p_session_id: input.sessionId,
+    p_exercise_id: input.exerciseId,
+    p_set_index: input.setIndex,
+    p_is_last_set: input.isLastSet,
+    p_weight_kg: input.weight,
+    p_reps: input.reps,
+    // The type generator marks every function argument non-null; SQL accepts NULL here.
+    p_rpe: input.rpe as number,
+    p_failure_hit: input.failureHit as boolean,
+    p_next_exercise_index: input.nextExerciseIndex,
+    p_next_set_index: input.nextSetIndex,
+    p_complete: input.completeSession,
+  }));
+  return mapSetLog(row);
 }
 
 export async function deleteSetLog(setId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").delete().eq("id", setId);
+  unwrap("deleteSetLog", await sb.from("set_logs").delete().eq("id", setId));
 }
 
 export async function deleteExerciseSetsFromSession(sessionId: string, exerciseId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").delete().eq("session_id", sessionId).eq("exercise_id", exerciseId);
+  unwrap("deleteExerciseSetsFromSession", await sb.from("set_logs").delete().eq("session_id", sessionId).eq("exercise_id", exerciseId));
 }
 
 export async function updateExerciseIdForSets(sessionId: string, oldExerciseId: string, newExerciseId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").update({ exercise_id: newExerciseId }).eq("session_id", sessionId).eq("exercise_id", oldExerciseId);
+  unwrap("updateExerciseIdForSets", await sb.from("set_logs").update({ exercise_id: newExerciseId }).eq("session_id", sessionId).eq("exercise_id", oldExerciseId));
 }
 
 export async function addSetsToSession(
@@ -50,72 +74,43 @@ export async function addSetsToSession(
     rpe: null,
     failure_hit: false,
   }));
-  const { data } = await sb.from("set_logs").insert(rows).select();
-  return (data ?? []).map((r: Record<string, unknown>) => mapSetLog(r));
+  const data = unwrap("addSetsToSession", await sb.from("set_logs").insert(rows).select());
+  return (data ?? []).map(mapSetLog);
 }
 
+/** Set logs are removed by ON DELETE CASCADE. */
 export async function deleteWorkoutSession(sessionId: string): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").delete().eq("session_id", sessionId);
-  await sb.from("workout_sessions").delete().eq("id", sessionId);
+  unwrap("deleteWorkoutSession", await sb.from("workout_sessions").delete().eq("id", sessionId));
 }
 
 export async function updateSetLog(setId: string, weight: number, reps: number, rpe: number | null): Promise<void> {
   const sb = createClient();
-  await sb.from("set_logs").update({ weight_kg: weight, reps, rpe }).eq("id", setId);
+  unwrap("updateSetLog", await sb.from("set_logs").update({ weight_kg: weight, reps, rpe }).eq("id", setId));
 }
 
 export async function getSessionSets(sessionId: string): Promise<SetLog[]> {
   const sb = createClient();
-  const { data } = await sb
+  const data = unwrap("getSessionSets", await sb
     .from("set_logs")
     .select("*")
     .eq("session_id", sessionId)
-    .order("logged_at");
-  return (data ?? []).map((r: Record<string, unknown>) => mapSetLog(r));
+    .order("logged_at"));
+  return (data ?? []).map(mapSetLog);
 }
 
-export async function getLastSessionSetsForExercise(
-  userId: string,
-  exerciseId: string
-): Promise<SetLog[]> {
+/**
+ * For each exercise, the working sets from the most recent completed session
+ * that included it — every exercise in one round trip.
+ */
+export async function getLastSetsForExercises(exerciseIds: string[]): Promise<Record<string, SetLog[]>> {
+  if (exerciseIds.length === 0) return {};
   const sb = createClient();
-  const { data: sessions } = await sb
-    .from("workout_sessions")
-    .select("id")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .order("completed_at", { ascending: false });
+  const data = unwrap("getLastSetsForExercises", await sb.rpc("last_sets_for_exercises", { p_exercise_ids: exerciseIds }));
 
-  for (const session of sessions ?? []) {
-    const { data: sets } = await sb
-      .from("set_logs")
-      .select("*")
-      .eq("session_id", session.id)
-      .eq("exercise_id", exerciseId)
-      .gte("set_index", 0)
-      .order("set_index");
-    if (sets && sets.length > 0) return sets.map((r: Record<string, unknown>) => mapSetLog(r));
+  const byExercise: Record<string, SetLog[]> = {};
+  for (const row of data ?? []) {
+    (byExercise[row.exercise_id] ??= []).push(mapSetLog(row));
   }
-  return [];
-}
-
-export interface SessionSetRef {
-  sessionId: string;
-  exerciseId: string;
-}
-
-/** Working sets (no warm-ups) for many sessions in one round-trip. */
-export async function getWorkingSetsForSessions(sessionIds: string[]): Promise<SessionSetRef[]> {
-  if (sessionIds.length === 0) return [];
-  const sb = createClient();
-  const { data } = await sb
-    .from("set_logs")
-    .select("session_id, exercise_id")
-    .in("session_id", sessionIds)
-    .gte("set_index", 0);
-  return (data ?? []).map((r: Record<string, unknown>) => ({
-    sessionId: r.session_id as string,
-    exerciseId: r.exercise_id as string,
-  }));
+  return byExercise;
 }

@@ -1,32 +1,33 @@
+import type { Tables } from "../database.types";
 import type { SetLog, WorkoutSession } from "../types";
 
-export function mapSession(row: Record<string, unknown>): WorkoutSession {
+export function mapSession(row: Tables<"workout_sessions">): WorkoutSession {
   return {
-    id: row.id as string,
-    userId: row.user_id as string,
-    programId: (row.program_id as string | null) ?? null,
-    week: row.week as number,
-    dayIndex: row.day_index as number,
+    id: row.id,
+    userId: row.user_id,
+    programId: row.program_id ?? null,
+    week: row.week,
+    dayIndex: row.day_index,
     dayType: row.day_type as WorkoutSession["dayType"],
-    startedAt: row.started_at as string,
-    completedAt: row.completed_at as string | null,
-    currentExerciseIndex: (row.current_exercise_index as number) ?? 0,
-    currentSetIndex: (row.current_set_index as number) ?? 0,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    currentExerciseIndex: row.current_exercise_index ?? 0,
+    currentSetIndex: row.current_set_index ?? 0,
   };
 }
 
-export function mapSetLog(row: Record<string, unknown>): SetLog {
+export function mapSetLog(row: Tables<"set_logs">): SetLog {
   return {
-    id: row.id as string,
-    sessionId: row.session_id as string,
-    userId: row.user_id as string,
-    exerciseId: row.exercise_id as string,
-    setIndex: row.set_index as number,
-    isLastSet: row.is_last_set as boolean,
-    weight: row.weight_kg as number,
-    reps: row.reps as number,
-    rpe: row.rpe as number | null,
-    failureHit: row.failure_hit as boolean | null,
-    loggedAt: row.logged_at as string,
+    id: row.id,
+    sessionId: row.session_id,
+    userId: row.user_id,
+    exerciseId: row.exercise_id,
+    setIndex: row.set_index,
+    isLastSet: row.is_last_set,
+    weight: row.weight_kg,
+    reps: row.reps,
+    rpe: row.rpe,
+    failureHit: row.failure_hit,
+    loggedAt: row.logged_at,
   };
 }
