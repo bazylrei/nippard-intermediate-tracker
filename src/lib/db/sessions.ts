@@ -93,15 +93,36 @@ export async function completeSession(sessionId: string): Promise<void> {
     .eq("id", sessionId));
 }
 
-export async function getCompletedSessions(userId: string): Promise<WorkoutSession[]> {
+/** One completed or in-progress session with all its logged sets, in one round trip. Null if not found (or not yours — RLS). */
+export async function getWorkoutDetail(
+  sessionId: string
+): Promise<{ session: WorkoutSession; sets: SetLog[] } | null> {
   const sb = createClient();
-  const data = unwrap("getCompletedSessions", await sb
+  const data = unwrap("getWorkoutDetail", await sb
     .from("workout_sessions")
-    .select("*")
+    .select("*, set_logs(*)")
+    .eq("id", sessionId)
+    .order("logged_at", { referencedTable: "set_logs" })
+    .maybeSingle());
+  if (!data) return null;
+  const { set_logs, ...row } = data;
+  return { session: mapSession(row), sets: (set_logs ?? []).map(mapSetLog) };
+}
+
+export interface CompletedSlot extends WorkoutPosition {
+  sessionId: string;
+}
+
+/** Where every completed session sits in the program, newest first. Lightweight: no set data. */
+export async function getCompletedSlots(userId: string): Promise<CompletedSlot[]> {
+  const sb = createClient();
+  const data = unwrap("getCompletedSlots", await sb
+    .from("workout_sessions")
+    .select("id, week, day_index")
     .eq("user_id", userId)
     .not("completed_at", "is", null)
     .order("completed_at", { ascending: false }));
-  return (data ?? []).map(mapSession);
+  return (data ?? []).map((r) => ({ sessionId: r.id, week: r.week, dayIndex: r.day_index }));
 }
 
 export interface SessionSetRef {
@@ -110,22 +131,22 @@ export interface SessionSetRef {
 }
 
 /**
- * The latest completed sessions and their working sets (no warm-ups),
- * in one round trip via an embedded select.
+ * Completed sessions (newest first) and their working sets (no warm-ups),
+ * in one round trip via an embedded select. Omit `limit` for the full history.
  */
 export async function getRecentWorkouts(
   userId: string,
-  limit: number
+  limit?: number
 ): Promise<{ sessions: WorkoutSession[]; sets: SessionSetRef[] }> {
   const sb = createClient();
-  const data = unwrap("getRecentWorkouts", await sb
+  const query = sb
     .from("workout_sessions")
     .select("*, set_logs(exercise_id)")
     .eq("user_id", userId)
     .not("completed_at", "is", null)
     .gte("set_logs.set_index", 0)
-    .order("completed_at", { ascending: false })
-    .limit(limit));
+    .order("completed_at", { ascending: false });
+  const data = unwrap("getRecentWorkouts", await (limit === undefined ? query : query.limit(limit)));
 
   const sessions: WorkoutSession[] = [];
   const sets: SessionSetRef[] = [];

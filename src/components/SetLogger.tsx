@@ -5,6 +5,7 @@ import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
+import { kgToDisplay, displayToKg } from "@/lib/units";
 
 interface Props {
   exercise: Exercise;
@@ -13,16 +14,6 @@ interface Props {
   previousSets: SetLog[];
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
-}
-
-const KG_TO_LBS = 2.20462;
-
-function toDisplay(kg: number, unit: "kg" | "lbs"): number {
-  return unit === "lbs" ? Math.round(kg * KG_TO_LBS * 4) / 4 : kg;
-}
-
-function toKg(val: number, unit: "kg" | "lbs"): number {
-  return unit === "lbs" ? val / KG_TO_LBS : val;
 }
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -50,7 +41,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
     if (prevSet) {
       dispatch({
         type: "populate",
-        weight: String(toDisplay(prevSet.weight, unit)),
+        weight: String(kgToDisplay(prevSet.weight, unit)),
         reps: String(prevSet.reps),
         rpe: prevSet.rpe ? String(prevSet.rpe) : "",
       });
@@ -68,7 +59,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
     const w = parseFloat(form.weight);
     const r = parseInt(form.reps, 10);
     if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
-    onLog(toKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null, isLastSet ? failureHit : null);
+    onLog(displayToKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null, isLastSet ? failureHit : null);
   }
 
   return (
@@ -105,7 +96,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
           style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}>
           <span className="text-xs text-muted">Last time</span>
           <span className="font-display font-semibold text-sm text-fg">
-            {weightPerSide && "2× "}{toDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
+            {weightPerSide && "2× "}{kgToDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
             {prevSet.rpe && <span className="text-muted font-normal"> @ RPE {prevSet.rpe}</span>}
           </span>
         </div>

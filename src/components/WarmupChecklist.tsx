@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Circle, Play } from "lucide-react";
+import { KG_TO_LBS } from "@/lib/units";
 
 interface Props {
   steps: string[];
@@ -17,7 +18,7 @@ function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"
   const pct = parseInt(match[1]) / 100;
   const weightKg = workingWeightKg * pct;
   if (unit === "lbs") {
-    const lbs = Math.round(weightKg * 2.20462 / 2.5) * 2.5;
+    const lbs = Math.round(weightKg * KG_TO_LBS / 2.5) * 2.5;
     return `~${lbs} lbs`;
   }
   const kg = Math.round(weightKg / 2.5) * 2.5;

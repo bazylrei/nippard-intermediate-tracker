@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 import {
   logSetAndAdvance, getLastSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
-  deleteWorkoutSession, deleteProgramDay,
+  deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -217,5 +217,54 @@ describe("upsertPreferences", () => {
       { user_id: "user-1", alternate_selections: { bench: 1 }, body_weight_kg: 80 },
       { onConflict: "user_id" },
     );
+  });
+});
+
+// ─── Workout history / detail ────────────────────────────────────────────────
+
+describe("getWorkoutDetail", () => {
+  it("loads the session and its sets in one query, sets ordered by log time", async () => {
+    responses.push({ data: { ...sessionRow, completed_at: "2026-11-01T10:30:00Z", set_logs: [setRow(), setRow({ id: "set-2" })] }, error: null });
+    const result = await getWorkoutDetail("sess-1");
+
+    expect(fn("from")).toHaveBeenCalledTimes(1);
+    expect(fn("select")).toHaveBeenCalledWith("*, set_logs(*)");
+    expect(fn("eq")).toHaveBeenCalledWith("id", "sess-1");
+    expect(fn("order")).toHaveBeenCalledWith("logged_at", { referencedTable: "set_logs" });
+    expect(result?.session).toMatchObject({ id: "sess-1", week: 2, dayType: "lower-a" });
+    expect(result?.sets.map((s) => s.id)).toEqual(["set-1", "set-2"]);
+  });
+
+  it("returns null when the session doesn't exist (or RLS hides it)", async () => {
+    responses.push({ data: null, error: null });
+    expect(await getWorkoutDetail("missing")).toBeNull();
+  });
+
+  it("fails fast on a Supabase error", async () => {
+    responses.push(failure("boom"));
+    await expect(getWorkoutDetail("sess-1")).rejects.toThrow("getWorkoutDetail failed: boom");
+  });
+});
+
+describe("getCompletedSlots", () => {
+  it("selects only position columns for completed sessions, newest first", async () => {
+    responses.push({ data: [{ id: "s2", week: 1, day_index: 1 }, { id: "s1", week: 1, day_index: 0 }], error: null });
+    const result = await getCompletedSlots("user-1");
+
+    expect(fn("select")).toHaveBeenCalledWith("id, week, day_index");
+    expect(fn("not")).toHaveBeenCalledWith("completed_at", "is", null);
+    expect(fn("order")).toHaveBeenCalledWith("completed_at", { ascending: false });
+    expect(result).toEqual([
+      { sessionId: "s2", week: 1, dayIndex: 1 },
+      { sessionId: "s1", week: 1, dayIndex: 0 },
+    ]);
+  });
+});
+
+describe("getRecentWorkouts without a limit", () => {
+  it("returns the full history (no .limit call)", async () => {
+    responses.push({ data: [], error: null });
+    await getRecentWorkouts("user-1");
+    expect(fn("limit")).not.toHaveBeenCalled();
   });
 });

@@ -89,16 +89,6 @@ export async function updateSetLog(setId: string, weight: number, reps: number, 
   unwrap("updateSetLog", await sb.from("set_logs").update({ weight_kg: weight, reps, rpe }).eq("id", setId));
 }
 
-export async function getSessionSets(sessionId: string): Promise<SetLog[]> {
-  const sb = createClient();
-  const data = unwrap("getSessionSets", await sb
-    .from("set_logs")
-    .select("*")
-    .eq("session_id", sessionId)
-    .order("logged_at"));
-  return (data ?? []).map(mapSetLog);
-}
-
 /**
  * For each exercise, the working sets from the most recent completed session
  * that included it — every exercise in one round trip.

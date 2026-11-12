@@ -4,18 +4,24 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getSignedInUser } from "@/lib/auth";
-import { getLastCompletedWorkout, getIncompleteSession, getPreferences, upsertPreferences } from "@/lib/db";
+import { getCompletedSlots, getIncompleteSession, getPreferences, upsertPreferences, type CompletedSlot } from "@/lib/db";
 import { DAY_LABELS, getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { UserPreferences, WorkoutPosition } from "@/lib/types";
+import { latestSessionBySlot, workoutDetailHref } from "@/lib/workout-history";
+import WeekDayTile from "@/components/program/WeekDayTile";
+import SettingsPanel from "@/components/program/SettingsPanel";
+import SaveErrorAlert from "@/components/workout/SaveErrorAlert";
+import { useSaveError } from "@/hooks/useSaveError";
 import { cacheGet, cacheSet } from "@/lib/cache";
-import { Dumbbell, Play, LogOut, Settings, ChevronRight } from "lucide-react";
+import { Dumbbell, Play, LogOut, Settings } from "lucide-react";
 
-const CACHE_KEY = "dashboard-v2";
+const CACHE_KEY = "dashboard-v3";
 
 type CachedDashboard = {
   resume: WorkoutPosition | null;
-  lastCompleted: WorkoutPosition | null;
+  /** Newest first; the first entry is the last completed workout. */
+  completed: CompletedSlot[];
   prefs: UserPreferences;
   email: string;
 };
@@ -28,9 +34,10 @@ export default function MyProgram() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState(cached?.email ?? "");
   const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
-  const [lastCompleted, setLastCompleted] = useState<WorkoutPosition | null>(cached?.lastCompleted ?? null);
+  const [completed, setCompleted] = useState<CompletedSlot[]>(cached?.completed ?? []);
   const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {}, exerciseNotes: {} });
   const [showSettings, setShowSettings] = useState(false);
+  const saveError = useSaveError();
 
   useEffect(() => {
     async function init() {
@@ -38,18 +45,18 @@ export default function MyProgram() {
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [incomplete, last, p] = await Promise.all([
+      const [incomplete, slots, p] = await Promise.all([
         getIncompleteSession(user.id),
-        getLastCompletedWorkout(user.id),
+        getCompletedSlots(user.id),
         getPreferences(user.id),
       ]);
       const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
       const resolvedEmail = user.email ?? "";
       setResume(resumeAt);
-      setLastCompleted(last);
+      setCompleted(slots);
       setPrefs(p);
       setEmail(resolvedEmail);
-      cacheSet(CACHE_KEY, { resume: resumeAt, lastCompleted: last, prefs: p, email: resolvedEmail });
+      cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots, prefs: p, email: resolvedEmail });
       cacheSet("prefs", p);
       setLoading(false);
     }
@@ -62,31 +69,26 @@ export default function MyProgram() {
     router.replace("/auth");
   }
 
-  async function toggleUnit() {
-    if (!userId) return;
-    const next: UserPreferences = { ...prefs, unit: prefs.unit === "kg" ? "lbs" : "kg" };
+  function applyPrefs(next: UserPreferences) {
     setPrefs(next);
-    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
+    cacheSet(CACHE_KEY, { resume, completed, prefs: next, email });
     cacheSet("prefs", next);
-    await upsertPreferences(userId, { unit: next.unit });
   }
 
-  async function saveBodyStats(bodyWeightKg: number | null, heightCm: number | null) {
+  /** Optimistic: shows the change at once, reverts it and says so if the save fails. */
+  async function savePrefs(patch: Partial<UserPreferences>, failureMessage: string) {
     if (!userId) return;
-    const next: UserPreferences = { ...prefs, bodyWeightKg, heightCm };
-    setPrefs(next);
-    cacheSet(CACHE_KEY, { resume, lastCompleted, prefs: next, email });
-    cacheSet("prefs", next);
-    try {
-      const sb = (await import("@/lib/supabase")).createClient();
-      await sb.from("user_preferences").upsert(
-        { user_id: userId, body_weight_kg: bodyWeightKg, height_cm: heightCm },
-        { onConflict: "user_id" }
-      );
-    } catch {
-      // Columns may not exist yet — values are saved locally above
-    }
+    const previous = prefs;
+    applyPrefs({ ...prefs, ...patch });
+    const ok = await saveError.attempt(() => upsertPreferences(userId, patch), failureMessage);
+    if (!ok) applyPrefs(previous);
   }
+
+  const toggleUnit = () =>
+    savePrefs({ unit: prefs.unit === "kg" ? "lbs" : "kg" }, "Couldn't change the weight unit. Try again.");
+
+  const saveBodyStats = (stats: { bodyWeightKg: number | null; heightCm: number | null }) =>
+    savePrefs(stats, "Couldn't save your body stats. Try again.");
 
   function startWorkout() {
     if (!nextSession) return;
@@ -102,7 +104,8 @@ export default function MyProgram() {
   }
 
   // Derived from the program's real schedule — it can have any number of weeks and days.
-  const nextSession = resume ?? nextWorkout(lastCompleted, program);
+  const nextSession = resume ?? nextWorkout(completed[0] ?? null, program);
+  const sessionAt = latestSessionBySlot(completed);
   const hasResume = !!resume;
   const totalWeeks = program.length;
   const nextDay = nextSession ? program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
@@ -138,57 +141,9 @@ export default function MyProgram() {
         </div>
       </div>
 
-      {/* Settings panel */}
-      {showSettings && (
-        <div className="glass gloss rounded-2xl p-4 space-y-3">
-          <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Settings</h3>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-fg">Weight unit</span>
-            <button
-              onClick={toggleUnit}
-              className="glass gloss font-display font-bold text-sm px-4 py-1.5 rounded-lg transition-colors cursor-pointer text-fg"
-            >
-              {prefs.unit.toUpperCase()}
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <div>
-              <label className="block text-xs text-muted mb-1.5">Body weight (kg)</label>
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                defaultValue={prefs.bodyWeightKg ?? ""}
-                onBlur={(e) => {
-                  const v = parseFloat(e.target.value);
-                  saveBodyStats(isNaN(v) ? null : v, prefs.heightCm ?? null);
-                }}
-                className="w-full rounded-xl px-3 py-2 text-fg text-center font-display text-lg font-semibold focus:outline-none"
-                style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}
-                placeholder="—"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1.5">Height (cm)</label>
-              <input
-                type="number"
-                step="1"
-                min="0"
-                inputMode="numeric"
-                defaultValue={prefs.heightCm ?? ""}
-                onBlur={(e) => {
-                  const v = parseFloat(e.target.value);
-                  saveBodyStats(prefs.bodyWeightKg ?? null, isNaN(v) ? null : v);
-                }}
-                className="w-full rounded-xl px-3 py-2 text-fg text-center font-display text-lg font-semibold focus:outline-none"
-                style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}
-                placeholder="—"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
+
+      {showSettings && <SettingsPanel prefs={prefs} onToggleUnit={toggleUnit} onSaveBodyStats={saveBodyStats} />}
 
       {/* Program progress */}
       <div className="glass gloss rounded-2xl p-5 space-y-3">
@@ -269,31 +224,18 @@ export default function MyProgram() {
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           {weekDays.map((day, i) => {
-            const isNext = i === nextSession?.dayIndex;
+            const week = nextSession?.week ?? 1;
             const isDone = nextSession ? i < nextSession.dayIndex : false;
+            const sessionId = isDone ? sessionAt({ week, dayIndex: i }) : undefined;
             return (
-              <div
+              <WeekDayTile
                 key={i}
-                className={`glass gloss rounded-2xl p-4 transition-opacity ${isDone ? "opacity-50" : ""}`}
-                style={isNext ? { borderColor: "color-mix(in srgb, var(--primary) 35%, transparent)" } : {}}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-display font-bold text-xs ${
-                    isDone
-                      ? "bg-accent/20 text-accent"
-                      : isNext
-                      ? "bg-primary/20 text-primary"
-                      : "text-muted"
-                  }`} style={!isDone && !isNext ? { background: "color-mix(in srgb, var(--fg) 8%, transparent)" } : {}}>
-                    {isDone ? "✓" : i + 1}
-                  </span>
-                  {isNext && <ChevronRight size={14} className="text-primary" />}
-                </div>
-                <p className={`font-display font-semibold text-sm leading-tight ${isNext ? "text-fg" : "text-muted"}`}>
-                  {DAY_LABELS[day.dayType]}
-                </p>
-                <p className="text-xs text-subtle mt-0.5">{day.exercises.length} exercises</p>
-              </div>
+                day={day}
+                number={i + 1}
+                isDone={isDone}
+                isNext={i === nextSession?.dayIndex}
+                href={sessionId && workoutDetailHref(sessionId)}
+              />
             );
           })}
         </div>

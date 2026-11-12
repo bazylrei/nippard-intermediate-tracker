@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSignedInUser } from "@/lib/auth";
 import {
-  getExerciseHistory, getWeeklyVolume, getPersonalRecords,
-  getCompletedSessions, getAllExercises,
+  getExerciseHistory, getWeeklyVolume, getPersonalRecords, getRecentWorkouts,
 } from "@/lib/db";
+import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { DAY_LABELS } from "@/lib/program-data";
+import { formatCalendarDate } from "@/lib/dates";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { WorkoutSession } from "@/lib/types";
 import HistoryTab from "./HistoryTab";
 import EmptyState from "./EmptyState";
 import { TrendingUp, BarChart3, Clock, ChevronDown } from "lucide-react";
@@ -19,17 +19,25 @@ import {
 } from "recharts";
 
 type Tab = "exercise" | "volume" | "history";
-
-function formatDate(iso: string): string {
-  const [, m, d] = iso.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m) - 1]} ${parseInt(d)}`;
-}
+const TAB_KEYS: readonly Tab[] = ["exercise", "volume", "history"];
+const isTab = (v: string | null): v is Tab => TAB_KEYS.includes(v as Tab);
 
 export default function ProgressPage() {
+  return (
+    <Suspense>
+      <ProgressContent />
+    </Suspense>
+  );
+}
+
+function ProgressContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { program } = useProgramContext();
-  const [tab, setTab] = useState<Tab>("exercise");
+  // The tab lives in the URL so Back from a workout's detail page returns to History.
+  const tabParam = searchParams.get("tab");
+  const tab: Tab = isTab(tabParam) ? tabParam : "exercise";
+  const setTab = (t: Tab) => router.replace(t === "exercise" ? "/progress" : `/progress?tab=${t}`, { scroll: false });
   const [userId, setUserId] = useState<string | null>(null);
   const [exercisesWithData, setExercisesWithData] = useState<string[]>([]);
   const [volume, setVolume] = useState<{ week: number; volume: number }[]>([]);
@@ -38,9 +46,9 @@ export default function ProgressPage() {
   const [loading, setLoading] = useState(true);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
-  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-  const [sessionsLoaded, setSessionsLoaded] = useState(false);
-  const [allExercisesDb, setAllExercisesDb] = useState<{ id: string; name: string; muscleGroup: string }[]>([]);
+  const [historyItems, setHistoryItems] = useState<WorkoutFeedItem[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyFailed, setHistoryFailed] = useState(false);
 
   const ALL_EXERCISES = useMemo(() => {
     const byName = new Map<string, string>();
@@ -56,24 +64,16 @@ export default function ProgressPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [program]);
 
-  const EXERCISE_NAME = useMemo(() => {
-    const fromDb = Object.fromEntries(allExercisesDb.map((ex) => [ex.id, ex.name]));
-    const fromProgram = Object.fromEntries(ALL_EXERCISES.map((ex) => [ex.id, ex.name]));
-    return { ...fromDb, ...fromProgram };
-  }, [ALL_EXERCISES, allExercisesDb]);
-
   useEffect(() => {
     async function init() {
       const user = await getSignedInUser();
       if (!user) { router.replace("/auth"); return; }
       setUserId(user.id);
 
-      const [prData, volData, exData] = await Promise.all([
+      const [prData, volData] = await Promise.all([
         getPersonalRecords(user.id),
         getWeeklyVolume(user.id),
-        getAllExercises(),
       ]);
-      setAllExercisesDb(exData);
       const ids = prData.map((pr) => pr.exerciseId);
       setExercisesWithData(ids);
       setVolume(volData.sort((a, b) => a.week - b.week));
@@ -90,9 +90,12 @@ export default function ProgressPage() {
   }, [userId, selectedExercise]);
 
   useEffect(() => {
-    if (tab !== "history" || !userId || sessionsLoaded) return;
-    getCompletedSessions(userId).then((s) => { setSessions(s); setSessionsLoaded(true); });
-  }, [tab, userId, sessionsLoaded]);
+    if (tab !== "history" || !userId || historyLoaded) return;
+    getRecentWorkouts(userId)
+      .then(({ sessions, sets }) => setHistoryItems(buildWorkoutFeed(sessions, sets)))
+      .catch((error) => { console.error(error); setHistoryFailed(true); })
+      .finally(() => setHistoryLoaded(true));
+  }, [tab, userId, historyLoaded]);
 
   useEffect(() => {
     if (loading) return;
@@ -176,11 +179,11 @@ export default function ProgressPage() {
                       <div className="bg-surface border border-border rounded-2xl p-3">
                         <LineChart width={chartWidth - 24} height={200} data={history} margin={{ top: 4, right: 4, bottom: 4, left: -16 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                          <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={formatDate} />
+                          <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={formatCalendarDate} />
                           <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} />
                           <Tooltip
                             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--fg)" }}
-                            labelFormatter={(l) => formatDate(String(l))}
+                            labelFormatter={(l) => formatCalendarDate(String(l))}
                             formatter={(v) => [`${Number(v)} kg`, "Weight"]}
                           />
                           <Line type="monotone" dataKey="weight" stroke="var(--primary)" strokeWidth={2} dot={{ fill: "var(--primary)", r: 4 }} />
@@ -192,7 +195,7 @@ export default function ProgressPage() {
                         <div key={i} className="bg-surface border border-border rounded-xl px-4 py-3 flex items-center justify-between">
                           <div>
                             <p className="font-display font-semibold text-sm text-fg">{h.weight}kg × {h.reps} reps</p>
-                            <p className="text-xs text-muted mt-0.5">{formatDate(h.date)}</p>
+                            <p className="text-xs text-muted mt-0.5">{formatCalendarDate(h.date)}</p>
                           </div>
                           {h.dayType && (
                             <span className="text-xs font-display font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
@@ -233,14 +236,7 @@ export default function ProgressPage() {
         )}
 
         {tab === "history" && (
-          <HistoryTab
-            sessions={sessions}
-            loaded={sessionsLoaded}
-            onSessionsUpdate={setSessions}
-            exerciseName={EXERCISE_NAME}
-            allExercises={allExercisesDb}
-            userId={userId}
-          />
+          <HistoryTab items={historyItems} loaded={historyLoaded} failed={historyFailed} />
         )}
       </div>
     </div>
