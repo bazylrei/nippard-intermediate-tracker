@@ -1,6 +1,6 @@
-import { createClient } from "./supabase";
+import { getSignedInUser } from "./auth";
 import {
-  createSession, getIncompleteSession, getSessionSets, getPreferences,
+  createSession, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
 import { cacheSet } from "./cache";
 import { resolveExercises, writeBanner } from "./workout-helpers";
@@ -13,6 +13,8 @@ export interface WorkoutBootstrap {
   prefs: UserPreferences;
   session: WorkoutSession;
   sessionSets: SetLog[];
+  /** Previous-session working sets for every exercise of the day, keyed by exercise id. */
+  prevSetsByExercise: Record<string, SetLog[]>;
   exerciseIndex: number;
   setIndex: number;
   phase: WorkoutPhase;
@@ -26,24 +28,28 @@ interface Params {
 }
 
 export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }: Params): Promise<WorkoutBootstrap | null> {
-  const sb = createClient();
-  const { data: { user } } = await sb.auth.getUser();
+  const user = await getSignedInUser();
   if (!user) return null;
 
-  const [prefs, existing] = await Promise.all([getPreferences(user.id), getIncompleteSession(user.id)]);
+  const exercises = workoutDay?.exercises ?? [];
+  // Everything the page needs, in one parallel round trip.
+  const [prefs, existing, prevSetsByExercise] = await Promise.all([
+    getPreferences(user.id),
+    getIncompleteSessionWithSets(user.id),
+    getLastSetsForExercises(exercises.map((ex) => ex.id)),
+  ]);
   cacheSet("prefs", prefs);
 
-  const exercises = workoutDay?.exercises ?? [];
-  const resumable = !!existing && existing.week === week && existing.dayIndex === dayIndex
-    && existing.currentExerciseIndex < exercises.length;
+  const resumable = !!existing && existing.session.week === week && existing.session.dayIndex === dayIndex
+    && existing.session.currentExerciseIndex < exercises.length;
 
   let session: WorkoutSession;
   let sessionSets: SetLog[] = [];
   let phase: WorkoutPhase = "overview";
   if (resumable) {
-    session = existing;
-    sessionSets = await getSessionSets(existing.id);
-    phase = existing.currentSetIndex === -1 ? "warmup" : "sets";
+    session = existing.session;
+    sessionSets = existing.sets;
+    phase = session.currentSetIndex === -1 ? "warmup" : "sets";
   } else {
     session = await createSession(user.id, week, dayIndex, workoutDay?.dayType ?? "upper-a", programId);
   }
@@ -52,5 +58,5 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
   const setIndex = resumable ? session.currentSetIndex : 0;
   writeBanner(session.currentExerciseIndex ?? 0, resolveExercises(exercises, prefs.alternateSelections), week, dayIndex, session.dayType);
 
-  return { userId: user.id, prefs, session, sessionSets, exerciseIndex, setIndex, phase };
+  return { userId: user.id, prefs, session, sessionSets, prevSetsByExercise, exerciseIndex, setIndex, phase };
 }

@@ -16,8 +16,9 @@ chainableMethods.forEach((m) => {
   mockChain[m] = vi.fn().mockReturnValue(mockChain);
 });
 
-// Override terminal async methods
+// Override terminal async methods (single-row reads use maybeSingle so "no row" isn't an error)
 mockChain.single = mockSingle;
+mockChain.maybeSingle = mockSingle;
 mockChain.upsert = mockUpsert;
 
 // insert returns the chain (so .insert().select().single() works)
@@ -33,6 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Reset terminal mocks to default after clearAllMocks
   mockChain.single = mockSingle;
+  mockChain.maybeSingle = mockSingle;
   mockChain.upsert = mockUpsert;
   mockChain.insert = vi.fn().mockReturnValue(mockChain);
   chainableMethods.forEach((m) => {

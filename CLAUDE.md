@@ -8,9 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev       # Start dev server (localhost:3000)
 npm run build     # Production build
 npm run lint      # Run ESLint
+npm test          # Vitest (watch); `npm run test:run` for a single run
 ```
 
-No test framework is configured — there are no tests in this repo.
+Tests live in `src/__tests__/` (Vitest + jsdom + Testing Library). Data-layer tests mock `@/lib/supabase`.
 
 ## Architecture Overview
 
@@ -39,8 +40,11 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 | File | Purpose |
 |---|---|
 | `src/lib/types.ts` | All TypeScript interfaces |
-| `src/lib/db.ts` | All Supabase queries (session, set, progress, builder) |
-| `src/lib/supabase.ts` | Browser-safe Supabase client factory |
+| `src/lib/db/` | All Supabase queries, split by domain; every call goes through `unwrap()` (`db/result.ts`), which throws `DbError` on failure |
+| `src/lib/supabase.ts` | Browser-safe Supabase client factory, typed with `Database` |
+| `src/lib/database.types.ts` | Generated schema types — regenerate after every migration, never hand-edit |
+| `src/lib/auth.ts` | `getSignedInUser()` — reads the local session (no Auth-server round trip) |
+| `supabase/migrations/` | Source of truth for the schema; `supabase-schema.sql` is the original bootstrap only |
 | `src/lib/program-data.ts` | 1RM calculation (Epley), session numbering helper |
 | `src/lib/program-data-static.ts` | Hardcoded 12-week program structure |
 | `src/lib/program-db.ts` | Loads program from DB into context |
@@ -53,6 +57,10 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 - **Alternate exercises** are stored in `user_preferences.alternate_selections` and resolved at render time in `SetLogger`, not at the DB level.
 - **Session progress** = `(week − 1) × 5 + dayIndex + 1`; total = 60 sessions across 12 weeks.
 - **Page components** are async Server Components; interactive leaf components use `"use client"`.
+- **Round trips are the main latency cost** (the DB is in `eu-west-2`). Combine dependent queries with PostgREST embeds (`select("*, set_logs(*)")`) or a Postgres function called via `sb.rpc()`; run independent ones with `Promise.all`.
+- **Multi-step writes are Postgres functions**, not chained client calls: `log_set` (set + session progress, idempotent on a client-generated id), `duplicate_program_week` (atomic). Child rows are removed by `ON DELETE CASCADE` — don't delete them by hand.
+- **Set logging is optimistic**: the workout page advances immediately and rolls back if `logSetAndAdvance` throws.
+- **Cross-user aggregates need `SECURITY DEFINER`** (RLS hides other users' rows), e.g. `program_user_counts`. Return aggregates only, and check visibility inside the function.
 
 ### Environment Variables
 

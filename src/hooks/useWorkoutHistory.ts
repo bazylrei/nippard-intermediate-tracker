@@ -1,24 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { getExerciseHistory, getLastSessionSetsForExercise } from "@/lib/db";
-import type { Exercise, SetLog } from "@/lib/types";
-
-export function usePrevSets(userId: string | null, exerciseId: string | undefined) {
-  const [prevSets, setPrevSets] = useState<SetLog[]>([]);
-
-  const loadPrevSets = useCallback(async (uid: string, exId: string) => {
-    setPrevSets(await getLastSessionSetsForExercise(uid, exId));
-  }, []);
-
-  useEffect(() => {
-    if (!userId || !exerciseId) return;
-    const uid = userId;
-    const exId = exerciseId;
-    async function run() { await loadPrevSets(uid, exId); }
-    void run();
-  }, [userId, exerciseId, loadPrevSets]);
-
-  return { prevSets, loadPrevSets };
-}
+import { useEffect, useState } from "react";
+import { getExerciseHistory } from "@/lib/db";
+import type { Exercise } from "@/lib/types";
 
 export type PostHistory = Record<string, { date: string; weight: number; reps: number }[]>;
 
