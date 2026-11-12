@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [email, setEmail] = useState(cached?.email ?? "");
   const [nextSession, setNextSession] = useState<{ week: number; dayIndex: number } | null>(cached?.nextSession ?? null);
   const [hasResume, setHasResume] = useState(cached?.hasResume ?? false);
-  const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {} });
+  const [prefs, setPrefs] = useState<UserPreferences>(cached?.prefs ?? { unit: "kg", alternateSelections: {}, exerciseNotes: {} });
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {

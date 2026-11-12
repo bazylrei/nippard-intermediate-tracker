@@ -59,6 +59,7 @@ export interface UserPreferences {
   alternateSelections: Record<string, number>; // exerciseId -> 0 (main) | 1 (alt1) | 2 (alt2)
   bodyWeightKg?: number | null;
   heightCm?: number | null;
+  exerciseNotes: Record<string, string>; // exerciseId -> user's personal note
 }
 
 export interface SetLog {
