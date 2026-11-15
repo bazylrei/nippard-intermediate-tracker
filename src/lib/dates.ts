@@ -30,3 +30,15 @@ export function formatElapsed(totalSeconds: number): string {
   const secs = String(s % 60).padStart(2, "0");
   return hours > 0 ? `${hours}:${String(mins).padStart(2, "0")}:${secs}` : `${mins}:${secs}`;
 }
+
+/** A date's local calendar day as "YYYY-MM-DD" (not UTC, which can be a day off). */
+export function localYmd(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The local "YYYY-MM-DD" of the most recent `weekStartsOn` day (0 = Sunday) on or before `date`. */
+export function startOfWeek(date: Date, weekStartsOn: number): string {
+  const back = (date.getDay() - weekStartsOn + 7) % 7;
+  return localYmd(new Date(date.getFullYear(), date.getMonth(), date.getDate() - back));
+}

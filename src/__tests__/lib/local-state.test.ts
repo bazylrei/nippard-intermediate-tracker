@@ -11,8 +11,13 @@ describe("prefs cache", () => {
     expect(readCachedPrefs()?.unit).toBe("lbs");
   });
 
-  it("defaults to kg with no selections or notes", () => {
-    expect(DEFAULT_PREFS).toEqual({ unit: "kg", alternateSelections: {}, exerciseNotes: {} });
+  it("defaults to kg with no selections or notes, and weeks starting on Monday", () => {
+    expect(DEFAULT_PREFS).toEqual({ unit: "kg", alternateSelections: {}, exerciseNotes: {}, weekStartsOn: 1 });
+  });
+
+  it("fills fields added since this device cached its preferences", () => {
+    localStorage.setItem("workout_cache_prefs", JSON.stringify({ unit: "lbs", alternateSelections: {}, exerciseNotes: {} }));
+    expect(readCachedPrefs()).toEqual({ unit: "lbs", alternateSelections: {}, exerciseNotes: {}, weekStartsOn: 1 });
   });
 });
 

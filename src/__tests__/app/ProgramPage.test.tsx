@@ -12,6 +12,8 @@ const db = vi.hoisted(() => ({
   getCompletedSlots: vi.fn(),
   getPreferences: vi.fn(),
   upsertPreferences: vi.fn(),
+  getLatestBodyWeight: vi.fn(),
+  logBodyWeight: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
 
@@ -21,6 +23,7 @@ const program = [{ week: 1, days: [day("upper-a"), day("lower-a"), day("push")] 
 vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
 
 import MyProgram from "@/app/(main)/program/page";
+import { localYmd } from "@/lib/dates";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -33,8 +36,10 @@ beforeEach(() => {
     { sessionId: "s2", week: 1, dayIndex: 1 },
     { sessionId: "s1", week: 1, dayIndex: 0 },
   ]);
-  db.getPreferences.mockResolvedValue({ unit: "kg", alternateSelections: {}, exerciseNotes: {}, bodyWeightKg: 80, heightCm: 180 });
+  db.getPreferences.mockResolvedValue({ unit: "kg", alternateSelections: {}, exerciseNotes: {}, heightCm: 180, weekStartsOn: 1 });
   db.upsertPreferences.mockResolvedValue(undefined);
+  db.getLatestBodyWeight.mockResolvedValue({ loggedOn: "2026-11-09", weightKg: 80, source: "manual" });
+  db.logBodyWeight.mockResolvedValue(undefined);
 });
 
 async function renderPage() {
@@ -70,30 +75,64 @@ describe("Program page — settings", () => {
     expect(screen.getByLabelText("Weight unit")).toHaveTextContent("KG");
   });
 
-  it("saves body stats through upsertPreferences", async () => {
+  it("shows the latest weigh-in, and logs a new one for today when it's changed", async () => {
     await renderPage();
     openSettings();
     const input = screen.getByLabelText("Body weight (kg)");
+    expect(input).toHaveValue(80);
     fireEvent.change(input, { target: { value: "82.5" } });
     fireEvent.blur(input);
-    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { bodyWeightKg: 82.5, heightCm: 180 }));
+    await waitFor(() => expect(db.logBodyWeight).toHaveBeenCalledWith("user-1", localYmd(new Date()), 82.5));
+    expect(db.upsertPreferences).not.toHaveBeenCalled();
+  });
+
+  it("shows and takes body weight in lbs for lbs users, storing kg", async () => {
+    db.getPreferences.mockResolvedValue({ unit: "lbs", alternateSelections: {}, exerciseNotes: {}, heightCm: 180, weekStartsOn: 1 });
+    await renderPage();
+    openSettings();
+    const input = screen.getByLabelText("Body weight (lbs)");
+    expect(input).toHaveValue(176.25); // 80kg
+    fireEvent.change(input, { target: { value: "176.37" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(db.logBodyWeight).toHaveBeenCalled());
+    expect(db.logBodyWeight.mock.calls[0][2]).toBeCloseTo(80, 2);
+  });
+
+  it("saves height on its own", async () => {
+    await renderPage();
+    openSettings();
+    const input = screen.getByLabelText("Height (cm)");
+    fireEvent.change(input, { target: { value: "182" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { heightCm: 182 }));
+  });
+
+  it("saves the first day of the week", async () => {
+    await renderPage();
+    openSettings();
+    expect(screen.getByLabelText("Week starts on")).toHaveValue("1");
+    fireEvent.change(screen.getByLabelText("Week starts on"), { target: { value: "0" } });
+    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { weekStartsOn: 0 }));
+    expect(screen.getByLabelText("Week starts on")).toHaveValue("0");
   });
 
   it("does not save when a field is left unchanged", async () => {
     await renderPage();
     openSettings();
     fireEvent.blur(screen.getByLabelText("Height (cm)"));
+    fireEvent.blur(screen.getByLabelText("Body weight (kg)"));
     expect(db.upsertPreferences).not.toHaveBeenCalled();
+    expect(db.logBodyWeight).not.toHaveBeenCalled();
   });
 
-  it("reverts body stats and shows an alert when the save fails", async () => {
-    db.upsertPreferences.mockRejectedValue(new Error("offline"));
+  it("reverts the body weight and shows an alert when logging it fails", async () => {
+    db.logBodyWeight.mockRejectedValue(new Error("offline"));
     await renderPage();
     openSettings();
     const input = screen.getByLabelText("Body weight (kg)");
     fireEvent.change(input, { target: { value: "90" } });
     fireEvent.blur(input);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your body stats");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your body weight");
     expect(screen.getByLabelText("Body weight (kg)")).toHaveValue(80);
   });
 });

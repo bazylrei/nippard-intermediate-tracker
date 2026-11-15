@@ -8,11 +8,14 @@ import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import { startWorkoutHref } from "@/lib/workout-history";
 import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import { getSessionNumber } from "@/lib/program-data";
+import { useWeighIn } from "@/hooks/useWeighIn";
+import WeighInCard from "@/components/WeighInCard";
 
 export default function Home() {
   const router = useRouter();
   const { program } = useProgramContext();
   const { feed, failed } = useHomeFeed();
+  const weighIn = useWeighIn();
 
   if (failed) return <FullScreenMessage message="Couldn't load your activity. Check your connection and try again." />;
   if (!feed) return <FullScreenMessage message="Loading…" />;
@@ -23,6 +26,8 @@ export default function Home() {
   return (
     <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <h1 className="font-display font-bold text-xl text-fg pt-2">Home</h1>
+
+      {weighIn.due && <WeighInCard unit={weighIn.unit} onSave={weighIn.save} onSkip={weighIn.skip} />}
 
       {nextSession && nextDay && (
         <NextWorkoutCard
