@@ -104,9 +104,11 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
             </label>
             {weightPerSide ? (
               <div className="space-y-1.5">
-                <div className="flex items-center gap-2 rounded-xl overflow-hidden"
+                {/* "2×" overlays the left edge so the number centres across the whole box, like Reps.
+                    A flex row let the number input's intrinsic width overflow and push the value right. */}
+                <div className="relative rounded-xl"
                   style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}>
-                  <span className="font-display font-bold text-lg text-muted pl-3 shrink-0 select-none">2×</span>
+                  <span aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 font-display font-bold text-lg text-muted select-none pointer-events-none">2×</span>
                   <input
                     type="number"
                     value={form.weight}
@@ -117,7 +119,8 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
-                    className="flex-1 py-3 pr-3 text-fg text-center font-display text-3xl font-bold focus:outline-none bg-transparent"
+                    aria-label={`Each hand (${unit})`}
+                    className="block w-full min-w-0 py-3 px-10 text-fg text-center font-display text-3xl font-bold focus:outline-none bg-transparent"
                     placeholder="—"
                     required
                   />
