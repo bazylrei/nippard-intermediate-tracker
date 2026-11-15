@@ -28,18 +28,19 @@ vi.mock("@/lib/workout-init", () => boot);
 
 vi.mock("@/context/RestTimerContext", () => ({ useRestTimer: () => ({ start: vi.fn() }) }));
 
-const exercise = (id: string, name: string): Exercise => ({
+const exercise = (id: string, name: string, warmupProtocol = "none"): Exercise => ({
   id, name, alternates: ["", ""], muscleGroup: "chest", restSeconds: [60, 90],
-  warmupProtocol: "none", repRange: [6, 10], earlySetRpe: [7, 8], lastSetTarget: "failure",
+  warmupProtocol, repRange: [6, 10], earlySetRpe: [7, 8], lastSetTarget: "failure",
   earlySetCount: 1, lastSetCount: 1, formNote: "", isBodyweight: false, weightPerSide: false,
 }) as Exercise;
 
 let workoutDay: { dayType: string; exercises: Exercise[] } | null = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
 let programFailed = false;
+const WARMUP_STEPS = vi.hoisted(() => ({ none: [], "1-set": ["~60% × 6–10 reps"] }));
 // Stable reference: the page memoises on getWorkoutDay.
 const getWorkoutDay = () => workoutDay;
 vi.mock("@/context/ProgramContext", () => ({
-  useProgramContext: () => ({ getWorkoutDay, warmupSteps: {}, programId: null, ready: true, failed: programFailed, failureTechniques: {} }),
+  useProgramContext: () => ({ getWorkoutDay, warmupSteps: WARMUP_STEPS, programId: null, ready: true, failed: programFailed, failureTechniques: {} }),
 }));
 
 import WorkoutPage from "@/app/workout/page";
@@ -184,6 +185,54 @@ describe("WorkoutPage — set carousel", () => {
 
     expect(db.logSetAndAdvance).toHaveBeenCalledWith(expect.objectContaining({ setIndex: 0, nextSetIndex: 1 }));
     expect(activeSlide()).toHaveAccessibleName("Set 2 of 2");
+  });
+
+  it("resumes a partly done exercise at its first unlogged set", async () => {
+    const done = { id: "d1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null } as SetLog;
+    bootWith({ phase: "warmup", setIndex: -1, sessionSets: [done] });
+    await renderPage();
+    expect(activeSlide()).toHaveAccessibleName("Set 2 of 2");
+
+    await click(within(activeSlide()).getByRole("button", { name: /Log Set/ }));
+
+    expect(db.logSetAndAdvance).toHaveBeenCalledWith(expect.objectContaining({ setIndex: 1, completeSession: true }));
+  });
+});
+
+describe("WorkoutPage — warm-up slide", () => {
+  beforeEach(() => {
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press", "1-set")] };
+  });
+
+  it("starts on the warm-up, with the working sets as previews only", async () => {
+    bootWith({ phase: "warmup", setIndex: -1 });
+    await renderPage();
+
+    expect(activeSlide()).toHaveAccessibleName("Warm-up");
+    expect(within(activeSlide()).getByText("~60% × 6–10 reps")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Set 1 of 2" })).toHaveTextContent("6–10 reps");
+    expect(screen.queryByRole("button", { name: /Log Set/ })).toBeNull();
+  });
+
+  it("slides to the first working set once the warm-up is done, keeping a recap", async () => {
+    bootWith({ phase: "warmup", setIndex: -1 });
+    await renderPage();
+
+    await click(screen.getByText("~60% × 6–10 reps"));
+    await click(screen.getByRole("button", { name: /Start Working Sets/ }));
+
+    expect(activeSlide()).toHaveAccessibleName("Set 1 of 2");
+    expect(within(activeSlide()).getByRole("button", { name: /Log Set/ })).toBeInTheDocument();
+    const warmup = screen.getByRole("group", { name: "Warm-up" });
+    expect(warmup).toHaveTextContent("Done");
+    expect(within(warmup).queryByRole("button")).toBeNull();
+    expect(db.updateSessionProgress).toHaveBeenCalledWith("sess-1", 0, 0);
+  });
+
+  it("shows the warm-up recap when resuming mid-exercise", async () => {
+    await renderPage(); // boots into the sets phase at set 1
+    expect(activeSlide()).toHaveAccessibleName("Set 1 of 2");
+    expect(screen.getByRole("group", { name: "Warm-up" })).toHaveTextContent("Done");
   });
 });
 

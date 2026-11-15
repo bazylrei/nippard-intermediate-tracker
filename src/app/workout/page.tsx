@@ -16,7 +16,7 @@ import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
 import { useSaveError } from "@/hooks/useSaveError";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
-import WarmupChecklist from "@/components/WarmupChecklist";
+import WarmupSlide from "@/components/workout/WarmupSlide";
 import SetDetailSheet from "@/components/SetDetailSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
@@ -64,9 +64,10 @@ function WorkoutContent() {
   const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
 
   const prevSets = (currentExercise && prevSetsByExercise[currentExercise.id]) || [];
-  // An exercise with no warm-up goes straight to the logger while still at the
-  // warm-up position (-1); the set being logged is then the first working set.
-  const workingSetIndex = Math.max(setIndex, 0);
+  // The set to log next: at the warm-up position (-1), or when returning to a
+  // partly done exercise, it's the first set not yet logged.
+  const loggedCount = currentExercise ? loggedWorkingSets(sessionSets, currentExercise.id).length : 0;
+  const workingSetIndex = Math.max(setIndex, loggedCount);
   const postHistory = usePostHistory(done, userId, resolvedExercises);
 
   useEffect(() => {
@@ -196,9 +197,9 @@ function WorkoutContent() {
   }
 
   function handleWarmupComplete() {
-    setSetIndex(0);
+    setSetIndex(workingSetIndex);
     setPhase("sets");
-    saveProgress(exerciseIndex, 0);
+    saveProgress(exerciseIndex, workingSetIndex);
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -238,6 +239,7 @@ function WorkoutContent() {
   // ── Active workout ───────────────────────────────────────────────────────
   const currentWarmupSteps = warmupSteps[currentExercise.warmupProtocol] ?? [];
   const hasWarmup = currentWarmupSteps.length > 0;
+  const warmingUp = phase === "warmup" && hasWarmup;
   const setsForExercise = loggedWorkingSets(sessionSets, currentExercise.id);
 
   return (
@@ -288,28 +290,25 @@ function WorkoutContent() {
           onViewSet={setViewingSet}
         />
 
-        {/* Phase content */}
-        {phase === "warmup" && hasWarmup ? (
-          <WarmupChecklist
-            key={`warmup-${exerciseIndex}`}
-            steps={currentWarmupSteps}
-            onComplete={handleWarmupComplete}
-            onSkip={handleWarmupComplete}
-            prevWorkingWeightKg={prevSets.length > 0 ? prevSets[prevSets.length - 1].weight : undefined}
-            unit={prefs.unit}
-          />
-        ) : phase === "sets" || (phase === "warmup" && !hasWarmup) ? (
-          <ExerciseSetCarousel
-            key={currentExercise.id}
-            exercise={currentExercise}
-            currentSetIndex={workingSetIndex}
-            loggedSets={setsForExercise}
-            previousSets={prevSets}
-            unit={prefs.unit}
-            onLog={handleSetLogged}
-            onView={setViewingSet}
-          />
-        ) : null}
+        <ExerciseSetCarousel
+          key={currentExercise.id}
+          exercise={currentExercise}
+          currentSetIndex={warmingUp ? null : workingSetIndex}
+          warmup={hasWarmup ? (
+            <WarmupSlide
+              steps={currentWarmupSteps}
+              active={warmingUp}
+              onComplete={handleWarmupComplete}
+              prevWorkingWeightKg={prevSets.at(-1)?.weight}
+              unit={prefs.unit}
+            />
+          ) : undefined}
+          loggedSets={setsForExercise}
+          previousSets={prevSets}
+          unit={prefs.unit}
+          onLog={handleSetLogged}
+          onView={setViewingSet}
+        />
 
         <SkipExerciseButton onSkip={handleSkipExercise} />
       </div>

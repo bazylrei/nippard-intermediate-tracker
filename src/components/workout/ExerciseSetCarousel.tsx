@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { totalSetsForExercise } from "@/lib/workout-helpers";
 import SetLogger from "@/components/SetLogger";
@@ -8,7 +9,10 @@ import { LoggedSetCard, UpcomingSetCard } from "./SetCards";
 
 interface Props {
   exercise: Exercise;
-  currentSetIndex: number;
+  /** The working set being logged now; null while warming up. */
+  currentSetIndex: number | null;
+  /** Optional first slide, shown before the working sets. */
+  warmup?: ReactNode;
   loggedSets: SetLog[];
   previousSets: SetLog[];
   unit: "kg" | "lbs";
@@ -16,11 +20,16 @@ interface Props {
   onView: (set: SetLog) => void;
 }
 
-/** An exercise's working sets as carousel slides: logged sets, the set being logged now, and those still to come. */
-export default function ExerciseSetCarousel({ exercise, currentSetIndex, loggedSets, previousSets, unit, onLog, onView }: Props) {
+/**
+ * An exercise as carousel slides: an optional warm-up, then each working set —
+ * logged, being logged now, or still to come.
+ */
+export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, previousSets, unit, onLog, onView }: Props) {
   const totalSets = totalSetsForExercise(exercise);
+  const offset = warmup ? 1 : 0;
+  const activeIndex = currentSetIndex === null ? 0 : currentSetIndex + offset;
 
-  function renderSlide(index: number) {
+  function renderSetSlide(index: number) {
     const logged = loggedSets[index];
     if (logged) {
       return (
@@ -57,10 +66,10 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, loggedS
 
   return (
     <SetCarousel
-      count={totalSets}
-      activeIndex={currentSetIndex}
-      slideLabel={(i) => `Set ${i + 1} of ${totalSets}`}
-      renderSlide={renderSlide}
+      count={totalSets + offset}
+      activeIndex={activeIndex}
+      slideLabel={(i) => (i < offset ? "Warm-up" : `Set ${i - offset + 1} of ${totalSets}`)}
+      renderSlide={(i) => (i < offset ? warmup : renderSetSlide(i - offset))}
     />
   );
 }
