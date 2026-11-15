@@ -1,27 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ACTIVE_WORKOUT_EVENT, readActiveWorkout, type ActiveWorkoutInfo } from "@/lib/active-workout";
+import { useActiveWorkout } from "@/hooks/useActiveWorkout";
 import { Dumbbell, ChevronRight } from "lucide-react";
 import { dayLabel } from "@/lib/day-types";
 import { startWorkoutHref } from "@/lib/workout-history";
 
 export default function ActiveWorkoutBanner() {
-  const [workout, setWorkout] = useState<ActiveWorkoutInfo | null>(readActiveWorkout);
+  const workout = useActiveWorkout();
   const router = useRouter();
-
-  useEffect(() => {
-    function sync() {
-      setWorkout(readActiveWorkout());
-    }
-    window.addEventListener(ACTIVE_WORKOUT_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(ACTIVE_WORKOUT_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
 
   if (!workout) return null;
 
