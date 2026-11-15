@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import WeighInCard from "@/components/WeighInCard";
 
 function renderCard(onSave = vi.fn().mockResolvedValue(undefined), onSkip = vi.fn()) {
-  render(<WeighInCard unit="kg" onSave={onSave} onSkip={onSkip} />);
+  render(<WeighInCard unit="kg" onSave={onSave} onDismiss={onSkip} />);
   return { onSave, onSkip };
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
 import type { Exercise, SetLog } from "@/lib/types";
 
@@ -21,7 +21,7 @@ const postHistory = { bench: [{ date: "2026-11-05", weight: 100, reps: 5 }, { da
 function renderDone(unit: "kg" | "lbs") {
   render(
     <WorkoutDoneScreen week={2} dayType="full-body" exercises={[exercise]} sessionSets={sets}
-      postWorkout={{ history: postHistory, bodyWeightKg: null }} unit={unit} onHome={vi.fn()} onProgress={vi.fn()} />,
+      postWorkout={{ history: postHistory, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit={unit} onHome={vi.fn()} onProgress={vi.fn()} />,
   );
 }
 
@@ -64,7 +64,7 @@ describe("WorkoutDoneScreen", () => {
     const dbRow = { id: "db-row", name: "DB Row", muscleGroup: "back", weightPerSide: true, isBodyweight: false } as Exercise;
     const rowSets = [{ id: "r", exerciseId: "db-row", setIndex: 0, weight: 32.5, reps: 10 }] as SetLog[];
     render(<WorkoutDoneScreen week={2} dayType="full-body" exercises={[dbRow]} sessionSets={rowSets}
-      postWorkout={{ history: {}, bodyWeightKg: null }} unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />);
+      postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 650kg");
   });
 
@@ -73,12 +73,39 @@ describe("WorkoutDoneScreen", () => {
     const pullSets = [{ id: "p", exerciseId: "pull-up", setIndex: 0, weight: 10, reps: 8 }] as SetLog[];
     const props = { week: 2, dayType: "full-body", exercises: [pullUp], sessionSets: pullSets, unit: "kg" as const, onHome: vi.fn(), onProgress: vi.fn() };
 
-    const { unmount } = render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: 80 }} />);
+    const { unmount } = render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 720kg"); // (80 + 10) × 8
     unmount();
 
-    render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: null }} />);
+    render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 80kg · added weight only");
+  });
+
+  describe("body weight call to action", () => {
+    const pullUp = { id: "pull-up", name: "Pull-up", muscleGroup: "back", weightPerSide: false, isBodyweight: true } as Exercise;
+    const pullSets = [{ id: "p", exerciseId: "pull-up", setIndex: 0, weight: 10, reps: 8 }] as SetLog[];
+    const base = { week: 2, dayType: "full-body", sessionSets: pullSets, unit: "kg" as const, onHome: vi.fn(), onProgress: vi.fn() };
+
+    it("offers to log body weight when a bodyweight exercise was done without one", async () => {
+      const logBodyWeight = vi.fn().mockResolvedValue(undefined);
+      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight }} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Log body weight" }));
+      fireEvent.change(screen.getByLabelText("Body weight (kg)"), { target: { value: "80" } });
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+      expect(logBodyWeight).toHaveBeenCalledWith(80);
+    });
+
+    it("doesn't ask once body weight is known", () => {
+      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
+      expect(screen.queryByRole("button", { name: "Log body weight" })).toBeNull();
+    });
+
+    it("doesn't ask when no bodyweight exercise was done", () => {
+      render(<WorkoutDoneScreen {...base} exercises={[exercise]} sessionSets={sets}
+        postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
+      expect(screen.queryByRole("button", { name: "Log body weight" })).toBeNull();
+    });
   });
 });
 

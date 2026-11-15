@@ -7,6 +7,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { kgToDisplay } from "@/lib/units";
 import { setLoadKg } from "@/lib/volume";
 import type { PostWorkoutData } from "@/hooks/useWorkoutHistory";
+import BodyWeightCta from "@/components/BodyWeightCta";
 import { formatCalendarDate } from "@/lib/dates";
 
 /** Recessive axis text: muted ink, small, tabular figures. */
@@ -25,6 +26,8 @@ interface Props {
 
 export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postWorkout, unit, onHome, onProgress }: Props) {
   const { history: postHistory, bodyWeightKg } = postWorkout;
+  const doneIds = new Set(sessionSets.filter((s) => s.setIndex >= 0).map((s) => s.exerciseId));
+  const needsBodyWeight = bodyWeightKg === null && exercises.some((ex) => ex.isBodyweight && doneIds.has(ex.id));
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
 
   return (
@@ -63,6 +66,9 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
 
           {/* Per-exercise cards */}
           <div className="space-y-4">
+            {needsBodyWeight && (
+              <BodyWeightCta unit={unit} message="Bodyweight exercises count only their added weight until you log your body weight." onSave={postWorkout.logBodyWeight} />
+            )}
             {exercises.map((ex) => {
               const exSets = sessionSets.filter((s) => s.exerciseId === ex.id && s.setIndex >= 0);
               if (exSets.length === 0) return null;

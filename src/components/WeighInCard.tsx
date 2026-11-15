@@ -7,11 +7,13 @@ interface Props {
   unit: "kg" | "lbs";
   /** Saves today's weight in `unit`; rejects if it couldn't be saved. */
   onSave: (weight: number) => Promise<void>;
-  onSkip: () => void;
+  onDismiss: () => void;
+  title?: string;
+  dismissLabel?: string;
 }
 
-/** The weekly weigh-in prompt. Stays open with an inline error if the save fails. */
-export default function WeighInCard({ unit, onSave, onSkip }: Props) {
+/** A weigh-in form (the weekly prompt, or opened from a call to action). Stays open with an inline error if the save fails. */
+export default function WeighInCard({ unit, onSave, onDismiss, title = "Weekly weigh-in", dismissLabel = "Skip this week" }: Props) {
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,14 +35,14 @@ export default function WeighInCard({ unit, onSave, onSkip }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Weekly weigh-in" className="glass gloss rounded-2xl p-4 space-y-3">
+    <form onSubmit={handleSubmit} aria-label={title} className="glass gloss rounded-2xl p-4 space-y-3">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: "color-mix(in srgb, var(--primary) 15%, transparent)" }}>
           <Weight size={18} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-display font-bold text-fg leading-tight">Weekly weigh-in</p>
+          <p className="font-display font-bold text-fg leading-tight">{title}</p>
           <p className="text-xs text-muted">What do you weigh today?</p>
         </div>
       </div>
@@ -65,8 +67,8 @@ export default function WeighInCard({ unit, onSave, onSkip }: Props) {
         </button>
       </div>
       {error && <p role="alert" className="text-xs text-danger">{error}</p>}
-      <button type="button" onClick={onSkip} className="text-xs text-subtle hover:text-muted cursor-pointer">
-        Skip this week
+      <button type="button" onClick={onDismiss} className="text-xs text-subtle hover:text-muted cursor-pointer">
+        {dismissLabel}
       </button>
     </form>
   );

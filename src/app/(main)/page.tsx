@@ -27,7 +27,7 @@ export default function Home() {
     <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <h1 className="font-display font-bold text-xl text-fg pt-2">Home</h1>
 
-      {weighIn.due && <WeighInCard unit={weighIn.unit} onSave={weighIn.save} onSkip={weighIn.skip} />}
+      {weighIn.due && <WeighInCard unit={weighIn.unit} onSave={weighIn.save} onDismiss={weighIn.skip} />}
 
       {nextSession && nextDay && (
         <NextWorkoutCard

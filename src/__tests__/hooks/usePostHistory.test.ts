@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import type { Exercise } from "@/lib/types";
 
-const db = vi.hoisted(() => ({ getExerciseHistory: vi.fn(), getLatestBodyWeight: vi.fn() }));
+const db = vi.hoisted(() => ({ getExerciseHistory: vi.fn(), getLatestBodyWeight: vi.fn(), logBodyWeight: vi.fn() }));
 vi.mock("@/lib/db", () => db);
 
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
+import { localYmd } from "@/lib/dates";
 
 const exercises = [{ id: "bench" }, { id: "row" }] as Exercise[];
 
@@ -35,4 +36,16 @@ describe("usePostHistory", () => {
     await waitFor(() => expect(result.current.history.bench).toBeDefined());
     expect(result.current.bodyWeightKg).toBeNull();
   });
+
+  it("logs today's weigh-in and uses it straight away", async () => {
+    db.getLatestBodyWeight.mockResolvedValue(null);
+    db.logBodyWeight.mockResolvedValue(undefined);
+    const { result } = renderHook(() => usePostHistory(true, "user-1", exercises));
+    await waitFor(() => expect(result.current.history.bench).toBeDefined());
+
+    await act(() => result.current.logBodyWeight(80));
+    expect(db.logBodyWeight).toHaveBeenCalledWith("user-1", localYmd(new Date()), 80);
+    expect(result.current.bodyWeightKg).toBe(80);
+  });
 });
+
