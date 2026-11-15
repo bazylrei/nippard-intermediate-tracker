@@ -42,6 +42,13 @@ describe("RestTimerBar", () => {
     expect(screen.getByText("1:05")).toBeInTheDocument();
   });
 
+  it("exposes the countdown as an accessible timer", () => {
+    act(() => {
+      renderWithTimer(65);
+    });
+    expect(screen.getByRole("timer", { name: "Rest remaining" })).toHaveTextContent("1:05");
+  });
+
   it("shows '1:30' for 90 seconds", () => {
     act(() => {
       renderWithTimer(90);
