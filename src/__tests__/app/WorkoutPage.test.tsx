@@ -230,6 +230,16 @@ describe("WorkoutPage — set carousel", () => {
     expect(screen.getByRole("group", { name: "Set 2 of 2" })).toHaveTextContent("6–10 reps");
   });
 
+  it("shows the sets only in the carousel, with no separate row of set tiles above it", async () => {
+    await renderPage();
+    expect(screen.queryByText("Sets")).toBeNull(); // the old tiles row's label
+    expect(screen.getAllByRole("group", { name: /^Set \d of 2$/ })).toHaveLength(2); // one slide per set
+
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+    // A logged set stays reachable from its carousel card, not from a tile.
+    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /View set/ })).toBeInTheDocument();
+  });
+
   it("keeps a logged set swipeable and editable after advancing", async () => {
     await renderPage();
     await click(screen.getByRole("button", { name: /Log Set/ }));
