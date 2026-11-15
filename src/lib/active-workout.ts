@@ -1,6 +1,6 @@
 import { cacheDelete, cacheGet, cacheSet } from "./cache";
 
-/** What the "workout in progress" banner shows; kept on the device while a workout is open. */
+/** The workout in progress (shown by the tab bar's Workout tab); kept on the device while a workout is open. */
 export interface ActiveWorkoutInfo {
   week: number;
   dayIndex: number;
@@ -8,6 +8,8 @@ export interface ActiveWorkoutInfo {
   exerciseName: string;
   exerciseIndex: number;
   exerciseTotal: number;
+  /** When the session began. Missing from entries saved by older versions of the app. */
+  startedAt?: string;
 }
 
 const KEY = "active_workout";

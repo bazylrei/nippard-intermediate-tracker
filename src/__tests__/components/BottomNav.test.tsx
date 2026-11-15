@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
@@ -6,6 +6,7 @@ let pathname = "/";
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => pathname }));
 
 import AppNav from "@/components/BottomNav";
+import { RestTimerProvider, useRestTimer } from "@/context/RestTimerContext";
 import { clearActiveWorkout, saveActiveWorkout } from "@/lib/active-workout";
 
 const inProgress = { week: 2, dayIndex: 1, dayType: "upper-a", exerciseName: "Bench Press", exerciseIndex: 0, exerciseTotal: 5 };
@@ -32,12 +33,12 @@ describe("AppNav", () => {
     expect(mobileBar().getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("adds a Workout tab after Home while a workout is in progress, leading back to it", () => {
+  it("adds a Workout tab in the middle while a workout is in progress, leading back to it", () => {
     saveActiveWorkout(inProgress);
     pathname = "/progress";
     render(<AppNav />);
 
-    expect(tabLabels()).toEqual(["Home", "Workout", "Program", "Progress", "Builder"]);
+    expect(tabLabels()).toEqual(["Home", "Program", "Workout", "Progress", "Builder"]);
     const workoutTab = mobileBar().getByRole("button", { name: "Workout" });
     expect(workoutTab).not.toHaveAttribute("aria-current");
 
@@ -74,5 +75,55 @@ describe("AppNav", () => {
 
     act(() => clearActiveWorkout());
     expect(tabLabels()).not.toContain("Workout");
+  });
+});
+
+describe("AppNav — the Workout tab's live clock", () => {
+  const START = new Date("2026-11-15T10:00:00Z");
+  let startRest: (seconds: number) => void = () => {};
+
+  function RestStarter() {
+    startRest = useRestTimer().start;
+    return null;
+  }
+
+  function renderWithTimer() {
+    return render(<RestTimerProvider><RestStarter /><AppNav /></RestTimerProvider>);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(START.getTime() + 24 * 60_000 + 10_000));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows how long the workout has been going", () => {
+    saveActiveWorkout({ ...inProgress, startedAt: START.toISOString() });
+    renderWithTimer();
+
+    expect(mobileBar().getByRole("timer", { name: "Workout duration" })).toHaveTextContent("24:10");
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(mobileBar().getByRole("timer")).toHaveTextContent("24:12");
+  });
+
+  it("counts down the rest instead while resting, then goes back to the workout time", () => {
+    saveActiveWorkout({ ...inProgress, startedAt: START.toISOString() });
+    renderWithTimer();
+
+    act(() => startRest(90));
+    expect(mobileBar().getByRole("timer", { name: "Rest remaining" })).toHaveTextContent("1:30");
+
+    act(() => { vi.advanceTimersByTime(91_000); });
+    expect(mobileBar().getByRole("timer", { name: "Workout duration" })).toHaveTextContent("25:41");
+  });
+
+  it("shows just the icon for a workout saved without a start time", () => {
+    saveActiveWorkout(inProgress); // saved by an older version of the app
+    renderWithTimer();
+    expect(mobileBar().getByRole("button", { name: "Workout" })).toBeInTheDocument();
+    expect(mobileBar().queryByRole("timer")).toBeNull();
   });
 });

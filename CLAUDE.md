@@ -24,14 +24,14 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
 - `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
 - `/(main)/builder/[programId]` — Full CRUD program editor
-- `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button) but not the resume banner; pages fill `.workout-viewport`
+- `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button); pages fill `.workout-viewport`. While a workout is in progress the tab bar shows a raised centre Workout tab (elapsed time, or the rest countdown)
 - `/auth` — Email/password sign-in/sign-up
 
 ### State Layers
 
 1. **`ProgramContext`** (`src/context/ProgramContext.tsx`) — Loads the full 12-week program structure, warmup protocols, and failure technique metadata once at app start. Available everywhere via `useProgramContext()`; `failed` is true when it couldn't load and nothing is cached.
 2. **Supabase** — Authoritative store for workout sessions (`workout_sessions`), set logs (`set_logs`), and user preferences (`user_preferences`).
-3. **localStorage** (`src/lib/cache.ts`) — Short-lived cache for program data (`workout_cache_program-v1`), dashboard/home-feed state, user prefs (`lib/prefs-cache.ts`) and the active-workout banner (`lib/active-workout.ts`) to avoid redundant DB round-trips.
+3. **localStorage** (`src/lib/cache.ts`) — Short-lived cache for program data (`workout_cache_program-v1`), dashboard/home-feed state, user prefs (`lib/prefs-cache.ts`) and the workout in progress for the Workout tab (`lib/active-workout.ts`) to avoid redundant DB round-trips.
 
 ### Data Flow: Starting a Workout
 

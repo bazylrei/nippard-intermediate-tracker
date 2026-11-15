@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseRecord, SetLog } from "./types";
+import type { Exercise, ExerciseRecord, SetLog, WorkoutSession } from "./types";
 import { clearActiveWorkout, saveActiveWorkout } from "./active-workout";
 
 export function resolveExercises(exercises: Exercise[], selections: Record<string, number>): Exercise[] {
@@ -47,18 +47,20 @@ export function planAfterSet(
   return { kind: "nextExercise", exerciseIndex: next !== -1 ? next : exerciseIndex + 1, setIndex: -1 };
 }
 
-export function writeBanner(exIdx: number, exercises: Exercise[], wk: number, dIdx: number, dType: string): void {
+/** Records the workout in progress on this device (the tab bar's Workout tab reads it). */
+export function saveWorkoutInProgress(exIdx: number, exercises: Exercise[], session: WorkoutSession): void {
   const ex = exercises[exIdx];
   if (!ex) return;
   saveActiveWorkout({
-    week: wk, dayIndex: dIdx, dayType: dType,
+    week: session.week, dayIndex: session.dayIndex, dayType: session.dayType,
     exerciseName: ex.name,
     exerciseIndex: exIdx,
     exerciseTotal: exercises.length,
+    startedAt: session.startedAt,
   });
 }
 
-export function clearBanner(): void {
+export function clearWorkoutInProgress(): void {
   clearActiveWorkout();
 }
 

@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { Dumbbell, House, ClipboardList, TrendingUp, Wrench, type LucideIcon } from "lucide-react";
 import { useActiveWorkout } from "@/hooks/useActiveWorkout";
+import { CenterWorkoutTab, SidebarWorkoutTab } from "./WorkoutTab";
 import { startWorkoutHref } from "@/lib/workout-history";
 
 const TABS = [
@@ -20,11 +21,13 @@ interface Tab {
   active: boolean;
   /** Where tapping goes; null when already there. */
   href: string | null;
+  /** Set on the Workout tab, which shows the live workout clock. */
+  workout?: { startedAt?: string };
 }
 
 /**
- * The fixed tabs, plus a Workout tab after Home while a workout is in progress
- * (or while on the workout screen) — it marks where you are and leads back.
+ * The fixed tabs, plus a Workout tab in the middle while a workout is in
+ * progress (or while on the workout screen) — it marks where you are and leads back.
  */
 function useTabs(): Tab[] {
   const pathname = usePathname();
@@ -36,11 +39,12 @@ function useTabs(): Tab[] {
     active: href === "/" ? pathname === "/" : pathname.startsWith(href),
   }));
   if (workout || onWorkout) {
-    tabs.splice(1, 0, {
+    tabs.splice(tabs.length / 2, 0, {
       label: "Workout",
       icon: Dumbbell,
       active: onWorkout,
       href: onWorkout || !workout ? null : startWorkoutHref(workout),
+      workout: { startedAt: workout?.startedAt },
     });
   }
   return tabs;
@@ -60,7 +64,9 @@ export default function AppNav() {
           <span className="font-display font-bold text-lg text-fg tracking-wide">Nippard</span>
         </div>
         <nav className="flex flex-col gap-1">
-          {tabs.map((tab) => (
+          {tabs.map((tab) => tab.workout ? (
+            <SidebarWorkoutTab key={tab.label} startedAt={tab.workout.startedAt} active={tab.active} onSelect={() => select(tab)} />
+          ) : (
             <button
               key={tab.label}
               onClick={() => select(tab)}
@@ -83,7 +89,9 @@ export default function AppNav() {
         className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur border-t border-border flex z-40 safe-bottom"
         style={{ height: "var(--app-nav-h)" }}
       >
-        {tabs.map((tab) => (
+        {tabs.map((tab) => tab.workout ? (
+          <CenterWorkoutTab key={tab.label} startedAt={tab.workout.startedAt} active={tab.active} onSelect={() => select(tab)} />
+        ) : (
           <button
             key={tab.label}
             onClick={() => select(tab)}
