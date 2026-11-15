@@ -156,6 +156,20 @@ describe("WorkoutPage save failures are visible, never silent", () => {
   });
 });
 
+// ─── Resuming at the right place ─────────────────────────────────────────────
+
+describe("WorkoutPage — skipping saves the next exercise's warm-up, not its first set", () => {
+  it("saves the warm-up position (-1) so leaving and coming back resumes in the warm-up", async () => {
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly", "1-set")] };
+    await renderPage();
+
+    await click(screen.getByText("Skip exercise"));
+
+    expect(db.updateSessionProgress).toHaveBeenCalledWith("sess-1", 1, -1);
+    expect(activeSlide()).toHaveAccessibleName("Warm-up");
+  });
+});
+
 // ─── Leaving the workout ─────────────────────────────────────────────────────
 
 describe("WorkoutPage — no back button (the tab bar leaves the workout)", () => {

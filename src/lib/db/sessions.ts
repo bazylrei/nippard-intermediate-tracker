@@ -64,7 +64,8 @@ export async function createSession(
   const sb = createClient();
   const data = unwrap("createSession", await sb
     .from("workout_sessions")
-    .insert({ user_id: userId, week, day_index: dayIndex, day_type: dayType, program_id: programId ?? null })
+    // Start at the first exercise's warm-up (-1), so leaving before any set resumes there, not at set 1.
+    .insert({ user_id: userId, week, day_index: dayIndex, day_type: dayType, program_id: programId ?? null, current_set_index: -1 })
     .select()
     .single());
   return mapSession(data);

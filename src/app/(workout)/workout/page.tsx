@@ -119,7 +119,7 @@ function WorkoutContent() {
 
   async function handleSkipExercise() {
     if (exerciseIndex + 1 < resolvedExercises.length) {
-      advanceTo(exerciseIndex + 1, 0);
+      advanceTo(exerciseIndex + 1, -1); // the next exercise starts at its warm-up
       setPhase("warmup");
       return;
     }

@@ -19,7 +19,7 @@ const { chain, responses } = vi.hoisted(() => {
 vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 
 import {
-  logSetAndAdvance, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
+  logSetAndAdvance, createSession, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds,
@@ -83,6 +83,18 @@ describe("logSetAndAdvance", () => {
   it("throws when the save fails so the caller can roll back", async () => {
     responses.push(failure("session not found"));
     await expect(logSetAndAdvance(input)).rejects.toThrow(DbError);
+  });
+});
+
+// ─── createSession ───────────────────────────────────────────────────────────
+
+describe("createSession", () => {
+  it("starts at the first exercise's warm-up, so leaving before a set resumes there", async () => {
+    responses.push({ data: { ...sessionRow, current_exercise_index: 0, current_set_index: -1 }, error: null });
+    const session = await createSession("user-1", 2, 1, "lower-a", null);
+
+    expect(fn("insert")).toHaveBeenCalledWith(expect.objectContaining({ current_set_index: -1 }));
+    expect(session.currentSetIndex).toBe(-1);
   });
 });
 
