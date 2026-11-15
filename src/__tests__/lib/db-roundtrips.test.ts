@@ -19,7 +19,7 @@ const { chain, responses } = vi.hoisted(() => {
 vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 
 import {
-  logSetAndAdvance, getLastSetsForExercises, duplicateProgramWeek, getPrograms,
+  logSetAndAdvance, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds,
@@ -110,6 +110,34 @@ describe("getLastSetsForExercises", () => {
     expect(result.bench.map((s) => s.id)).toEqual(["a", "b"]);
     expect(result.squat.map((s) => s.id)).toEqual(["c"]);
     expect(result.row).toBeUndefined();
+  });
+});
+
+// ─── getBestSetsForExercises ─────────────────────────────────────────────────
+
+describe("getBestSetsForExercises", () => {
+  it("skips the network entirely for an empty list", async () => {
+    expect(await getBestSetsForExercises([])).toEqual({});
+    expect(fn("rpc")).not.toHaveBeenCalled();
+  });
+
+  it("fetches every exercise in one call, keyed by exercise", async () => {
+    responses.push({
+      data: [setRow({ id: "a", exercise_id: "bench", weight_kg: 120 }), setRow({ id: "b", exercise_id: "squat", weight_kg: 160 })],
+      error: null,
+    });
+    const result = await getBestSetsForExercises(["bench", "squat", "row"]);
+
+    expect(fn("rpc")).toHaveBeenCalledTimes(1);
+    expect(fn("rpc")).toHaveBeenCalledWith("best_sets_for_exercises", { p_exercise_ids: ["bench", "squat", "row"] });
+    expect(result.bench).toMatchObject({ id: "a", weight: 120 });
+    expect(result.squat).toMatchObject({ id: "b", weight: 160 });
+    expect(result.row).toBeUndefined();
+  });
+
+  it("throws a DbError instead of hiding a failed query", async () => {
+    responses.push(failure("boom"));
+    await expect(getBestSetsForExercises(["bench"])).rejects.toThrow(DbError);
   });
 });
 

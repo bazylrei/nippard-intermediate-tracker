@@ -4,10 +4,10 @@ import { Suspense, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { updateSessionProgress, completeSession, logSetAndAdvance, deleteWorkoutSession, updateSetLog } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { WorkoutSession, SetLog, Exercise } from "@/lib/types";
+import type { WorkoutSession, SetLog, Exercise, ExerciseRecord } from "@/lib/types";
 import {
   resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, writeBanner, clearBanner,
-  planAfterSet,
+  planAfterSet, recordFor,
 } from "@/lib/workout-helpers";
 import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
@@ -52,7 +52,7 @@ function WorkoutContent() {
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
   const [showNotes, setShowNotes] = useState(false);
-  const [prevSetsByExercise, setPrevSetsByExercise] = useState<Record<string, SetLog[]>>({});
+  const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
 
 
@@ -63,7 +63,7 @@ function WorkoutContent() {
 
   const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
 
-  const prevSets = (currentExercise && prevSetsByExercise[currentExercise.id]) || [];
+  const record = recordFor(recordsByExercise, currentExercise);
   // The set to log next: at the warm-up position (-1), or when returning to a
   // partly done exercise, it's the first set not yet logged.
   const loggedCount = currentExercise ? loggedWorkingSets(sessionSets, currentExercise.id).length : 0;
@@ -97,7 +97,7 @@ function WorkoutContent() {
       setExerciseIndex(boot.exerciseIndex);
       setSetIndex(boot.setIndex);
       setPhase(boot.phase);
-      setPrevSetsByExercise(boot.prevSetsByExercise);
+      setRecordsByExercise(boot.recordsByExercise);
       setLoading(false);
     }
     init();
@@ -300,12 +300,12 @@ function WorkoutContent() {
               steps={currentWarmupSteps}
               active={warmingUp}
               onComplete={handleWarmupComplete}
-              prevWorkingWeightKg={prevSets.at(-1)?.weight}
+              prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
               unit={prefs.unit}
             />
           ) : undefined}
           loggedSets={setsForExercise}
-          previousSets={prevSets}
+          record={record}
           unit={prefs.unit}
           onLog={handleSetLogged}
           onView={setViewingSet}

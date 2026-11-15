@@ -5,6 +5,7 @@ import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
+import PreviousPerformance from "./workout/PreviousPerformance";
 import { kgToDisplay, displayToKg } from "@/lib/units";
 
 interface Props {
@@ -12,6 +13,8 @@ interface Props {
   setIndex: number;
   isLastSet: boolean;
   previousSets: SetLog[];
+  /** All-time best, shown beside "Last time" when given. */
+  bestSet?: SetLog;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
 }
@@ -28,7 +31,7 @@ function formReducer(state: FormState, action: FormAction): FormState {
   return { ...state, [action.field]: action.value };
 }
 
-export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, unit, onLog }: Props) {
+export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, bestSet, unit, onLog }: Props) {
   const [form, dispatch] = useReducer(formReducer, { weight: "", reps: "", rpe: "" });
   const [failureHit, setFailureHit] = useState<boolean | null>(null);
   const [showTechniqueInfo, setShowTechniqueInfo] = useState(false);
@@ -90,17 +93,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         )}
       </div>
 
-      {/* Previous data */}
-      {prevSet && (
-        <div className="rounded-xl px-4 py-2.5 flex items-center justify-between"
-          style={{ background: "color-mix(in srgb, var(--fg) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 7%, transparent)" }}>
-          <span className="text-xs text-muted">Last time</span>
-          <span className="font-display font-semibold text-sm text-fg">
-            {weightPerSide && "2× "}{kgToDisplay(prevSet.weight, unit)}{unit} × {prevSet.reps}
-            {prevSet.rpe && <span className="text-muted font-normal"> @ RPE {prevSet.rpe}</span>}
-          </span>
-        </div>
-      )}
+      <PreviousPerformance lastSet={prevSet} bestSet={bestSet} unit={unit} weightPerSide={weightPerSide} />
 
       {/* Input form */}
       <form onSubmit={handleSubmit} className="space-y-3">

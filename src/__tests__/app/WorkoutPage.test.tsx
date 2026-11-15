@@ -55,7 +55,7 @@ function bootWith(overrides: Record<string, unknown> = {}) {
   boot.bootstrapWorkout.mockResolvedValue({
     userId: "user-1",
     prefs: { unit: "kg", alternateSelections: {}, exerciseNotes: {} },
-    session, sessionSets: [], prevSetsByExercise: { bench: [prevSet] },
+    session, sessionSets: [], recordsByExercise: { bench: { lastSets: [prevSet] } },
     exerciseIndex: 0, setIndex: 0, phase: "sets",
     ...overrides,
   });
@@ -165,6 +165,27 @@ describe("WorkoutPage — workout timer", () => {
     await renderPage();
     expect(screen.getByRole("timer", { name: "Workout duration" })).toHaveTextContent("12:30");
     now.mockRestore();
+  });
+});
+
+// ─── Last time vs best ───────────────────────────────────────────────────────
+
+describe("WorkoutPage — last time and best", () => {
+  it("shows the all-time best beside last time when it's heavier", async () => {
+    const best = { ...prevSet, id: "b", weight: 110, reps: 6 };
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: best } } });
+    await renderPage();
+
+    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
+  });
+
+  it("shows only last time when that was the best", async () => {
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: prevSet } } });
+    await renderPage();
+
+    expect(within(activeSlide()).getByText("Last time")).toBeInTheDocument();
+    expect(within(activeSlide()).queryByText("Best")).toBeNull();
   });
 });
 

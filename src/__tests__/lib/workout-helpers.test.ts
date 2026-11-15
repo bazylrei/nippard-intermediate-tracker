@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, planAfterSet,
+  bestSetToShow, recordFor,
 } from "@/lib/workout-helpers";
 import type { Exercise, SetLog } from "@/lib/types";
 
@@ -69,5 +70,36 @@ describe("planAfterSet", () => {
     // Last set logged for "a" but an earlier set is missing; "b" is done.
     const sets = [set("a", 1), set("b", 0), set("b", 1)];
     expect(planAfterSet([a, b], sets, 0, 1)).toEqual({ kind: "nextExercise", exerciseIndex: 1, setIndex: -1 });
+  });
+});
+
+describe("bestSetToShow", () => {
+  const lifted = (weight: number) => ({ weight, reps: 8 }) as SetLog;
+
+  it("shows the best when it's heavier than everything last session", () => {
+    const best = lifted(110);
+    expect(bestSetToShow({ lastSets: [lifted(95), lifted(100)], bestSet: best })).toBe(best);
+  });
+
+  it("hides the best when last session matched it, since Last time already shows it", () => {
+    expect(bestSetToShow({ lastSets: [lifted(95), lifted(110)], bestSet: lifted(110) })).toBeUndefined();
+  });
+
+  it("hides it when there is no best yet", () => {
+    expect(bestSetToShow({ lastSets: [] })).toBeUndefined();
+  });
+
+  it("shows the best when there are no last-session sets to compare with", () => {
+    const best = lifted(60);
+    expect(bestSetToShow({ lastSets: [], bestSet: best })).toBe(best);
+  });
+});
+
+describe("recordFor", () => {
+  it("returns the exercise's record, or the same empty record when it has none", () => {
+    const record = { lastSets: [set("bench", 0)] };
+    expect(recordFor({ bench: record }, ex)).toBe(record);
+    expect(recordFor({}, ex)).toEqual({ lastSets: [] });
+    expect(recordFor({}, ex)).toBe(recordFor({}, undefined));
   });
 });

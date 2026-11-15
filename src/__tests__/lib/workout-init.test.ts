@@ -5,6 +5,7 @@ const db = vi.hoisted(() => ({
   getPreferences: vi.fn(),
   getIncompleteSessionWithSets: vi.fn(),
   getLastSetsForExercises: vi.fn(),
+  getBestSetsForExercises: vi.fn(),
   createSession: vi.fn(),
 }));
 const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
@@ -24,12 +25,14 @@ const session = (over: Partial<WorkoutSession> = {}): WorkoutSession => ({
 });
 const sets = [{ id: "s1" }] as unknown as SetLog[];
 const prev = { bench: [{ id: "p1" }] } as unknown as Record<string, SetLog[]>;
+const best = { bench: { id: "b1" }, row: { id: "b2" } } as unknown as Record<string, SetLog>;
 
 beforeEach(() => {
   vi.clearAllMocks();
   auth.getSignedInUser.mockResolvedValue({ id: "user-1" });
   db.getPreferences.mockResolvedValue(prefs);
   db.getLastSetsForExercises.mockResolvedValue(prev);
+  db.getBestSetsForExercises.mockResolvedValue(best);
   db.createSession.mockResolvedValue(session({ id: "new", currentExerciseIndex: 0, currentSetIndex: 0 }));
 });
 
@@ -48,12 +51,16 @@ describe("bootstrapWorkout", () => {
     expect(boot).toMatchObject({ sessionSets: sets, exerciseIndex: 1, setIndex: 2, phase: "sets" });
   });
 
-  it("prefetches previous sets for every exercise of the day", async () => {
+  it("prefetches last-session sets and all-time bests for every exercise of the day", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue(null);
     const boot = await bootstrapWorkout({ week: 2, dayIndex: 1, programId: null, workoutDay });
 
     expect(db.getLastSetsForExercises).toHaveBeenCalledWith(["bench", "row"]);
-    expect(boot?.prevSetsByExercise).toBe(prev);
+    expect(db.getBestSetsForExercises).toHaveBeenCalledWith(["bench", "row"]);
+    expect(boot?.recordsByExercise).toEqual({
+      bench: { lastSets: prev.bench, bestSet: best.bench },
+      row: { lastSets: [], bestSet: best.row },
+    });
   });
 
   it("starts a new session when the unfinished one is for a different day", async () => {
