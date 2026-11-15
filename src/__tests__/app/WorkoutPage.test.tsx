@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -65,6 +65,11 @@ async function click(element: HTMLElement) {
   await act(async () => { fireEvent.click(element); });
 }
 
+/** The set-carousel slide for the set being logged now. */
+function activeSlide() {
+  return screen.getByRole("group", { current: true });
+}
+
 /** Render and let the page's async bootstrap settle inside act(), so nothing waits on findBy timeouts. */
 async function renderPage() {
   await act(async () => { render(<WorkoutPage />); });
@@ -93,14 +98,15 @@ describe("WorkoutPage save failures are visible, never silent", () => {
     await click(screen.getByRole("button", { name: /Log Set/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save that set");
-    expect(screen.getByText("Set 1")).toBeInTheDocument(); // back on the set that failed
+    expect(activeSlide()).toHaveAccessibleName("Set 1 of 2"); // back on the set that failed
+    expect(screen.queryByText("Logged")).toBeNull();
   });
 
   it("advances immediately when a set saves, persisting the next position in the same call", async () => {
     await renderPage();
     await click(screen.getByRole("button", { name: /Log Set/ }));
 
-    expect(await screen.findByText("Set 2")).toBeInTheDocument();
+    expect(activeSlide()).toHaveAccessibleName("Set 2 of 2");
     expect(db.logSetAndAdvance).toHaveBeenCalledWith(expect.objectContaining({
       sessionId: "sess-1", exerciseId: "bench", setIndex: 0, nextExerciseIndex: 0, nextSetIndex: 1, completeSession: false,
     }));
@@ -146,6 +152,38 @@ describe("WorkoutPage save failures are visible, never silent", () => {
 
     await waitFor(() => expect(screen.getAllByText("Cable Fly").length).toBeGreaterThan(0));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your place");
+  });
+});
+
+// ─── Set carousel ────────────────────────────────────────────────────────────
+
+describe("WorkoutPage — set carousel", () => {
+  it("shows the logger on the current set and previews the rest", async () => {
+    await renderPage();
+    expect(activeSlide()).toHaveAccessibleName("Set 1 of 2");
+    expect(within(activeSlide()).getByRole("button", { name: /Log Set/ })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Set 2 of 2" })).toHaveTextContent("6–10 reps");
+  });
+
+  it("keeps a logged set swipeable and editable after advancing", async () => {
+    await renderPage();
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    expect(firstSet).toHaveTextContent("100kg × 8");
+    await click(within(firstSet).getByRole("button", { name: /View set/ }));
+    expect(screen.getByRole("heading", { name: "Set 1" })).toBeInTheDocument(); // SetDetailSheet open
+  });
+
+  it("logs the first working set (not a warm-up index) for an exercise with no warm-up", async () => {
+    bootWith({ phase: "warmup", setIndex: -1 });
+    await renderPage();
+    expect(activeSlide()).toHaveAccessibleName("Set 1 of 2");
+
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    expect(db.logSetAndAdvance).toHaveBeenCalledWith(expect.objectContaining({ setIndex: 0, nextSetIndex: 1 }));
+    expect(activeSlide()).toHaveAccessibleName("Set 2 of 2");
   });
 });
 

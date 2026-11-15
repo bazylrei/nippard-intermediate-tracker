@@ -108,6 +108,14 @@ body {
     border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   }
 
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .glass-strong {
     background: color-mix(in srgb, var(--surface) 80%, transparent);
     backdrop-filter: blur(32px);
