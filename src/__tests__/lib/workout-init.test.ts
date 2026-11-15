@@ -63,6 +63,13 @@ describe("bootstrapWorkout", () => {
     });
   });
 
+  it("resumes in the warm-up when the session was left at the warm-up position", async () => {
+    db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ currentExerciseIndex: 0, currentSetIndex: -1 }), sets: [] });
+    const boot = await bootstrapWorkout({ week: 2, dayIndex: 1, programId: null, workoutDay });
+
+    expect(boot).toMatchObject({ exerciseIndex: 0, setIndex: -1, phase: "warmup" });
+  });
+
   it("starts a new session when the unfinished one is for a different day", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ dayIndex: 4 }), sets });
     const boot = await bootstrapWorkout({ week: 2, dayIndex: 1, programId: "prog-1", workoutDay });
