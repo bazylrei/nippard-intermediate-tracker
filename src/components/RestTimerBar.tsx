@@ -37,23 +37,31 @@ export default function RestTimerBar() {
         />
 
         {/* Content row */}
-        <div className="relative flex items-center gap-3 px-4 py-2.5">
-          <Timer size={14} className="text-primary shrink-0" />
-          <span className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Rest</span>
-          <span className="font-display font-bold text-lg text-fg tabular-nums ml-auto">
+        <div className="relative flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-2 w-20 shrink-0">
+            <Timer size={18} className="text-primary shrink-0" />
+            <span className="font-display font-semibold text-sm uppercase tracking-widest text-muted">Rest</span>
+          </div>
+          <span
+            role="timer"
+            aria-label="Rest remaining"
+            className="flex-1 text-center font-display font-bold text-4xl leading-none text-primary tabular-nums"
+          >
             {mins}:{secs.toString().padStart(2, "0")}
           </span>
-          <button
-            onClick={stop}
-            className="text-subtle hover:text-fg transition-colors cursor-pointer ml-1 shrink-0"
-            aria-label="Skip rest"
-          >
-            <X size={16} />
-          </button>
+          <div className="w-20 shrink-0 flex justify-end">
+            <button
+              onClick={stop}
+              className="text-subtle hover:text-fg transition-colors cursor-pointer p-1"
+              aria-label="Skip rest"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Progress line */}
-        <div className="h-0.5" style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)" }}>
+        <div className="h-1" style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)" }}>
           <div
             className="h-full bg-primary"
             style={{ width: `${pct}%`, transition: "width 0.5s linear" }}
