@@ -24,7 +24,6 @@ import WorkoutOverview from "@/components/workout/WorkoutOverview";
 import ExerciseListOverlay from "@/components/workout/ExerciseListOverlay";
 import WorkoutHeader from "@/components/workout/WorkoutHeader";
 import ExerciseInfo from "@/components/workout/ExerciseInfo";
-import SetTiles from "@/components/workout/SetTiles";
 import ExerciseSetCarousel from "@/components/workout/ExerciseSetCarousel";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
@@ -279,14 +278,6 @@ function WorkoutContent() {
           note={prefs.exerciseNotes?.[currentExercise.id]}
           onSwap={() => saveError.attempt(() => toggleAlternate(currentExercise.id), "Couldn't save the exercise swap.")}
           onOpenNotes={() => setShowNotes(true)}
-        />
-
-        <SetTiles
-          totalSets={totalSetsForExercise(currentExercise)}
-          loggedSets={setsForExercise}
-          currentSetIndex={setIndex}
-          isSetsPhase={phase === "sets"}
-          onViewSet={setViewingSet}
         />
 
         <ExerciseSetCarousel
