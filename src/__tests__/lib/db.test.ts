@@ -71,9 +71,9 @@ describe("getPreferences", () => {
     expect(result).toEqual({
       unit: "kg",
       alternateSelections: {},
-      bodyWeightKg: null,
       heightCm: null,
       exerciseNotes: {},
+      weekStartsOn: 1,
     });
   });
 
@@ -82,9 +82,9 @@ describe("getPreferences", () => {
       data: {
         unit: "lbs",
         alternate_selections: { ex1: 1 },
-        body_weight_kg: 80,
         height_cm: 180,
         exercise_notes: { ex1: "my note" },
+        week_starts_on: 0,
       },
       error: null,
     });
@@ -92,9 +92,9 @@ describe("getPreferences", () => {
     expect(result).toEqual({
       unit: "lbs",
       alternateSelections: { ex1: 1 },
-      bodyWeightKg: 80,
       heightCm: 180,
       exerciseNotes: { ex1: "my note" },
+      weekStartsOn: 0,
     });
   });
 });

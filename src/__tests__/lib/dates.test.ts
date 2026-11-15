@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCalendarDate, formatRelativeDay, formatLongDate, formatElapsed } from "@/lib/dates";
+import { formatCalendarDate, formatRelativeDay, formatLongDate, formatElapsed, localYmd, startOfWeek } from "@/lib/dates";
 
 describe("formatCalendarDate", () => {
   it("formats YYYY-MM-DD without shifting the day across timezones", () => {
@@ -47,5 +47,29 @@ describe("formatElapsed", () => {
   it("drops fractions and treats negative durations (clock skew) as zero", () => {
     expect(formatElapsed(61.9)).toBe("1:01");
     expect(formatElapsed(-5)).toBe("0:00");
+  });
+});
+
+describe("localYmd", () => {
+  it("uses the local calendar day, zero-padded", () => {
+    expect(localYmd(new Date(2026, 0, 5, 23, 59))).toBe("2026-01-05");
+  });
+});
+
+describe("startOfWeek", () => {
+  const wed = new Date(2026, 10, 18, 9); // Wednesday 18 Nov 2026
+
+  it("goes back to the chosen first day", () => {
+    expect(startOfWeek(wed, 1)).toBe("2026-11-16"); // Monday
+    expect(startOfWeek(wed, 0)).toBe("2026-11-15"); // Sunday
+    expect(startOfWeek(wed, 4)).toBe("2026-11-12"); // Thursday: last week's
+  });
+
+  it("is the same day when today is the first day", () => {
+    expect(startOfWeek(new Date(2026, 10, 16, 0, 5), 1)).toBe("2026-11-16");
+  });
+
+  it("crosses month and year boundaries", () => {
+    expect(startOfWeek(new Date(2026, 0, 1), 1)).toBe("2025-12-29"); // Thu 1 Jan 2026
   });
 });

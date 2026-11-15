@@ -64,9 +64,18 @@ export interface WorkoutPosition {
 export interface UserPreferences {
   unit: "kg" | "lbs";
   alternateSelections: Record<string, number>; // exerciseId -> 0 (main) | 1 (alt1) | 2 (alt2)
-  bodyWeightKg?: number | null;
   heightCm?: number | null;
+  /** First day of the user's week, 0 = Sunday … 6 = Saturday. Drives the weekly weigh-in prompt. */
+  weekStartsOn: number;
   exerciseNotes: Record<string, string>; // exerciseId -> user's personal note
+}
+
+/** One weigh-in. Body weight is a dated history; the latest entry is the current weight. */
+export interface BodyWeightLog {
+  /** Local calendar date, "YYYY-MM-DD". */
+  loggedOn: string;
+  weightKg: number;
+  source: "manual" | "apple_health" | "google_fit";
 }
 
 export interface SetLog {

@@ -51,6 +51,8 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 | `src/lib/program-data.ts` | Schedule navigation: `nextWorkout`, session numbering, totals |
 | `src/lib/day-types.ts` | The one day-type table; always display via `dayLabel()` |
 | `src/lib/units.ts` | The one kg↔lbs conversion (`kgToDisplay` / `displayToKg`) |
+| `src/lib/db/body-weight.ts` | Body weight is a dated history (`body_weight_logs`, one entry per day, `source` for future health-app sync); the latest entry is the current weight |
+| `src/lib/weigh-in.ts` | When the weekly weigh-in prompt is due (from `weekStartsOn` in preferences) |
 | `src/lib/workout-history.ts` | Route helpers (`startWorkoutHref`, `workoutDetailHref`) and set grouping |
 | `scripts/program-data-static.ts` | Hardcoded program structure used by the seed script |
 | `src/lib/program-db.ts` | Loads program from DB into context |

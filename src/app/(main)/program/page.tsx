@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth";
 import { requireSignedInUser, SIGN_IN_PATH } from "@/lib/require-user";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
-import { getCompletedSlots, getIncompleteSession, getPreferences, upsertPreferences, type CompletedSlot } from "@/lib/db";
+import {
+  getCompletedSlots, getIncompleteSession, getLatestBodyWeight, getPreferences, logBodyWeight, upsertPreferences, type CompletedSlot,
+} from "@/lib/db";
 import { getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { UserPreferences, WorkoutPosition } from "@/lib/types";
+import type { BodyWeightLog, UserPreferences, WorkoutPosition } from "@/lib/types";
+import { localYmd } from "@/lib/dates";
 import { latestSessionBySlot, startWorkoutHref, workoutDetailHref } from "@/lib/workout-history";
 import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import WeekDayTile from "@/components/program/WeekDayTile";
@@ -40,6 +43,7 @@ export default function MyProgram() {
   const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
   const [completed, setCompleted] = useState<CompletedSlot[]>(cached?.completed ?? []);
   const [prefs, setPrefs] = useState<UserPreferences>(() => readCachedPrefs() ?? DEFAULT_PREFS);
+  const [bodyWeight, setBodyWeight] = useState<BodyWeightLog | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const saveError = useSaveError();
 
@@ -49,12 +53,13 @@ export default function MyProgram() {
       if (!user) return;
       setUserId(user.id);
 
-      let incomplete, slots, p;
+      let incomplete, slots, p, latestWeight;
       try {
-        [incomplete, slots, p] = await Promise.all([
+        [incomplete, slots, p, latestWeight] = await Promise.all([
           getIncompleteSession(user.id),
           getCompletedSlots(user.id),
           getPreferences(user.id),
+          getLatestBodyWeight(user.id),
         ]);
       } catch (error) {
         console.error(error);
@@ -66,6 +71,7 @@ export default function MyProgram() {
       setResume(resumeAt);
       setCompleted(slots);
       setPrefs(p);
+      setBodyWeight(latestWeight);
       setEmail(resolvedEmail);
       cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots, email: resolvedEmail });
       cachePrefs(p);
@@ -95,8 +101,20 @@ export default function MyProgram() {
   const toggleUnit = () =>
     savePrefs({ unit: prefs.unit === "kg" ? "lbs" : "kg" }, "Couldn't change the weight unit. Try again.");
 
-  const saveBodyStats = (stats: { bodyWeightKg: number | null; heightCm: number | null }) =>
-    savePrefs(stats, "Couldn't save your body stats. Try again.");
+  const saveHeight = (heightCm: number | null) => savePrefs({ heightCm }, "Couldn't save your height. Try again.");
+
+  const changeWeekStart = (weekStartsOn: number) =>
+    savePrefs({ weekStartsOn }, "Couldn't change the first day of your week. Try again.");
+
+  /** Optimistic like savePrefs: today's weigh-in shows at once and reverts if saving fails. */
+  async function logWeight(weightKg: number) {
+    if (!userId) return;
+    const previous = bodyWeight;
+    const today = localYmd(new Date());
+    setBodyWeight({ loggedOn: today, weightKg, source: "manual" });
+    const ok = await saveError.attempt(() => logBodyWeight(userId, today, weightKg), "Couldn't save your body weight. Try again.");
+    if (!ok) setBodyWeight(previous);
+  }
 
   // With a cached dashboard on screen, a failed refresh just leaves it as is.
   if (loading && loadFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -142,7 +160,16 @@ export default function MyProgram() {
 
       {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
-      {showSettings && <SettingsPanel prefs={prefs} onToggleUnit={toggleUnit} onSaveBodyStats={saveBodyStats} />}
+      {showSettings && (
+        <SettingsPanel
+          prefs={prefs}
+          bodyWeightKg={bodyWeight?.weightKg ?? null}
+          onToggleUnit={toggleUnit}
+          onSaveHeight={saveHeight}
+          onLogBodyWeight={logWeight}
+          onChangeWeekStart={changeWeekStart}
+        />
+      )}
 
       {/* Program progress */}
       <div className="glass gloss rounded-2xl p-5 space-y-3">

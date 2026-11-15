@@ -17,6 +17,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      body_weight_logs: {
+        Row: {
+          created_at: string
+          id: string
+          logged_on: string
+          source: string
+          user_id: string
+          weight_kg: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logged_on: string
+          source?: string
+          user_id: string
+          weight_kg: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logged_on?: string
+          source?: string
+          user_id?: string
+          weight_kg?: number
+        }
+        Relationships: []
+      }
       exercises: {
         Row: {
           alternate_1: string | null
@@ -290,6 +317,7 @@ export type Database = {
           unit: string
           updated_at: string
           user_id: string
+          week_starts_on: number
         }
         Insert: {
           alternate_selections?: Json
@@ -301,6 +329,7 @@ export type Database = {
           unit?: string
           updated_at?: string
           user_id: string
+          week_starts_on?: number
         }
         Update: {
           alternate_selections?: Json
@@ -312,6 +341,7 @@ export type Database = {
           unit?: string
           updated_at?: string
           user_id?: string
+          week_starts_on?: number
         }
         Relationships: []
       }

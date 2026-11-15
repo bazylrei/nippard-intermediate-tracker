@@ -21,6 +21,7 @@ vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 import {
   logSetAndAdvance, createSession, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
+  getLatestBodyWeight, logBodyWeight,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds,
 } from "@/lib/db";
@@ -249,13 +250,44 @@ describe("deletes rely on ON DELETE CASCADE", () => {
   });
 });
 
+// ─── Body weight ─────────────────────────────────────────────────────────────
+
+describe("getLatestBodyWeight", () => {
+  it("returns the most recent weigh-in, mapped", async () => {
+    responses.push({ data: { logged_on: "2026-11-16", weight_kg: 82.4, source: "manual" }, error: null });
+    expect(await getLatestBodyWeight("user-1")).toEqual({ loggedOn: "2026-11-16", weightKg: 82.4, source: "manual" });
+    expect(fn("order")).toHaveBeenCalledWith("logged_on", { ascending: false });
+  });
+
+  it("returns null before the first weigh-in", async () => {
+    responses.push({ data: null, error: null });
+    expect(await getLatestBodyWeight("user-1")).toBeNull();
+  });
+});
+
+describe("logBodyWeight", () => {
+  it("upserts one manual entry per day, so logging the same day again replaces it", async () => {
+    await logBodyWeight("user-1", "2026-11-16", 82.4);
+    expect(fn("upsert")).toHaveBeenCalledWith(
+      { user_id: "user-1", logged_on: "2026-11-16", weight_kg: 82.4, source: "manual" },
+      { onConflict: "user_id,logged_on" },
+    );
+  });
+
+  it("throws a DbError instead of hiding a failed save", async () => {
+    responses.push(failure("offline"));
+    await expect(logBodyWeight("user-1", "2026-11-16", 82.4)).rejects.toThrow(DbError);
+  });
+});
+
 // ─── upsertPreferences ───────────────────────────────────────────────────────
 
 describe("upsertPreferences", () => {
   it("maps camelCase fields to snake_case columns (regression: fields were spread as-is)", async () => {
-    await upsertPreferences("user-1", { alternateSelections: { bench: 1 }, bodyWeightKg: 80 });
+    // weekStartsOn 0 (Sunday) is falsy: it must still be written.
+    await upsertPreferences("user-1", { alternateSelections: { bench: 1 }, weekStartsOn: 0 });
     expect(fn("upsert")).toHaveBeenCalledWith(
-      { user_id: "user-1", alternate_selections: { bench: 1 }, body_weight_kg: 80 },
+      { user_id: "user-1", alternate_selections: { bench: 1 }, week_starts_on: 0 },
       { onConflict: "user_id" },
     );
   });
