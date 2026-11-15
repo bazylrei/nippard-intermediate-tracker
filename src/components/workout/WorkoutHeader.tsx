@@ -7,8 +7,7 @@ import WorkoutTimer from "./WorkoutTimer";
 interface Props {
   week: number;
   dayType: string;
-  /** When the session began; the duration timer is hidden without it. */
-  startedAt?: string;
+  startedAt: string;
   exerciseIndex: number;
   exerciseCount: number;
   isDone: (index: number) => boolean;
@@ -38,7 +37,7 @@ export default function WorkoutHeader({
             Exercise {exerciseIndex + 1} of {exerciseCount}
           </p>
         </div>
-        {startedAt && <WorkoutTimer startedAt={startedAt} />}
+        <WorkoutTimer startedAt={startedAt} />
         {/* Progress dots */}
         <div className="flex gap-1 items-center">
           {exercises.map((_, i) => (

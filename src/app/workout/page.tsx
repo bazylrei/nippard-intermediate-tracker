@@ -205,7 +205,7 @@ function WorkoutContent() {
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
   if (loadFailed) return <FullScreenMessage message="Couldn't start the workout. Check your connection and try again." />;
   if (loading) return <FullScreenMessage message="Loading workout…" />;
-  if (!workoutDay || !currentExercise) return <FullScreenMessage message="Invalid workout." />;
+  if (!workoutDay || !currentExercise || !session) return <FullScreenMessage message="Invalid workout." />;
 
   // ── Done screen ──────────────────────────────────────────────────────────
   if (done) {
@@ -259,7 +259,7 @@ function WorkoutContent() {
       <WorkoutHeader
         week={week}
         dayType={workoutDay.dayType}
-        startedAt={session?.startedAt}
+        startedAt={session.startedAt}
         exerciseIndex={exerciseIndex}
         exerciseCount={resolvedExercises.length}
         isDone={isExerciseDone}
