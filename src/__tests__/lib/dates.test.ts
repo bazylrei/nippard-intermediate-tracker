@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCalendarDate, formatRelativeDay, formatLongDate } from "@/lib/dates";
+import { formatCalendarDate, formatRelativeDay, formatLongDate, formatElapsed } from "@/lib/dates";
 
 describe("formatCalendarDate", () => {
   it("formats YYYY-MM-DD without shifting the day across timezones", () => {
@@ -31,5 +31,21 @@ describe("formatRelativeDay", () => {
     expect(formatRelativeDay(new Date(2026, 10, 9, 12).toISOString(), now)).toBe("3 days ago");
     expect(formatRelativeDay(new Date(2026, 10, 6, 12).toISOString(), now)).toBe("6 days ago");
     expect(formatRelativeDay(new Date(2026, 10, 5, 12).toISOString(), now)).toBe("Nov 5");
+  });
+});
+
+describe("formatElapsed", () => {
+  it("shows minutes and zero-padded seconds under an hour", () => {
+    expect(formatElapsed(0)).toBe("0:00");
+    expect(formatElapsed(247)).toBe("4:07");
+    expect(formatElapsed(3599)).toBe("59:59");
+  });
+  it("adds hours, zero-padding the minutes, from an hour up", () => {
+    expect(formatElapsed(3600)).toBe("1:00:00");
+    expect(formatElapsed(3729)).toBe("1:02:09");
+  });
+  it("drops fractions and treats negative durations (clock skew) as zero", () => {
+    expect(formatElapsed(61.9)).toBe("1:01");
+    expect(formatElapsed(-5)).toBe("0:00");
   });
 });

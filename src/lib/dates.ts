@@ -21,3 +21,12 @@ export function formatRelativeDay(iso: string, now: Date = new Date()): string {
 export function formatLongDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
 }
+
+/** A duration as a clock: "4:07", or "1:02:09" from an hour up. Negative counts as zero. */
+export function formatElapsed(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  const secs = String(s % 60).padStart(2, "0");
+  return hours > 0 ? `${hours}:${String(mins).padStart(2, "0")}:${secs}` : `${mins}:${secs}`;
+}
