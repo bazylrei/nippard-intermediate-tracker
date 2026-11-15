@@ -44,14 +44,17 @@ export default function AppNav() {
       </aside>
 
       {/* Mobile: bottom bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur border-t border-border flex z-40 safe-bottom">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur border-t border-border flex z-40 safe-bottom"
+        style={{ height: "var(--app-nav-h)" }}
+      >
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <button
               key={href}
               onClick={() => router.push(href)}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors cursor-pointer ${
+              className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
                 active ? "text-primary" : "text-subtle hover:text-muted"
               }`}
             >

@@ -43,7 +43,7 @@ vi.mock("@/context/ProgramContext", () => ({
   useProgramContext: () => ({ getWorkoutDay, warmupSteps: WARMUP_STEPS, programId: null, ready: true, failed: programFailed, failureTechniques: {} }),
 }));
 
-import WorkoutPage from "@/app/workout/page";
+import WorkoutPage from "@/app/(workout)/workout/page";
 
 const session: WorkoutSession = {
   id: "sess-1", userId: "user-1", programId: null, week: 1, dayIndex: 0, dayType: "upper-a",
@@ -153,6 +153,22 @@ describe("WorkoutPage save failures are visible, never silent", () => {
 
     await waitFor(() => expect(screen.getAllByText("Cable Fly").length).toBeGreaterThan(0));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your place");
+  });
+});
+
+// ─── Leaving the workout ─────────────────────────────────────────────────────
+
+describe("WorkoutPage — no back button (the tab bar leaves the workout)", () => {
+  it("has no go-home button in the workout header, only Discard", async () => {
+    await renderPage();
+    expect(screen.queryByTitle("Go home")).toBeNull();
+    expect(screen.getByTitle("Discard workout")).toBeInTheDocument();
+  });
+
+  it("has no back button on the overview, only Begin Workout", async () => {
+    bootWith({ phase: "overview" });
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Begin Workout"]);
   });
 });
 

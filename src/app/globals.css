@@ -2,6 +2,8 @@
 
 /* ── Light mode tokens ───────────────────────────────────────────────────── */
 :root {
+  /* Mobile tab bar height (BottomNav), safe area included. */
+  --app-nav-h:  calc(4rem + env(safe-area-inset-bottom));
   --bg:         #F0EFE9;
   --surface:    #FAFAF8;
   --elevated:   #E8E7E0;
@@ -156,4 +158,10 @@ body {
   .safe-top     { padding-top: env(safe-area-inset-top); }
   .safe-bottom  { padding-bottom: env(safe-area-inset-bottom); }
   .pt-safe      { padding-top: max(1rem, env(safe-area-inset-top)); }
+
+  /* The screen below the safe area and above the mobile tab bar (BottomNav). */
+  .workout-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h)); }
+  @media (min-width: 48rem) {
+    .workout-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
+  }
 }
