@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, getRecentWorkouts } from "@/lib/db";
+import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, getRecentWorkouts, logBodyWeight } from "@/lib/db";
+import { localYmd } from "@/lib/dates";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
@@ -11,6 +12,7 @@ import FullScreenMessage from "@/components/FullScreenMessage";
 import HistoryTab from "./HistoryTab";
 import ExerciseTab, { type ExerciseHistoryPoint } from "./ExerciseTab";
 import VolumeTab from "./VolumeTab";
+import type { WeeklyVolume } from "@/lib/volume";
 import { TrendingUp, BarChart3, Clock } from "lucide-react";
 
 type Tab = "exercise" | "volume" | "history";
@@ -41,7 +43,7 @@ function ProgressContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loggedIds, setLoggedIds] = useState<string[]>([]);
-  const [volume, setVolume] = useState<{ week: number; volume: number }[]>([]);
+  const [volume, setVolume] = useState<WeeklyVolume>({ weeks: [], missingBodyWeight: false });
   const [selectedExercise, setSelectedExercise] = useState("");
   const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,13 @@ function ProgressContent() {
     }
     void init();
   }, [router]);
+
+  /** From the volume tab's call to action: rejects on failure so the form can show it. */
+  async function logWeightAndRefresh(weightKg: number) {
+    if (!userId) return;
+    await logBodyWeight(userId, localYmd(new Date()), weightKg);
+    setVolume(await getWeeklyVolume(userId));
+  }
 
   useEffect(() => {
     if (!userId || !activeExercise) return;
@@ -134,7 +143,7 @@ function ProgressContent() {
             chartWidth={chartWidth}
           />
         )}
-        {tab === "volume" && <VolumeTab volume={volume} unit={unit} chartWidth={chartWidth} />}
+        {tab === "volume" && <VolumeTab volume={volume} unit={unit} chartWidth={chartWidth} onLogBodyWeight={logWeightAndRefresh} />}
         {tab === "history" && <HistoryTab items={historyItems} loaded={historyLoaded} failed={historyFailed} />}
       </div>
     </div>

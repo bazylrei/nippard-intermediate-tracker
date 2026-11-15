@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { vi } from "vitest";
 import ExerciseTab from "@/app/(main)/progress/ExerciseTab";
 import VolumeTab from "@/app/(main)/progress/VolumeTab";
@@ -39,7 +39,19 @@ describe("ExerciseTab", () => {
 
 describe("VolumeTab", () => {
   it("labels volume in the user's unit", () => {
-    render(<VolumeTab volume={[{ week: 1, volume: 1000 }]} unit="lbs" chartWidth={0} />);
+    render(<VolumeTab volume={{ weeks: [{ week: 1, volume: 1000 }], missingBodyWeight: false }} unit="lbs" chartWidth={0} onLogBodyWeight={vi.fn()} />);
     expect(screen.getByText(/weekly training volume \(lbs\)/)).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("explains that bodyweight exercises are understated, with a way to log body weight right there", async () => {
+    const onLogBodyWeight = vi.fn().mockResolvedValue(undefined);
+    render(<VolumeTab volume={{ weeks: [{ week: 1, volume: 1000 }], missingBodyWeight: true }} unit="kg" chartWidth={0} onLogBodyWeight={onLogBodyWeight} />);
+    expect(screen.getByRole("note")).toHaveTextContent("count only their added weight until you log your body weight");
+
+    fireEvent.click(screen.getByRole("button", { name: "Log body weight" }));
+    fireEvent.change(screen.getByLabelText("Body weight (kg)"), { target: { value: "80" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save" })); });
+    expect(onLogBodyWeight).toHaveBeenCalledWith(80);
   });
 });
