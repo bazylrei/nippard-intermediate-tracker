@@ -382,6 +382,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      best_sets_for_exercises: {
+        Args: { p_exercise_ids: string[] }
+        Returns: {
+          exercise_id: string
+          failure_hit: boolean | null
+          id: string
+          is_last_set: boolean
+          logged_at: string
+          reps: number
+          rpe: number | null
+          session_id: string
+          set_index: number
+          user_id: string
+          weight_kg: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "set_logs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       duplicate_program_week: {
         Args: {
           p_new_total_weeks: number

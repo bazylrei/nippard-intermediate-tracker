@@ -83,6 +83,14 @@ export interface SetLog {
   loggedAt: string; // ISO timestamp
 }
 
+/** An exercise's track record from completed sessions. */
+export interface ExerciseRecord {
+  /** Working sets from the most recent completed session with this exercise. */
+  lastSets: SetLog[];
+  /** The heaviest working set ever logged (most reps breaks a tie). */
+  bestSet?: SetLog;
+}
+
 export interface WorkoutSession {
   id: string;
   userId: string;

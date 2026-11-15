@@ -1,4 +1,4 @@
-import type { Exercise, SetLog } from "./types";
+import type { Exercise, ExerciseRecord, SetLog } from "./types";
 import { clearActiveWorkout, saveActiveWorkout } from "./active-workout";
 
 export function resolveExercises(exercises: Exercise[], selections: Record<string, number>): Exercise[] {
@@ -60,4 +60,21 @@ export function writeBanner(exIdx: number, exercises: Exercise[], wk: number, dI
 
 export function clearBanner(): void {
   clearActiveWorkout();
+}
+
+/**
+ * The all-time best set, but only when it's heavier than everything in the
+ * last session — otherwise "Last time" already shows it.
+ */
+export function bestSetToShow({ lastSets, bestSet }: ExerciseRecord): SetLog | undefined {
+  if (!bestSet) return undefined;
+  const lastTop = Math.max(0, ...lastSets.map((s) => s.weight));
+  return bestSet.weight > lastTop ? bestSet : undefined;
+}
+
+const NO_RECORD: ExerciseRecord = { lastSets: [] };
+
+/** The exercise's record, or an empty one (a stable reference) when it has no history. */
+export function recordFor(records: Record<string, ExerciseRecord>, exercise: Exercise | undefined): ExerciseRecord {
+  return (exercise && records[exercise.id]) || NO_RECORD;
 }

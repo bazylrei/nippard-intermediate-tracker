@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Exercise, SetLog } from "@/lib/types";
-import { totalSetsForExercise } from "@/lib/workout-helpers";
+import type { Exercise, ExerciseRecord, SetLog } from "@/lib/types";
+import { bestSetToShow, totalSetsForExercise } from "@/lib/workout-helpers";
 import SetLogger from "@/components/SetLogger";
 import SetCarousel from "./SetCarousel";
 import { LoggedSetCard, UpcomingSetCard } from "./SetCards";
@@ -14,7 +14,7 @@ interface Props {
   /** Optional first slide, shown before the working sets. */
   warmup?: ReactNode;
   loggedSets: SetLog[];
-  previousSets: SetLog[];
+  record: ExerciseRecord;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
   onView: (set: SetLog) => void;
@@ -24,7 +24,7 @@ interface Props {
  * An exercise as carousel slides: an optional warm-up, then each working set —
  * logged, being logged now, or still to come.
  */
-export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, previousSets, unit, onLog, onView }: Props) {
+export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, record, unit, onLog, onView }: Props) {
   const totalSets = totalSetsForExercise(exercise);
   const offset = warmup ? 1 : 0;
   const activeIndex = currentSetIndex === null ? 0 : currentSetIndex + offset;
@@ -49,7 +49,8 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup,
           exercise={exercise}
           setIndex={index}
           isLastSet={isLastSet}
-          previousSets={previousSets}
+          previousSets={record.lastSets}
+          bestSet={bestSetToShow(record)}
           unit={unit}
           onLog={onLog}
         />

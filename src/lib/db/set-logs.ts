@@ -104,3 +104,17 @@ export async function getLastSetsForExercises(exerciseIds: string[]): Promise<Re
   }
   return byExercise;
 }
+
+/**
+ * For each exercise, the heaviest working set ever logged in a completed
+ * session (most reps breaks a tie) — every exercise in one round trip.
+ */
+export async function getBestSetsForExercises(exerciseIds: string[]): Promise<Record<string, SetLog>> {
+  if (exerciseIds.length === 0) return {};
+  const sb = createClient();
+  const data = unwrap("getBestSetsForExercises", await sb.rpc("best_sets_for_exercises", { p_exercise_ids: exerciseIds }));
+
+  const byExercise: Record<string, SetLog> = {};
+  for (const row of data ?? []) byExercise[row.exercise_id] = mapSetLog(row);
+  return byExercise;
+}

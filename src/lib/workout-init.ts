@@ -1,10 +1,10 @@
 import { getSignedInUser } from "./auth";
 import {
-  createSession, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
+  createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
 import { cachePrefs } from "./prefs-cache";
 import { resolveExercises, writeBanner } from "./workout-helpers";
-import type { Exercise, SetLog, UserPreferences, WorkoutSession } from "./types";
+import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession } from "./types";
 
 export type WorkoutPhase = "overview" | "warmup" | "sets";
 
@@ -13,8 +13,8 @@ export interface WorkoutBootstrap {
   prefs: UserPreferences;
   session: WorkoutSession;
   sessionSets: SetLog[];
-  /** Previous-session working sets for every exercise of the day, keyed by exercise id. */
-  prevSetsByExercise: Record<string, SetLog[]>;
+  /** Last-session sets and all-time best for every exercise of the day, keyed by exercise id. */
+  recordsByExercise: Record<string, ExerciseRecord>;
   exerciseIndex: number;
   setIndex: number;
   phase: WorkoutPhase;
@@ -34,10 +34,12 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
 
   const { exercises, dayType } = workoutDay;
   // Everything the page needs, in one parallel round trip.
-  const [prefs, existing, prevSetsByExercise] = await Promise.all([
+  const exerciseIds = exercises.map((ex) => ex.id);
+  const [prefs, existing, lastSets, bestSets] = await Promise.all([
     getPreferences(user.id),
     getIncompleteSessionWithSets(user.id),
-    getLastSetsForExercises(exercises.map((ex) => ex.id)),
+    getLastSetsForExercises(exerciseIds),
+    getBestSetsForExercises(exerciseIds),
   ]);
   cachePrefs(prefs);
 
@@ -59,5 +61,14 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
   const setIndex = resumable ? session.currentSetIndex : 0;
   writeBanner(session.currentExerciseIndex ?? 0, resolveExercises(exercises, prefs.alternateSelections), week, dayIndex, session.dayType);
 
-  return { userId: user.id, prefs, session, sessionSets, prevSetsByExercise, exerciseIndex, setIndex, phase };
+  const recordsByExercise = mergeRecords(lastSets, bestSets);
+  return { userId: user.id, prefs, session, sessionSets, recordsByExercise, exerciseIndex, setIndex, phase };
+}
+
+function mergeRecords(lastSets: Record<string, SetLog[]>, bestSets: Record<string, SetLog>): Record<string, ExerciseRecord> {
+  const records: Record<string, ExerciseRecord> = {};
+  for (const id of new Set([...Object.keys(lastSets), ...Object.keys(bestSets)])) {
+    records[id] = { lastSets: lastSets[id] ?? [], bestSet: bestSets[id] };
+  }
+  return records;
 }
