@@ -11,6 +11,7 @@ import FullScreenMessage from "@/components/FullScreenMessage";
 import HistoryTab from "./HistoryTab";
 import ExerciseTab, { type ExerciseHistoryPoint } from "./ExerciseTab";
 import VolumeTab from "./VolumeTab";
+import type { WeeklyVolume } from "@/lib/volume";
 import { TrendingUp, BarChart3, Clock } from "lucide-react";
 
 type Tab = "exercise" | "volume" | "history";
@@ -41,7 +42,7 @@ function ProgressContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loggedIds, setLoggedIds] = useState<string[]>([]);
-  const [volume, setVolume] = useState<{ week: number; volume: number }[]>([]);
+  const [volume, setVolume] = useState<WeeklyVolume>({ weeks: [], missingBodyWeight: false });
   const [selectedExercise, setSelectedExercise] = useState("");
   const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
   const chartContainerRef = useRef<HTMLDivElement>(null);

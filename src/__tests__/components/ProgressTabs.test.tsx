@@ -39,7 +39,13 @@ describe("ExerciseTab", () => {
 
 describe("VolumeTab", () => {
   it("labels volume in the user's unit", () => {
-    render(<VolumeTab volume={[{ week: 1, volume: 1000 }]} unit="lbs" chartWidth={0} />);
+    render(<VolumeTab volume={{ weeks: [{ week: 1, volume: 1000 }], missingBodyWeight: false }} unit="lbs" chartWidth={0} />);
     expect(screen.getByText(/weekly training volume \(lbs\)/)).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
+  it("explains that bodyweight exercises are understated until a body weight is logged", () => {
+    render(<VolumeTab volume={{ weeks: [{ week: 1, volume: 1000 }], missingBodyWeight: true }} unit="kg" chartWidth={0} />);
+    expect(screen.getByRole("note")).toHaveTextContent("count only their added weight until you log your body weight");
   });
 });

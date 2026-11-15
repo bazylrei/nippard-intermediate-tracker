@@ -345,17 +345,34 @@ describe("getRecentWorkouts without a limit", () => {
 // ─── Progress ────────────────────────────────────────────────────────────────
 
 describe("getWeeklyVolume", () => {
+  // Three parallel queries, answered in order: sets, exercise flags, weigh-ins.
+  const set = (exercise_id: string, weight_kg: number, reps: number, week: number) =>
+    ({ exercise_id, weight_kg, reps, logged_at: "2026-11-10T10:00:00Z", workout_sessions: { week, completed_at: "x" } });
+
   it("sums kg × reps per week, rounds, and sorts weeks ascending", async () => {
-    responses.push({ data: [
-      { weight_kg: 100, reps: 5, workout_sessions: { week: 2, completed_at: "x" } },
-      { weight_kg: 50.5, reps: 3, workout_sessions: { week: 1, completed_at: "x" } },
-      { weight_kg: 100, reps: 5, workout_sessions: { week: 2, completed_at: "x" } },
-    ], error: null });
-    expect(await getWeeklyVolume("user-1")).toEqual([
-      { week: 1, volume: 152 },
-      { week: 2, volume: 1000 },
-    ]);
+    responses.push(
+      { data: [set("bench", 100, 5, 2), set("bench", 50.5, 3, 1), set("bench", 100, 5, 2)], error: null },
+      { data: [{ id: "bench", is_bodyweight: false, weight_per_side: false }], error: null },
+      { data: [], error: null },
+    );
+    expect(await getWeeklyVolume("user-1")).toEqual({
+      weeks: [{ week: 1, volume: 152 }, { week: 2, volume: 1000 }],
+      missingBodyWeight: false,
+    });
     expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
+  });
+
+  it("doubles per-side weights and adds the body weight logged by then to bodyweight sets", async () => {
+    responses.push(
+      { data: [set("db-row", 30, 10, 1), set("pull-up", 10, 8, 1)], error: null },
+      { data: [
+        { id: "db-row", is_bodyweight: false, weight_per_side: true },
+        { id: "pull-up", is_bodyweight: true, weight_per_side: false },
+      ], error: null },
+      { data: [{ logged_on: "2026-11-09", weight_kg: 80, source: "manual" }], error: null },
+    );
+    // 2 × 30 × 10 = 600, plus (80 + 10) × 8 = 720
+    expect(await getWeeklyVolume("user-1")).toEqual({ weeks: [{ week: 1, volume: 1320 }], missingBodyWeight: false });
   });
 });
 

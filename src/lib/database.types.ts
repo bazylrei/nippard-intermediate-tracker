@@ -309,7 +309,6 @@ export type Database = {
       user_preferences: {
         Row: {
           alternate_selections: Json
-          body_weight_kg: number | null
           created_at: string
           exercise_notes: Json
           height_cm: number | null
@@ -321,7 +320,6 @@ export type Database = {
         }
         Insert: {
           alternate_selections?: Json
-          body_weight_kg?: number | null
           created_at?: string
           exercise_notes?: Json
           height_cm?: number | null
@@ -333,7 +331,6 @@ export type Database = {
         }
         Update: {
           alternate_selections?: Json
-          body_weight_kg?: number | null
           created_at?: string
           exercise_notes?: Json
           height_cm?: number | null

@@ -5,6 +5,8 @@ import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { kgToDisplay } from "@/lib/units";
+import { setLoadKg } from "@/lib/volume";
+import type { PostWorkoutData } from "@/hooks/useWorkoutHistory";
 import { formatCalendarDate } from "@/lib/dates";
 
 /** Recessive axis text: muted ink, small, tabular figures. */
@@ -15,13 +17,14 @@ interface Props {
   dayType: string;
   exercises: Exercise[];
   sessionSets: SetLog[];
-  postHistory: Record<string, { date: string; weight: number; reps: number }[]>;
+  postWorkout: PostWorkoutData;
   unit: "kg" | "lbs";
   onHome: () => void;
   onProgress: () => void;
 }
 
-export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postHistory, unit, onHome, onProgress }: Props) {
+export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postWorkout, unit, onHome, onProgress }: Props) {
+  const { history: postHistory, bodyWeightKg } = postWorkout;
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
 
   return (
@@ -76,7 +79,9 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               const todayWeight = history[history.length - 1]?.weight ?? todayBest.weight;
               // History is in kg; convert the difference so "+2.5lbs vs last" is really lbs.
               const delta = prevPoint ? kgToDisplay(todayWeight - prevPoint.weight, unit) : null;
-              const totalVolume = Math.round(exSets.reduce((sum, s) => sum + s.weight * s.reps, 0));
+              // Weight actually moved: per-side doubled, body weight added to bodyweight exercises.
+              const totalVolume = Math.round(exSets.reduce((sum, s) => sum + setLoadKg(s.weight, ex, bodyWeightKg) * s.reps, 0));
+              const volumeMissesBodyWeight = ex.isBodyweight && bodyWeightKg === null;
               const displayWeight = kgToDisplay(todayBest.weight, unit);
 
               return (
@@ -113,6 +118,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                     )}
                     <div className="text-xs text-muted">
                       Vol: <span className="text-fg font-display font-semibold">{Math.round(kgToDisplay(totalVolume, unit))}{unit}</span>
+                      {volumeMissesBodyWeight && <span className="text-subtle"> · added weight only</span>}
                     </div>
                   </div>
 

@@ -19,6 +19,17 @@ export async function getLatestBodyWeight(userId: string): Promise<BodyWeightLog
   return row ? mapLog(row) : null;
 }
 
+/** Every weigh-in, oldest first (one per day, so a few hundred rows at most). */
+export async function getBodyWeightLogs(userId: string): Promise<BodyWeightLog[]> {
+  const sb = createClient();
+  const rows = unwrap("getBodyWeightLogs", await sb
+    .from("body_weight_logs")
+    .select("logged_on, weight_kg, source")
+    .eq("user_id", userId)
+    .order("logged_on"));
+  return (rows ?? []).map(mapLog);
+}
+
 /** Records a manual weigh-in for a day; logging the same day again replaces it (safe to retry). */
 export async function logBodyWeight(userId: string, loggedOn: string, weightKg: number): Promise<void> {
   const sb = createClient();

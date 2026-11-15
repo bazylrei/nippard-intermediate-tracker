@@ -1,5 +1,7 @@
 import { createClient } from "../supabase";
 import { unwrap } from "./result";
+import { getBodyWeightLogs } from "./body-weight";
+import { weeklyVolume, type LoadFlags, type VolumeSet, type WeeklyVolume } from "../volume";
 
 export async function getExerciseHistory(
   userId: string,
@@ -23,23 +25,39 @@ export async function getExerciseHistory(
   }));
 }
 
-/** Total working-set volume (kg × reps) per program week, completed sessions only, weeks ascending. */
-export async function getWeeklyVolume(userId: string): Promise<{ week: number; volume: number }[]> {
+/** Per-side / bodyweight flags for every exercise, keyed by id (the catalogue is small). */
+async function getExerciseLoadFlags(): Promise<Record<string, LoadFlags>> {
   const sb = createClient();
-  const data = unwrap("getWeeklyVolume", await sb
+  const rows = unwrap("getExerciseLoadFlags", await sb.from("exercises").select("id, is_bodyweight, weight_per_side"));
+  return Object.fromEntries((rows ?? []).map((r) => [r.id, { isBodyweight: r.is_bodyweight, weightPerSide: r.weight_per_side }]));
+}
+
+/** Working sets from completed sessions, with each one's program week and time. */
+async function getCompletedWorkingSets(userId: string): Promise<VolumeSet[]> {
+  const sb = createClient();
+  const rows = unwrap("getWeeklyVolume", await sb
     .from("set_logs")
-    .select("weight_kg, reps, workout_sessions!inner(week, completed_at)")
+    .select("weight_kg, reps, exercise_id, logged_at, workout_sessions!inner(week, completed_at)")
     .eq("user_id", userId)
     .gte("set_index", 0)
     .not("workout_sessions.completed_at", "is", null));
+  return (rows ?? []).map((s) => ({
+    week: s.workout_sessions.week, exerciseId: s.exercise_id, weightKg: s.weight_kg, reps: s.reps, loggedAt: s.logged_at,
+  }));
+}
 
-  const byWeek = new Map<number, number>();
-  for (const set of data ?? []) {
-    const { week } = set.workout_sessions;
-    byWeek.set(week, (byWeek.get(week) ?? 0) + set.weight_kg * set.reps);
-  }
-  return Array.from(byWeek, ([week, volume]) => ({ week, volume: Math.round(volume) }))
-    .sort((a, b) => a.week - b.week);
+/**
+ * Total working-set volume per program week (completed sessions only), counting
+ * per-side weights twice and adding body weight to bodyweight exercises.
+ * Sets, exercise flags and weigh-ins load in one parallel round trip.
+ */
+export async function getWeeklyVolume(userId: string): Promise<WeeklyVolume> {
+  const [sets, flags, logs] = await Promise.all([
+    getCompletedWorkingSets(userId),
+    getExerciseLoadFlags(),
+    getBodyWeightLogs(userId),
+  ]);
+  return weeklyVolume(sets, flags, logs);
 }
 
 /** Ids of every exercise the user has logged a working set for. */

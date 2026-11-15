@@ -1,20 +1,26 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
+import type { WeeklyVolume } from "@/lib/volume";
 import { CHART_TOOLTIP_STYLE } from "./chart-style";
 import EmptyState from "./EmptyState";
 
 interface Props {
-  /** Volume in kg × reps per program week. */
-  volume: { week: number; volume: number }[];
+  /** Volume in kg × reps per program week, per-side and bodyweight loads applied. */
+  volume: WeeklyVolume;
   unit: WeightUnit;
   chartWidth: number;
 }
 
 export default function VolumeTab({ volume, unit, chartWidth }: Props) {
-  const data = volume.map((v) => ({ week: v.week, volume: Math.round(kgToDisplay(v.volume, unit)) }));
+  const data = volume.weeks.map((v) => ({ week: v.week, volume: Math.round(kgToDisplay(v.volume, unit)) }));
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted font-display uppercase tracking-wider">Total weekly training volume ({unit})</p>
+      {volume.missingBodyWeight && (
+        <p role="note" className="text-xs text-muted">
+          Bodyweight exercises count only their added weight until you log your body weight (Program → Settings).
+        </p>
+      )}
       {data.length === 0 ? (
         <EmptyState message="No volume data yet — complete a workout first." />
       ) : chartWidth > 0 ? (

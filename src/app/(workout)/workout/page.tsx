@@ -68,7 +68,7 @@ function WorkoutContent() {
   // partly done exercise, it's the first set not yet logged.
   const loggedCount = currentExercise ? loggedWorkingSets(sessionSets, currentExercise.id).length : 0;
   const workingSetIndex = Math.max(setIndex, loggedCount);
-  const postHistory = usePostHistory(done, userId, resolvedExercises);
+  const postWorkout = usePostHistory(done, userId, resolvedExercises);
 
   useEffect(() => {
     if (!programReady) return;
@@ -215,7 +215,7 @@ function WorkoutContent() {
         dayType={workoutDay.dayType}
         exercises={resolvedExercises}
         sessionSets={sessionSets}
-        postHistory={postHistory}
+        postWorkout={postWorkout}
         unit={prefs.unit}
         onHome={() => router.push("/")}
         onProgress={() => router.push("/progress")}
