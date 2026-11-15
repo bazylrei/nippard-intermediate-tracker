@@ -5,6 +5,7 @@ import { ProgramProvider } from "@/context/ProgramContext";
 import { RestTimerProvider } from "@/context/RestTimerContext";
 import RestTimerBar from "@/components/RestTimerBar";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
@@ -46,6 +47,10 @@ export default function RootLayout({
       className={`h-full antialiased ${barlowCondensed.variable} ${barlow.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Applies a saved light/dark choice before first paint; html has suppressHydrationWarning for its class. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col bg-bg text-fg safe-top">
         <RestTimerProvider>
           <RestTimerBar />
