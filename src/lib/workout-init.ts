@@ -3,7 +3,7 @@ import {
   createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
 import { cachePrefs } from "./prefs-cache";
-import { resolveExercises, writeBanner } from "./workout-helpers";
+import { resolveExercises, saveWorkoutInProgress } from "./workout-helpers";
 import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession } from "./types";
 
 export type WorkoutPhase = "overview" | "warmup" | "sets";
@@ -59,7 +59,7 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
 
   const exerciseIndex = resumable ? session.currentExerciseIndex : 0;
   const setIndex = resumable ? session.currentSetIndex : 0;
-  writeBanner(session.currentExerciseIndex ?? 0, resolveExercises(exercises, prefs.alternateSelections), week, dayIndex, session.dayType);
+  saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, prefs.alternateSelections), session);
 
   const recordsByExercise = mergeRecords(lastSets, bestSets);
   return { userId: user.id, prefs, session, sessionSets, recordsByExercise, exerciseIndex, setIndex, phase };

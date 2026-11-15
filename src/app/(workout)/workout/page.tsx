@@ -6,7 +6,7 @@ import { updateSessionProgress, completeSession, logSetAndAdvance, deleteWorkout
 import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, Exercise, ExerciseRecord } from "@/lib/types";
 import {
-  resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, writeBanner, clearBanner,
+  resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, saveWorkoutInProgress, clearWorkoutInProgress,
   planAfterSet, recordFor,
 } from "@/lib/workout-helpers";
 import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
@@ -113,7 +113,7 @@ function WorkoutContent() {
     if (!session) return;
     setExerciseIndex(exIdx);
     setSetIndex(sIdx);
-    writeBanner(exIdx, resolvedExercises, week, dayIndex, session.dayType);
+    saveWorkoutInProgress(exIdx, resolvedExercises, session);
     saveProgress(exIdx, sIdx);
   }
 
@@ -124,7 +124,7 @@ function WorkoutContent() {
       return;
     }
     if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
-    clearBanner();
+    clearWorkoutInProgress();
     setDone(true);
   }
 
@@ -133,7 +133,7 @@ function WorkoutContent() {
       setConfirmDiscard(false);
       return;
     }
-    clearBanner();
+    clearWorkoutInProgress();
     router.push("/");
   }
 
@@ -163,13 +163,13 @@ function WorkoutContent() {
     const [restMin, restMax] = currentExercise.restSeconds;
     startRestTimer(Math.round((restMin + restMax) / 2));
     if (step.kind === "complete") {
-      clearBanner();
+      clearWorkoutInProgress();
       setDone(true);
     } else {
       setExerciseIndex(step.exerciseIndex);
       setSetIndex(step.setIndex);
       if (step.kind === "nextExercise") setPhase("warmup");
-      writeBanner(step.exerciseIndex, resolvedExercises, week, dayIndex, session.dayType);
+      saveWorkoutInProgress(step.exerciseIndex, resolvedExercises, session);
     }
 
     try {
@@ -185,7 +185,7 @@ function WorkoutContent() {
       setSetIndex(previous.setIndex);
       setPhase(previous.phase);
       setDone(false);
-      writeBanner(previous.exerciseIndex, resolvedExercises, week, dayIndex, session.dayType);
+      saveWorkoutInProgress(previous.exerciseIndex, resolvedExercises, session);
       saveError.report("Couldn't save that set. Check your connection and log it again.", err);
     }
   }

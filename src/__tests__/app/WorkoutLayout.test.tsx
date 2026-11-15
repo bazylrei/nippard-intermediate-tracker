@@ -25,13 +25,9 @@ describe("WorkoutLayout", () => {
     expect(screen.getAllByRole("button", { name: "Progress" }).length).toBeGreaterThan(0);
   });
 
-  it("doesn't show the resume-workout banner while you're in the workout", () => {
-    render(<WorkoutLayout><p>workout</p></WorkoutLayout>);
-    expect(screen.queryByText("Bench Press")).toBeNull();
-  });
-
-  it("still shows the banner on the other tabs", () => {
+  it("shows the workout in progress as a Workout tab on the other tabs, with no banner", () => {
     render(<MainLayout><p>home</p></MainLayout>);
-    expect(screen.getByText("Bench Press")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Workout" }).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Bench Press")).toBeNull(); // the old banner showed the exercise
   });
 });
