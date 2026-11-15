@@ -6,6 +6,8 @@ import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
 import PreviousPerformance from "./workout/PreviousPerformance";
+import OverloadTip from "./workout/OverloadTip";
+import { overloadTip } from "@/lib/progression";
 import { kgToDisplay, displayToKg } from "@/lib/units";
 
 interface Props {
@@ -52,6 +54,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }, [previousSets, setIndex, unit]);
 
   const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
+  const tip = overloadTip(prevSet, exercise.repRange, unit);
   const { weightPerSide, isBodyweight } = exercise;
   const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
@@ -94,6 +97,16 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       </div>
 
       <PreviousPerformance lastSet={prevSet} bestSet={bestSet} unit={unit} weightPerSide={weightPerSide} />
+      {tip && (
+        <OverloadTip
+          tip={tip}
+          topOfRange={exercise.repRange[1]}
+          unit={unit}
+          weightPerSide={weightPerSide}
+          applied={parseFloat(form.weight) === tip.suggestedWeight}
+          onUse={() => dispatch({ type: "set", field: "weight", value: String(tip.suggestedWeight) })}
+        />
+      )}
 
       {/* Input form */}
       <form onSubmit={handleSubmit} className="space-y-3">
