@@ -1,5 +1,6 @@
 import type { UserPreferences } from "@/lib/types";
 import { displayToKg, kgToDisplay } from "@/lib/units";
+import ThemeSetting from "./ThemeSetting";
 
 interface Props {
   prefs: UserPreferences;
@@ -42,6 +43,7 @@ export default function SettingsPanel({ prefs, bodyWeightKg, onToggleUnit, onSav
           {prefs.unit.toUpperCase()}
         </button>
       </div>
+      <ThemeSetting />
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="week-start" className="text-sm text-fg">Week starts on</label>
         <select
