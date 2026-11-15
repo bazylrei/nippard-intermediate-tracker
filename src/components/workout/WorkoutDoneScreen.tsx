@@ -3,8 +3,12 @@
 import { dayLabel } from "@/lib/day-types";
 import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, Tooltip, YAxis } from "recharts";
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { kgToDisplay } from "@/lib/units";
+import { formatCalendarDate } from "@/lib/dates";
+
+/** Recessive axis text: muted ink, small, tabular figures. */
+const AXIS_TICK = { fill: "var(--muted)", fontSize: 11, style: { fontVariantNumeric: "tabular-nums" } };
 
 interface Props {
   week: number;
@@ -62,7 +66,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
 
               const history = postHistory[ex.id] ?? [];
               const chartData = history.slice(-8).map((h, i, arr) => ({
-                session: i + 1,
+                date: h.date,
                 weight: kgToDisplay(h.weight, unit),
                 isToday: i === arr.length - 1,
               }));
@@ -116,17 +120,36 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                   {chartData.length >= 2 && (
                     <div>
                       <p className="text-[10px] text-subtle uppercase tracking-widest mb-1 font-display">Weight progression (last set)</p>
-                      <ResponsiveContainer width="100%" height={72}>
-                        <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
-                          <YAxis domain={["auto", "auto"]} hide />
+                      {/* Height includes the date-axis band so its labels aren't clipped. */}
+                      <ResponsiveContainer width="100%" height={150}>
+                        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                          <CartesianGrid vertical={false} stroke="var(--border)" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={formatCalendarDate}
+                            tick={AXIS_TICK}
+                            axisLine={false}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                            minTickGap={12}
+                          />
+                          <YAxis
+                            domain={["auto", "auto"]}
+                            tickFormatter={(v: number) => `${v}${unit}`}
+                            tick={AXIS_TICK}
+                            axisLine={false}
+                            tickLine={false}
+                            tickCount={4}
+                            width={52}
+                          />
                           <Tooltip
                             content={({ active, payload }) => {
                               if (!active || !payload?.length) return null;
-                              const d = payload[0].payload as { weight: number; isToday: boolean };
+                              const d = payload[0].payload as { date: string; weight: number; isToday: boolean };
                               return (
                                 <div className="glass rounded-lg px-2 py-1 text-xs font-display font-semibold"
                                   style={{ border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)", background: "var(--surface)" }}>
-                                  {d.isToday ? "Today · " : ""}{d.weight}{unit}
+                                  {d.isToday ? "Today" : formatCalendarDate(d.date)} · {d.weight}{unit}
                                 </div>
                               );
                             }}
