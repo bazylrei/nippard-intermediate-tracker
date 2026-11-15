@@ -98,8 +98,8 @@ export default function MyProgram() {
     if (!ok) applyPrefs(previous);
   }
 
-  const toggleUnit = () =>
-    savePrefs({ unit: prefs.unit === "kg" ? "lbs" : "kg" }, "Couldn't change the weight unit. Try again.");
+  const changeUnit = (unit: UserPreferences["unit"]) =>
+    savePrefs({ unit }, "Couldn't change the weight unit. Try again.");
 
   const saveHeight = (heightCm: number | null) => savePrefs({ heightCm }, "Couldn't save your height. Try again.");
 
@@ -164,7 +164,7 @@ export default function MyProgram() {
         <SettingsPanel
           prefs={prefs}
           bodyWeightKg={bodyWeight?.weightKg ?? null}
-          onToggleUnit={toggleUnit}
+          onChangeUnit={changeUnit}
           onSaveHeight={saveHeight}
           onLogBodyWeight={logWeight}
           onChangeWeekStart={changeWeekStart}

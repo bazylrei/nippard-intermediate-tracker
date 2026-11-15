@@ -1,12 +1,13 @@
 import type { UserPreferences } from "@/lib/types";
-import { displayToKg, kgToDisplay } from "@/lib/units";
+import { displayToKg, kgToDisplay, type WeightUnit } from "@/lib/units";
 import ThemeSetting from "./ThemeSetting";
+import UnitSetting from "./UnitSetting";
 
 interface Props {
   prefs: UserPreferences;
   /** Latest weigh-in, in kg; null before the first. */
   bodyWeightKg: number | null;
-  onToggleUnit: () => void;
+  onChangeUnit: (unit: WeightUnit) => void;
   onSaveHeight: (heightCm: number | null) => void;
   /** Logs a weigh-in for today. */
   onLogBodyWeight: (weightKg: number) => void;
@@ -26,23 +27,14 @@ const parseOrNull = (value: string) => {
   return isNaN(n) ? null : n;
 };
 
-export default function SettingsPanel({ prefs, bodyWeightKg, onToggleUnit, onSaveHeight, onLogBodyWeight, onChangeWeekStart }: Props) {
+export default function SettingsPanel({ prefs, bodyWeightKg, onChangeUnit, onSaveHeight, onLogBodyWeight, onChangeWeekStart }: Props) {
   const heightCm = prefs.heightCm ?? null;
   const shownWeight = bodyWeightKg === null ? null : kgToDisplay(bodyWeightKg, prefs.unit);
 
   return (
     <div className="glass gloss rounded-2xl p-4 space-y-3">
       <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Settings</h3>
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-fg">Weight unit</span>
-        <button
-          onClick={onToggleUnit}
-          aria-label="Weight unit"
-          className="glass gloss font-display font-bold text-sm px-4 py-1.5 rounded-lg transition-colors cursor-pointer text-fg"
-        >
-          {prefs.unit.toUpperCase()}
-        </button>
-      </div>
+      <UnitSetting unit={prefs.unit} onChange={onChangeUnit} />
       <ThemeSetting />
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="week-start" className="text-sm text-fg">Week starts on</label>

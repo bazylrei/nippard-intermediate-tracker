@@ -61,18 +61,25 @@ describe("Program page — settings", () => {
   it("toggles the unit and saves it through the DB layer", async () => {
     await renderPage();
     openSettings();
-    fireEvent.click(screen.getByLabelText("Weight unit"));
-    expect(screen.getByLabelText("Weight unit")).toHaveTextContent("LBS");
+    fireEvent.click(screen.getByRole("radio", { name: "LBS" }));
+    expect(screen.getByRole("radio", { name: "LBS" })).toHaveAttribute("aria-checked", "true");
     await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { unit: "lbs" }));
+  });
+
+  it("doesn't save anything when the current unit is tapped again", async () => {
+    await renderPage();
+    openSettings();
+    fireEvent.click(screen.getByRole("radio", { name: "KG" }));
+    expect(db.upsertPreferences).not.toHaveBeenCalled();
   });
 
   it("reverts the unit and shows an alert when the save fails", async () => {
     db.upsertPreferences.mockRejectedValue(new Error("offline"));
     await renderPage();
     openSettings();
-    fireEvent.click(screen.getByLabelText("Weight unit"));
+    fireEvent.click(screen.getByRole("radio", { name: "LBS" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't change the weight unit");
-    expect(screen.getByLabelText("Weight unit")).toHaveTextContent("KG");
+    expect(screen.getByRole("radio", { name: "KG" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("shows the latest weigh-in, and logs a new one for today when it's changed", async () => {
