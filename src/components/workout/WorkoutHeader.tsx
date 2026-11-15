@@ -2,10 +2,13 @@
 
 import { dayLabel } from "@/lib/day-types";
 import { List, X, ArrowLeft } from "lucide-react";
+import WorkoutTimer from "./WorkoutTimer";
 
 interface Props {
   week: number;
   dayType: string;
+  /** When the session began; the duration timer is hidden without it. */
+  startedAt?: string;
   exerciseIndex: number;
   exerciseCount: number;
   isDone: (index: number) => boolean;
@@ -18,7 +21,7 @@ interface Props {
 }
 
 export default function WorkoutHeader({
-  week, dayType, exerciseIndex, exerciseCount, isDone, confirmDiscard,
+  week, dayType, startedAt, exerciseIndex, exerciseCount, isDone, confirmDiscard,
   onOpenList, onAskDiscard, onCancelDiscard, onDiscard, onHome,
 }: Props) {
   const exercises = Array.from({ length: exerciseCount });
@@ -35,6 +38,7 @@ export default function WorkoutHeader({
             Exercise {exerciseIndex + 1} of {exerciseCount}
           </p>
         </div>
+        {startedAt && <WorkoutTimer startedAt={startedAt} />}
         {/* Progress dots */}
         <div className="flex gap-1 items-center">
           {exercises.map((_, i) => (

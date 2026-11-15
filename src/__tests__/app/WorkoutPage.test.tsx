@@ -156,6 +156,18 @@ describe("WorkoutPage save failures are visible, never silent", () => {
   });
 });
 
+// ─── Workout timer ───────────────────────────────────────────────────────────
+
+describe("WorkoutPage — workout timer", () => {
+  it("shows how long the session has been going in the header", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(new Date("2026-11-15T10:12:30Z").getTime());
+    bootWith({ session: { ...session, startedAt: "2026-11-15T10:00:00Z" } });
+    await renderPage();
+    expect(screen.getByRole("timer", { name: "Workout duration" })).toHaveTextContent("12:30");
+    now.mockRestore();
+  });
+});
+
 // ─── Set carousel ────────────────────────────────────────────────────────────
 
 describe("WorkoutPage — set carousel", () => {

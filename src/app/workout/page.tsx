@@ -259,6 +259,7 @@ function WorkoutContent() {
       <WorkoutHeader
         week={week}
         dayType={workoutDay.dayType}
+        startedAt={session?.startedAt}
         exerciseIndex={exerciseIndex}
         exerciseCount={resolvedExercises.length}
         isDone={isExerciseDone}
