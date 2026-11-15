@@ -230,7 +230,6 @@ function WorkoutContent() {
         week={week}
         dayType={workoutDay.dayType}
         exercises={resolvedExercises}
-        onBack={() => router.push("/")}
         onBegin={() => setPhase("warmup")}
       />
     );
@@ -243,7 +242,7 @@ function WorkoutContent() {
   const setsForExercise = loggedWorkingSets(sessionSets, currentExercise.id);
 
   return (
-    <div className="h-dvh flex flex-col max-w-lg mx-auto relative">
+    <div className="h-full flex flex-col max-w-lg mx-auto relative">
       {/* Exercise list overlay */}
       {showExerciseList && (
         <ExerciseListOverlay
@@ -268,7 +267,6 @@ function WorkoutContent() {
         onAskDiscard={() => setConfirmDiscard(true)}
         onCancelDiscard={() => setConfirmDiscard(false)}
         onDiscard={handleDiscard}
-        onHome={() => router.push("/")}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">

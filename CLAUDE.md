@@ -24,7 +24,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
 - `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
 - `/(main)/builder/[programId]` — Full CRUD program editor
-- `/workout` — Active workout session (`?week=X&day=Y` query params)
+- `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button) but not the resume banner; pages fill `.workout-viewport`
 - `/auth` — Email/password sign-in/sign-up
 
 ### State Layers

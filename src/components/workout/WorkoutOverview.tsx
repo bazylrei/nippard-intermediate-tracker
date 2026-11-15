@@ -2,24 +2,20 @@
 
 import { dayLabel } from "@/lib/day-types";
 import type { Exercise } from "@/lib/types";
-import { ArrowLeft, Play } from "lucide-react";
+import { Play } from "lucide-react";
 
 interface Props {
   week: number;
   dayType: string;
   exercises: Exercise[];
-  onBack: () => void;
   onBegin: () => void;
 }
 
-export default function WorkoutOverview({ week, dayType, exercises, onBack, onBegin }: Props) {
+export default function WorkoutOverview({ week, dayType, exercises, onBegin }: Props) {
   const resolvedExercises = exercises;
   return (
-      <div className="h-dvh flex flex-col max-w-lg mx-auto">
+      <div className="h-full flex flex-col max-w-lg mx-auto">
         <div className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
-          <button onClick={() => onBack()} className="text-subtle hover:text-fg transition-colors cursor-pointer">
-            <ArrowLeft size={20} />
-          </button>
           <div>
             <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">Week {week}</p>
             <h1 className="font-display text-lg font-bold text-fg">{dayLabel(dayType)}</h1>
