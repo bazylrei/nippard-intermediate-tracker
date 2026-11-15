@@ -29,6 +29,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Stops iOS Safari auto-zooming when an input with <16px text is focused
+  // (it leaves the page zoomed after blur). iOS still allows pinch-zoom.
+  maximumScale: 1,
   viewportFit: "cover",
 };
 
