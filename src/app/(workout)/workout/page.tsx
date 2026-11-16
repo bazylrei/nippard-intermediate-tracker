@@ -2,17 +2,15 @@
 
 import { Suspense, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { updateSessionProgress, completeSession, logSetAndAdvance, deleteWorkoutSession, updateSetLog } from "@/lib/db";
+import { deleteWorkoutSession } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { WorkoutSession, SetLog, Exercise, ExerciseRecord } from "@/lib/types";
-import {
-  resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, saveWorkoutInProgress, clearWorkoutInProgress,
-  planAfterSet, recordFor, resumeSetIndex, phaseAt, type WorkoutPhase,
-} from "@/lib/workout-helpers";
+import type { WorkoutSession, SetLog, ExerciseRecord } from "@/lib/types";
+import { resolveExercises, loggedWorkingSets, clearWorkoutInProgress, recordFor } from "@/lib/workout-helpers";
 import { bootstrapWorkout } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
+import { useWorkoutProgress, START } from "@/hooks/useWorkoutProgress";
 import { useSaveError } from "@/hooks/useSaveError";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
@@ -31,8 +29,6 @@ import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
 import { SIGN_IN_PATH } from "@/lib/require-user";
 
-const PROGRESS_SAVE_FAILED = "Couldn't save your place in the workout. It will be saved with your next set.";
-
 function WorkoutContent() {
   const router = useRouter();
   const { week, dayIndex, workoutDay } = useWorkoutRoute();
@@ -41,12 +37,7 @@ function WorkoutContent() {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
   const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
-  const [exerciseIndex, setExerciseIndex] = useState(0);
-  const [setIndex, setSetIndex] = useState(0);
-  const [phase, setPhase] = useState<WorkoutPhase>("overview");
-  const [sessionSets, setSessionSets] = useState<SetLog[]>([]);
   const { start: startRestTimer } = useRestTimer();
-  const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
@@ -56,28 +47,22 @@ function WorkoutContent() {
   const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
 
-
   const resolvedExercises = useMemo(
     () => resolveExercises(workoutDay?.exercises ?? [], choices),
     [workoutDay, choices],
   );
-
-  const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
+  const progress = useWorkoutProgress({ session, userId, exercises: resolvedExercises, saveError, onRest: startRestTimer });
+  const { exerciseIndex, phase, sessionSets, done, currentExercise, workingSetIndex, restore } = progress;
 
   const record = recordFor(recordsByExercise, currentExercise);
-  // The set to log next: at the warm-up position (-1), or when returning to a
-  // partly done exercise, it's the first set not yet logged.
-  const loggedCount = currentExercise ? loggedWorkingSets(sessionSets, currentExercise.id).length : 0;
-  const workingSetIndex = Math.max(setIndex, loggedCount);
   const postWorkout = usePostHistory(done, userId, resolvedExercises);
 
   useEffect(() => {
     if (!programReady) return;
 
     async function init() {
-      setDone(false);
       setLoadFailed(false);
-      setSessionSets([]);
+      restore(START);
       // Never create a session for a day that doesn't exist — the page shows "Invalid workout".
       if (!workoutDay) { setLoading(false); return; }
       setLoading(true);
@@ -94,46 +79,12 @@ function WorkoutContent() {
       setUserId(boot.userId);
       setPrefs(boot.prefs);
       setSession(boot.session);
-      setSessionSets(boot.sessionSets);
-      setExerciseIndex(boot.exerciseIndex);
-      setSetIndex(boot.setIndex);
-      setPhase(boot.phase);
+      restore(boot);
       setRecordsByExercise(boot.recordsByExercise);
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, router, workoutDay, programReady, programId, setPrefs]);
-
-  /** Navigation is instant; if saving the resume point fails, the next logged set saves it anyway. */
-  function saveProgress(exIdx: number, sIdx: number) {
-    if (!session) return;
-    void saveError.attempt(() => updateSessionProgress(session.id, exIdx, sIdx), PROGRESS_SAVE_FAILED);
-  }
-
-  function advanceTo(exIdx: number, sIdx: number) {
-    if (!session) return;
-    setExerciseIndex(exIdx);
-    setSetIndex(sIdx);
-    saveWorkoutInProgress(exIdx, resolvedExercises, session);
-    saveProgress(exIdx, sIdx);
-  }
-
-  /** Opens an exercise where it was left off: its warm-up, or its next set once one is logged. */
-  function goToExercise(exIdx: number) {
-    const sIdx = resumeSetIndex(resolvedExercises[exIdx], sessionSets);
-    advanceTo(exIdx, sIdx);
-    setPhase(phaseAt(sIdx));
-  }
-
-  async function handleSkipExercise() {
-    if (exerciseIndex + 1 < resolvedExercises.length) {
-      goToExercise(exerciseIndex + 1);
-      return;
-    }
-    if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
-    clearWorkoutInProgress();
-    setDone(true);
-  }
+  }, [week, dayIndex, router, workoutDay, programReady, programId, setPrefs, restore]);
 
   async function handleDiscard() {
     if (session && !(await saveError.attempt(() => deleteWorkoutSession(session.id), "Couldn't discard the workout. Try again."))) {
@@ -144,69 +95,9 @@ function WorkoutContent() {
     router.push("/");
   }
 
-  function isExerciseDone(exIdx: number): boolean {
-    const ex = resolvedExercises[exIdx];
-    return !!ex && isExerciseComplete(ex, sessionSets);
-  }
-
-  /**
-   * Optimistic: the UI advances and the rest timer starts immediately; the set
-   * and the new session position are saved in one atomic call. On failure the
-   * UI rolls back so what's on screen never claims a set that wasn't saved.
-   */
-  async function handleSetLogged(weight: number, reps: number, rpe: number | null, failureHit: boolean | null) {
-    if (!session || !currentExercise || !userId) return;
-    const isLastSet = workingSetIndex === totalSetsForExercise(currentExercise) - 1;
-    const newSet: SetLog = {
-      id: crypto.randomUUID(), sessionId: session.id, userId, exerciseId: currentExercise.id,
-      setIndex: workingSetIndex, isLastSet, weight, reps, rpe, failureHit, loggedAt: new Date().toISOString(),
-    };
-    const updated = [...sessionSets, newSet];
-    const step = planAfterSet(resolvedExercises, updated, exerciseIndex, workingSetIndex);
-    const previous = { sessionSets, exerciseIndex, setIndex, phase };
-
-    saveError.clear();
-    setSessionSets(updated);
-    const [restMin, restMax] = currentExercise.restSeconds;
-    startRestTimer(Math.round((restMin + restMax) / 2));
-    if (step.kind === "complete") {
-      clearWorkoutInProgress();
-      setDone(true);
-    } else {
-      setExerciseIndex(step.exerciseIndex);
-      setSetIndex(step.setIndex);
-      if (step.kind === "nextExercise") setPhase(phaseAt(step.setIndex));
-      saveWorkoutInProgress(step.exerciseIndex, resolvedExercises, session);
-    }
-
-    try {
-      await logSetAndAdvance({
-        ...newSet,
-        nextExerciseIndex: step.exerciseIndex,
-        nextSetIndex: step.setIndex,
-        completeSession: step.kind === "complete",
-      });
-    } catch (err) {
-      setSessionSets(previous.sessionSets);
-      setExerciseIndex(previous.exerciseIndex);
-      setSetIndex(previous.setIndex);
-      setPhase(previous.phase);
-      setDone(false);
-      saveWorkoutInProgress(previous.exerciseIndex, resolvedExercises, session);
-      saveError.report("Couldn't save that set. Check your connection and log it again.", err);
-    }
-  }
-
   async function handleEditSet(setId: string, weightKg: number, reps: number, rpe: number | null) {
-    await updateSetLog(setId, weightKg, reps, rpe);
-    setSessionSets((prev) => prev.map((s) => s.id === setId ? { ...s, weight: weightKg, reps, rpe } : s));
+    await progress.editSet(setId, weightKg, reps, rpe);
     setViewingSet((prev) => prev ? { ...prev, weight: weightKg, reps, rpe } : null);
-  }
-
-  function handleWarmupComplete() {
-    setSetIndex(workingSetIndex);
-    setPhase("sets");
-    saveProgress(exerciseIndex, workingSetIndex);
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -237,7 +128,7 @@ function WorkoutContent() {
         week={week}
         dayType={workoutDay.dayType}
         exercises={resolvedExercises}
-        onBegin={() => setPhase("warmup")}
+        onBegin={progress.begin}
       />
     );
   }
@@ -255,8 +146,8 @@ function WorkoutContent() {
         <ExerciseListOverlay
           exercises={resolvedExercises}
           currentIndex={exerciseIndex}
-          isDone={isExerciseDone}
-          onSelect={(i) => { goToExercise(i); setShowExerciseList(false); }}
+          isDone={progress.isExerciseDone}
+          onSelect={(i) => { progress.goToExercise(i); setShowExerciseList(false); }}
           onClose={() => setShowExerciseList(false)}
         />
       )}
@@ -268,7 +159,7 @@ function WorkoutContent() {
         startedAt={session.startedAt}
         exerciseIndex={exerciseIndex}
         exerciseCount={resolvedExercises.length}
-        isDone={isExerciseDone}
+        isDone={progress.isExerciseDone}
         confirmDiscard={confirmDiscard}
         onOpenList={() => setShowExerciseList(true)}
         onAskDiscard={() => setConfirmDiscard(true)}
@@ -296,7 +187,7 @@ function WorkoutContent() {
             <WarmupSlide
               steps={currentWarmupSteps}
               active={warmingUp}
-              onComplete={handleWarmupComplete}
+              onComplete={progress.completeWarmup}
               prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
               unit={prefs.unit}
             />
@@ -304,11 +195,11 @@ function WorkoutContent() {
           loggedSets={setsForExercise}
           record={record}
           unit={prefs.unit}
-          onLog={handleSetLogged}
+          onLog={progress.logSet}
           onView={setViewingSet}
         />
 
-        <SkipExerciseButton onSkip={handleSkipExercise} />
+        <SkipExerciseButton onSkip={progress.skipExercise} />
       </div>
 
       {swapSheet && <ExerciseSwapSheet {...swapSheet} />}
