@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/workout" }));
 
+vi.mock("@/components/RestTimerBar", () => ({ default: ({ placement = "overlay" }: { placement?: string }) => <div data-rest-bar={placement} /> }));
+
 import WorkoutLayout from "@/app/(workout)/layout";
 import MainLayout from "@/app/(main)/layout";
 import { saveActiveWorkout } from "@/lib/active-workout";
@@ -29,5 +31,17 @@ describe("WorkoutLayout", () => {
     render(<MainLayout><p>home</p></MainLayout>);
     expect(screen.getAllByRole("button", { name: "Workout" }).length).toBeGreaterThan(0);
     expect(screen.queryByText("Bench Press")).toBeNull(); // the old banner showed the exercise
+  });
+});
+
+describe("rest bar placement", () => {
+  it("overlays the rest bar on the other tabs", () => {
+    const { container } = render(<MainLayout><p>home</p></MainLayout>);
+    expect(container.querySelector('[data-rest-bar="overlay"]')).not.toBeNull();
+  });
+
+  it("leaves the rest bar to the workout page, which puts it inline above its header", () => {
+    const { container } = render(<WorkoutLayout><p>workout</p></WorkoutLayout>);
+    expect(container.querySelector("[data-rest-bar]")).toBeNull();
   });
 });

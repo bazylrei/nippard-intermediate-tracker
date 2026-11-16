@@ -3,26 +3,34 @@
 import { useRestTimer } from "@/context/RestTimerContext";
 import { Timer, X } from "lucide-react";
 
-export default function RestTimerBar() {
+interface Props {
+  /**
+   * "overlay" pins the bar over the top of the page. "inline" puts it in the
+   * page's flow, pushing the content down instead of covering it: the workout
+   * screen uses it so its header (exercise list, progress) stays reachable while resting.
+   */
+  placement?: "overlay" | "inline";
+}
+
+export default function RestTimerBar({ placement = "overlay" }: Props) {
   const { isActive, remaining, total, stop } = useRestTimer();
 
   if (!isActive) return null;
 
+  // The overlay sits under the status bar, so it clears the safe area itself; inline, the page already has.
+  const safeTop = placement === "overlay" ? "env(safe-area-inset-top, 0px)" : "0px";
   const pct = total > 0 ? (remaining / total) * 100 : 0;
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
 
   return (
-    <div
-      className="fixed left-0 right-0 z-50"
-      style={{ top: 0 }}
-    >
+    <div className={placement === "overlay" ? "fixed top-0 left-0 right-0 z-50" : "shrink-0"}>
       <div
         className="relative overflow-hidden"
         style={{
           background: "var(--surface)",
           borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)",
-          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingTop: safeTop,
         }}
       >
         {/* Background fill */}
@@ -31,7 +39,7 @@ export default function RestTimerBar() {
           style={{
             width: `${pct}%`,
             background: "color-mix(in srgb, var(--primary) 10%, transparent)",
-            top: "env(safe-area-inset-top, 0px)",
+            top: safeTop,
             transition: "width 0.5s linear",
           }}
         />

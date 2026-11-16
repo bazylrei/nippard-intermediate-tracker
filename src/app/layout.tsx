@@ -3,7 +3,6 @@ import { Barlow_Condensed, Barlow } from "next/font/google";
 import "./globals.css";
 import { ProgramProvider } from "@/context/ProgramContext";
 import { RestTimerProvider } from "@/context/RestTimerContext";
-import RestTimerBar from "@/components/RestTimerBar";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
@@ -53,7 +52,6 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-bg text-fg safe-top">
         <RestTimerProvider>
-          <RestTimerBar />
           <ProgramProvider>{children}</ProgramProvider>
         </RestTimerProvider>
       </body>

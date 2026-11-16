@@ -30,7 +30,8 @@ vi.mock("@/lib/db", () => db);
 const boot = vi.hoisted(() => ({ bootstrapWorkout: vi.fn() }));
 vi.mock("@/lib/workout-init", () => boot);
 
-vi.mock("@/context/RestTimerContext", () => ({ useRestTimer: () => ({ start: vi.fn() }) }));
+const rest = vi.hoisted(() => ({ isActive: false, remaining: 0, total: 0, start: vi.fn(), stop: vi.fn() }));
+vi.mock("@/context/RestTimerContext", () => ({ useRestTimer: () => rest }));
 
 /** An alternate is an exercise of its own, with the slot's sets and reps. */
 const alternate = (id: string, name: string, warmupProtocol: string) => ({
@@ -90,6 +91,7 @@ async function renderPage() {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  Object.assign(rest, { isActive: false, remaining: 0, total: 0 });
   query = "week=1&day=0";
   programFailed = false;
   workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
@@ -253,6 +255,22 @@ describe("WorkoutPage — moving to the next exercise is visible", () => {
     await click(screen.getByRole("button", { name: /Bench Press/ }));
 
     expect(panel("Bench Press")).toHaveClass("exercise-enter-back");
+  });
+});
+
+describe("WorkoutPage — resting doesn't hide what's next", () => {
+  it("puts the rest bar in the flow above the header, so the exercise list stays reachable", async () => {
+    Object.assign(rest, { isActive: true, remaining: 75, total: 90 });
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly")] };
+    await renderPage();
+
+    const timer = screen.getByRole("timer", { name: "Rest remaining" });
+    const listButton = screen.getByRole("button", { name: "Exercise list" });
+    expect(timer.closest(".fixed")).toBeNull();
+    expect(timer.compareDocumentPosition(listButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await click(listButton);
+    expect(screen.getByRole("button", { name: /Cable Fly/ })).toBeInTheDocument();
   });
 });
 

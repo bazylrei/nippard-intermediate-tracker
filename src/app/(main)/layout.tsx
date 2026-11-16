@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import AppNav from "@/components/BottomNav";
+import RestTimerBar from "@/components/RestTimerBar";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <RestTimerBar />
       <Suspense>
         <AppNav />
       </Suspense>
