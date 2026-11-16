@@ -7,9 +7,9 @@ import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, Exercise, ExerciseRecord } from "@/lib/types";
 import {
   resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, saveWorkoutInProgress, clearWorkoutInProgress,
-  planAfterSet, recordFor,
+  planAfterSet, recordFor, resumeSetIndex, phaseAt, type WorkoutPhase,
 } from "@/lib/workout-helpers";
-import { bootstrapWorkout, type WorkoutPhase } from "@/lib/workout-init";
+import { bootstrapWorkout } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
@@ -118,10 +118,16 @@ function WorkoutContent() {
     saveProgress(exIdx, sIdx);
   }
 
+  /** Opens an exercise where it was left off: its warm-up, or its next set once one is logged. */
+  function goToExercise(exIdx: number) {
+    const sIdx = resumeSetIndex(resolvedExercises[exIdx], sessionSets);
+    advanceTo(exIdx, sIdx);
+    setPhase(phaseAt(sIdx));
+  }
+
   async function handleSkipExercise() {
     if (exerciseIndex + 1 < resolvedExercises.length) {
-      advanceTo(exerciseIndex + 1, -1); // the next exercise starts at its warm-up
-      setPhase("warmup");
+      goToExercise(exerciseIndex + 1);
       return;
     }
     if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
@@ -169,7 +175,7 @@ function WorkoutContent() {
     } else {
       setExerciseIndex(step.exerciseIndex);
       setSetIndex(step.setIndex);
-      if (step.kind === "nextExercise") setPhase("warmup");
+      if (step.kind === "nextExercise") setPhase(phaseAt(step.setIndex));
       saveWorkoutInProgress(step.exerciseIndex, resolvedExercises, session);
     }
 
@@ -250,7 +256,7 @@ function WorkoutContent() {
           exercises={resolvedExercises}
           currentIndex={exerciseIndex}
           isDone={isExerciseDone}
-          onSelect={(i) => { advanceTo(i, -1); setPhase("warmup"); setShowExerciseList(false); }}
+          onSelect={(i) => { goToExercise(i); setShowExerciseList(false); }}
           onClose={() => setShowExerciseList(false)}
         />
       )}

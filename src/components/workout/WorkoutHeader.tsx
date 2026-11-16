@@ -25,7 +25,7 @@ export default function WorkoutHeader({
   const exercises = Array.from({ length: exerciseCount });
   return (
       <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
-        <button onClick={() => onOpenList()} className="text-subtle hover:text-fg transition-colors cursor-pointer">
+        <button onClick={() => onOpenList()} aria-label="Exercise list" className="text-subtle hover:text-fg transition-colors cursor-pointer">
           <List size={20} />
         </button>
         <div className="flex-1 min-w-0">

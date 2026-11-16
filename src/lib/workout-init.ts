@@ -4,10 +4,9 @@ import {
 } from "./db";
 import { cachePrefs } from "./prefs-cache";
 import { exerciseOptions, mergeChoices } from "./alternates";
-import { resolveExercises, saveWorkoutInProgress } from "./workout-helpers";
+import { phaseAt, resolveExercises, saveWorkoutInProgress, type WorkoutPhase } from "./workout-helpers";
 import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession } from "./types";
 
-export type WorkoutPhase = "overview" | "warmup" | "sets";
 
 export interface WorkoutBootstrap {
   userId: string;
@@ -55,7 +54,7 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
   if (resumable) {
     session = existing.session;
     sessionSets = existing.sets;
-    phase = session.currentSetIndex === -1 ? "warmup" : "sets";
+    phase = phaseAt(session.currentSetIndex);
   } else {
     session = await createSession(user.id, week, dayIndex, dayType, programId);
   }

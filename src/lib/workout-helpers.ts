@@ -19,10 +19,27 @@ export function isExerciseComplete(ex: Exercise, sets: SetLog[]): boolean {
   return loggedWorkingSets(sets, ex.id).length >= totalSetsForExercise(ex);
 }
 
+export type WorkoutPhase = "overview" | "warmup" | "sets";
+
+/** The active-workout phase for a set position: -1 is the warm-up, 0+ are working sets. */
+export function phaseAt(setIndex: number): WorkoutPhase {
+  return setIndex === -1 ? "warmup" : "sets";
+}
+
+/**
+ * Where to pick an exercise back up: its first unlogged set once it's started
+ * (the warm-up is done), otherwise its warm-up (set index -1). A finished
+ * exercise has no unlogged set, so it opens at the warm-up position too.
+ */
+export function resumeSetIndex(ex: Exercise, sets: SetLog[]): number {
+  const logged = loggedWorkingSets(sets, ex.id).length;
+  return logged > 0 && logged < totalSetsForExercise(ex) ? logged : -1;
+}
+
 export type NextStep =
   | { kind: "nextSet"; exerciseIndex: number; setIndex: number }
-  /** Move to another exercise, starting at its warm-up (set index -1). */
-  | { kind: "nextExercise"; exerciseIndex: number; setIndex: -1 }
+  /** Move to another exercise, where it was left off (see `resumeSetIndex`). */
+  | { kind: "nextExercise"; exerciseIndex: number; setIndex: number }
   | { kind: "complete"; exerciseIndex: number; setIndex: number };
 
 /**
@@ -40,8 +57,9 @@ export function planAfterSet(
   if (exercises.every((ex) => isExerciseComplete(ex, setsAfterLog))) {
     return { kind: "complete", exerciseIndex, setIndex };
   }
-  const next = exercises.findIndex((ex, i) => i !== exerciseIndex && !isExerciseComplete(ex, setsAfterLog));
-  return { kind: "nextExercise", exerciseIndex: next !== -1 ? next : exerciseIndex + 1, setIndex: -1 };
+  const found = exercises.findIndex((ex, i) => i !== exerciseIndex && !isExerciseComplete(ex, setsAfterLog));
+  const next = found !== -1 ? found : exerciseIndex + 1;
+  return { kind: "nextExercise", exerciseIndex: next, setIndex: next < exercises.length ? resumeSetIndex(exercises[next], setsAfterLog) : -1 };
 }
 
 /** Records the workout in progress on this device (the tab bar's Workout tab reads it). */
