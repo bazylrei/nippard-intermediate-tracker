@@ -32,12 +32,13 @@ describe("Profile page", () => {
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/auth"));
   });
 
-  it("links to the current program, all programs and settings", () => {
+  it("links to the current program, all programs, exercises and settings", () => {
     render(<ProfilePage />);
     const link = (name: RegExp) => screen.getByRole("link", { name });
     expect(link(new RegExp(ACTIVE_PROGRAM_NAME))).toHaveAttribute("href", "/program");
     expect(link(/All programs/)).toHaveAttribute("href", "/builder");
     expect(link(/Settings/)).toHaveAttribute("href", "/settings");
+    expect(link(/^Exercises/)).toHaveAttribute("href", "/exercises");
   });
 
   it("sizes the current program from the loaded schedule", () => {

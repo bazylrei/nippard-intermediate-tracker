@@ -45,6 +45,25 @@ export type MuscleGroup =
   | "abs"
   | "hips";
 
+/** An exercise in the catalogue: built in (`createdBy` null) or added by a user. */
+export interface CatalogExercise {
+  id: string;
+  name: string;
+  muscleGroup: MuscleGroup;
+  equipment: string | null;
+  restSeconds: [number, number]; // [min, max]
+  warmupProtocol: WarmupProtocol;
+  isBodyweight: boolean;
+  weightPerSide: boolean;
+  formNote: string | null;
+  instructions: string | null;
+  youtubeUrl: string | null;
+  createdBy: string | null;
+}
+
+/** What a user sets when adding or editing their own exercise. */
+export type ExerciseInput = Omit<CatalogExercise, "id" | "instructions" | "createdBy">;
+
 /** A preset key from `DAY_TYPE_PRESETS` or a builder custom type — see lib/day-types. */
 export type DayType = string;
 
