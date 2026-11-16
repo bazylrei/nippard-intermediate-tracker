@@ -12,6 +12,7 @@ import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { ChevronRight, ClipboardList, Dumbbell, LibraryBig, LogOut, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { EXERCISES_PATH } from "@/lib/exercise-routes";
+import { PROGRAMS_PATH } from "@/lib/program-routes";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function ProfilePage() {
       </Section>
 
       <Section title="Programs & exercises">
-        <Row href="/builder" icon={LibraryBig} title="All programs" subtitle="Yours and shared ones · build and edit in the builder" />
+        <Row href={PROGRAMS_PATH} icon={LibraryBig} title="My programs" subtitle="Yours and shared with you · preview and edit" />
         <Row href={EXERCISES_PATH} icon={Dumbbell} title="Exercises" subtitle="Browse every exercise and add your own" />
       </Section>
 

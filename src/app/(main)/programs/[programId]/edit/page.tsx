@@ -20,6 +20,8 @@ import type { ExerciseInfo } from "@/components/builder/constants";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { lastWeek, nextDayIndex } from "@/lib/program-structure";
+import { canEditProgram } from "@/lib/program-access";
+import { programHref } from "@/lib/program-routes";
 
 export default function ProgramEditorPageWrapper() {
   return (
@@ -77,7 +79,13 @@ function ProgramEditorPage() {
 
   useEffect(() => { async function run() { await load(); } void run(); }, [load]);
 
-  const isOwner = !!userId && program?.createdBy === userId;
+  const isOwner = !!program && canEditProgram(program, userId);
+
+  // Editing is for those who can edit; everyone else gets the preview.
+  const loadedWithoutEditRights = !loading && !!program && !isOwner;
+  useEffect(() => {
+    if (loadedWithoutEditRights) router.replace(programHref(programId));
+  }, [loadedWithoutEditRights, programId, router]);
 
   function toggleWeek(week: number) {
     setExpandedWeeks((prev) => {
@@ -235,6 +243,8 @@ function ProgramEditorPage() {
     return <div className="max-w-2xl mx-auto p-4 md:p-8 text-center text-subtle py-16">Program not found.</div>;
   }
 
+  if (!isOwner) return <PageSkeleton />; // on its way to the preview
+
   const maxWeek = lastWeek(program);
   const weeks = maxWeek > 0 ? Array.from({ length: maxWeek }, (_, i) => i + 1) : [];
 
@@ -244,7 +254,7 @@ function ProgramEditorPage() {
       <ProgramEditorHeader
         program={program}
         isOwner={isOwner}
-        onBack={() => router.push("/builder")}
+        onBack={() => router.push(programHref(program.id))}
         onEdit={() => setEditingProgram(true)}
         onTogglePublic={handleTogglePublic}
       />

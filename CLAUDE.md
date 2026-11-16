@@ -20,14 +20,16 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 ### Route Structure
 
 - `/(main)/` — Home: suggested next workout + feed of recent completed workouts
-- `/(main)/profile` — Hub for the current program, all programs (Builder), Exercises, Settings and sign-out. Pages opened from it (`/program`, `/builder`, `/exercises`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
+- `/(main)/profile` — Hub for the current program, My programs, Exercises, Settings and sign-out. Pages opened from it (`/program`, `/programs`, `/exercises`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
 - `/(main)/exercises` — Exercise glossary (search, grouped by muscle group). `/exercises/new`, `/exercises/[exerciseId]` (detail; Edit/Delete on your own) and `/exercises/[exerciseId]/edit`. Opened from Profile
 - `/(main)/program` — My program: progress bar, next workout, week overview (browse any week; tap a day not done to start it, via a confirm sheet that saves or discards an unfinished workout)
 - `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`
 - `/(main)/community` — Placeholder for the upcoming social features
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
 - `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
-- `/(main)/builder/[programId]` — Full CRUD program editor
+- `/(main)/programs` — My programs: "Created by me" and "Available to me" (public today, subscribed later); each opens its preview
+- `/(main)/programs/[programId]` — Read-only program preview (week switcher, day cards). Shows Edit only when `canEditProgram()` (`lib/program-access.ts`)
+- `/(main)/programs/[programId]/edit` — Full CRUD program editor; anyone who can't edit is sent to the preview. URLs come from `lib/program-routes.ts`; the old `/builder` addresses redirect (next.config.ts)
 - `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button); pages fill `.workout-viewport`. The tab bar (`Home · Progress · ▶ · Community · Profile`) always has a raised centre button: idle it starts the next workout (`findNextWorkout`); while a workout is in progress it shows the elapsed time, or the rest countdown, and leads back
 - `/auth` — Email/password sign-in/sign-up
 
