@@ -161,9 +161,30 @@ body {
   .safe-bottom  { padding-bottom: env(safe-area-inset-bottom); }
   .pt-safe      { padding-top: max(1rem, env(safe-area-inset-top)); }
 
+  /* A new exercise slides in from the side it comes from: the right going forward, the left going back. */
+  .exercise-enter-forward { animation: exercise-enter-forward 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .exercise-enter-back    { animation: exercise-enter-back 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .fade-in                { animation: fade-in 200ms ease-out both; }
+  @media (prefers-reduced-motion: reduce) {
+    .exercise-enter-forward, .exercise-enter-back { animation-name: fade-in; }
+  }
+
   /* The screen below the safe area and above the mobile tab bar (BottomNav), clear of its raised Workout tab. */
   .workout-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h) - var(--app-nav-raise)); }
   @media (min-width: 48rem) {
     .workout-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
   }
+}
+
+@keyframes exercise-enter-forward {
+  from { opacity: 0; transform: translateX(2.5rem); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes exercise-enter-back {
+  from { opacity: 0; transform: translateX(-2.5rem); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }

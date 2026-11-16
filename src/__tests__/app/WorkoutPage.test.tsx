@@ -213,6 +213,49 @@ describe("WorkoutPage — going back to an exercise from the list", () => {
   });
 });
 
+describe("WorkoutPage — moving to the next exercise is visible", () => {
+  const panel = (name: string) => screen.getByRole("region", { name });
+
+  beforeEach(() => {
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly")] };
+  });
+
+  it("doesn't animate the first exercise on load", async () => {
+    await renderPage();
+    expect(panel("Bench Press").className).not.toMatch(/exercise-enter/);
+  });
+
+  it("slides the next exercise in and says the last one is done after its final set", async () => {
+    const first = { id: "d1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null } as SetLog;
+    bootWith({ setIndex: 1, sessionSets: [first] });
+    await renderPage();
+
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Bench Press done · Up next");
+    expect(panel("Cable Fly")).toHaveClass("exercise-enter-forward");
+  });
+
+  it("slides in without a done notice when an unfinished exercise is skipped", async () => {
+    await renderPage();
+
+    await click(screen.getByText("Skip exercise"));
+
+    expect(panel("Cable Fly")).toHaveClass("exercise-enter-forward");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("slides in from the other side when going back to an earlier exercise", async () => {
+    bootWith({ exerciseIndex: 1 });
+    await renderPage();
+
+    await click(screen.getByRole("button", { name: "Exercise list" }));
+    await click(screen.getByRole("button", { name: /Bench Press/ }));
+
+    expect(panel("Bench Press")).toHaveClass("exercise-enter-back");
+  });
+});
+
 // ─── Swapping to an alternate ────────────────────────────────────────────────
 
 describe("WorkoutPage — swapping to an alternate exercise", () => {
