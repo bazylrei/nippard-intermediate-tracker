@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
 import { getBuilderProgram } from "@/lib/db";
@@ -14,7 +14,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Loaded = { program: BuilderProgram | null; userId: string };
 
+/** useParams needs a Suspense boundary to prerender. */
 export default function ProgramPreviewPage() {
+  return (
+    <Suspense fallback={<FullScreenMessage message="Loading…" />}>
+      <ProgramPreview />
+    </Suspense>
+  );
+}
+
+function ProgramPreview() {
   const { programId } = useParams<{ programId: string }>();
   const router = useRouter();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
