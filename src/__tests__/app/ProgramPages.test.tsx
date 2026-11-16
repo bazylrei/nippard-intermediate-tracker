@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 import type { BuilderProgram, ProgramRow } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, useParams: () => ({ programId: "prog-1" }) }));
 vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 
-const db = vi.hoisted(() => ({ getPrograms: vi.fn(), getBuilderProgram: vi.fn() }));
+const db = vi.hoisted(() => ({ getPrograms: vi.fn(), getBuilderProgram: vi.fn(), createProgram: vi.fn(), newProgramId: () => "new-id" }));
 vi.mock("@/lib/db", () => db);
 
 import ProgramsPage from "@/app/(main)/programs/page";
@@ -40,6 +40,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   db.getPrograms.mockResolvedValue([]);
   db.getBuilderProgram.mockResolvedValue(program);
+  db.createProgram.mockResolvedValue(undefined);
 });
 
 describe("My programs list", () => {
@@ -100,6 +101,48 @@ describe("My programs list", () => {
     db.getPrograms.mockRejectedValue(new Error("offline"));
     render(<ProgramsPage />);
     expect(await screen.findByText(/Couldn.t load programs/)).toBeInTheDocument();
+  });
+});
+
+describe("My programs — creating a program", () => {
+  async function openSheet() {
+    render(<ProgramsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "New program" }));
+    return screen.getByRole("form", { name: "New program" });
+  }
+  const fill = (name: string) => fireEvent.change(screen.getByLabelText("Name"), { target: { value: name } });
+  const submit = () => act(async () => { fireEvent.click(screen.getByRole("button", { name: "Create program" })); });
+
+  it("creates a program for me and opens it in the editor", async () => {
+    await openSheet();
+    fill("Summer Cut");
+    await submit();
+
+    expect(db.createProgram).toHaveBeenCalledWith("user-1", "new-id", { name: "Summer Cut", description: "", category: "" });
+    expect(router.push).toHaveBeenCalledWith("/programs/new-id/edit");
+  });
+
+  it("stays on the list, sheet open, and says so when it can't be created", async () => {
+    db.createProgram.mockRejectedValue(new Error("offline"));
+    await openSheet();
+    fill("Summer Cut");
+    await submit();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't create the program");
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("closes without creating anything", async () => {
+    await openSheet();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("form", { name: "New program" })).toBeNull();
+    expect(db.createProgram).not.toHaveBeenCalled();
+  });
+
+  it("offers it even before I have any programs", async () => {
+    render(<ProgramsPage />);
+    expect(await screen.findByText("No programs yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New program" })).toBeInTheDocument();
   });
 });
 

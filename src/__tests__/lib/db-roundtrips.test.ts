@@ -24,7 +24,7 @@ import {
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
-  getWeeklyVolume, getLoggedExerciseIds,
+  getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -49,6 +49,39 @@ beforeEach(() => {
 });
 
 // ─── Fail fast ───────────────────────────────────────────────────────────────
+
+describe("createProgram", () => {
+  const fields = { name: "  Summer Cut  ", description: " Six weeks ", category: "Hypertrophy" };
+
+  it("starts a private program of your own with one empty week", async () => {
+    await createProgram("user-1", "prog-1", fields);
+    expect(fn("from")).toHaveBeenCalledWith("programs");
+    expect(fn("upsert")).toHaveBeenCalledWith(
+      { id: "prog-1", name: "Summer Cut", description: "Six weeks", category: "Hypertrophy", created_by: "user-1", is_public: false, total_weeks: 1 },
+      { onConflict: "id", ignoreDuplicates: true }, // a retried save adds it once
+    );
+  });
+
+  it("stores no description or category when they're left blank", async () => {
+    await createProgram("user-1", "prog-1", { name: "Plan", description: "  ", category: "" });
+    expect(fn("upsert")).toHaveBeenCalledWith(expect.objectContaining({ description: null, category: null }), expect.anything());
+  });
+
+  it("refuses a blank name without calling the database", async () => {
+    await expect(createProgram("user-1", "prog-1", { ...fields, name: "   " })).rejects.toThrow("needs a name");
+    expect(fn("upsert")).not.toHaveBeenCalled();
+  });
+
+  it("throws a DbError when saving fails", async () => {
+    responses.push(failure("new row violates row-level security policy"));
+    await expect(createProgram("user-1", "prog-1", fields)).rejects.toThrow(DbError);
+  });
+
+  it("makes a fresh uuid each time", () => {
+    expect(newProgramId()).toMatch(/^[0-9a-f-]{36}$/);
+    expect(newProgramId()).not.toBe(newProgramId());
+  });
+});
 
 describe("completeSession", () => {
   it("only finishes a session that isn't finished yet, so a retry keeps the first finish time", async () => {
