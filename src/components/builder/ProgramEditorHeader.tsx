@@ -12,7 +12,7 @@ interface Props {
 export default function ProgramEditorHeader({ program, isOwner, onBack, onEdit, onTogglePublic }: Props) {
   return (
     <div className="flex items-start gap-3">
-      <button onClick={onBack} className="mt-0.5 text-muted hover:text-fg transition-colors shrink-0">
+      <button onClick={onBack} aria-label="Back to preview" className="mt-0.5 text-muted hover:text-fg transition-colors shrink-0">
         <ArrowLeft size={20} />
       </button>
       <div className="flex-1 min-w-0">
