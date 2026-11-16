@@ -123,6 +123,8 @@ export type Database = {
       }
       program_day_exercises: {
         Row: {
+          alternate_1_exercise_id: string | null
+          alternate_2_exercise_id: string | null
           early_set_count: number
           early_set_rpe_max: number
           early_set_rpe_min: number
@@ -138,6 +140,8 @@ export type Database = {
           rep_range_min: number
         }
         Insert: {
+          alternate_1_exercise_id?: string | null
+          alternate_2_exercise_id?: string | null
           early_set_count?: number
           early_set_rpe_max: number
           early_set_rpe_min: number
@@ -153,6 +157,8 @@ export type Database = {
           rep_range_min: number
         }
         Update: {
+          alternate_1_exercise_id?: string | null
+          alternate_2_exercise_id?: string | null
           early_set_count?: number
           early_set_rpe_max?: number
           early_set_rpe_min?: number
@@ -173,6 +179,20 @@ export type Database = {
             columns: ["last_set_target"]
             isOneToOne: false
             referencedRelation: "failure_techniques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_day_exercises_alternate_1_exercise_id_fkey"
+            columns: ["alternate_1_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_day_exercises_alternate_2_exercise_id_fkey"
+            columns: ["alternate_2_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
             referencedColumns: ["id"]
           },
           {
@@ -364,6 +384,7 @@ export type Database = {
           current_set_index: number
           day_index: number
           day_type: string
+          exercise_swaps: Json
           id: string
           program_id: string | null
           started_at: string
@@ -376,6 +397,7 @@ export type Database = {
           current_set_index?: number
           day_index: number
           day_type: string
+          exercise_swaps?: Json
           id?: string
           program_id?: string | null
           started_at?: string
@@ -388,6 +410,7 @@ export type Database = {
           current_set_index?: number
           day_index?: number
           day_type?: string
+          exercise_swaps?: Json
           id?: string
           program_id?: string | null
           started_at?: string

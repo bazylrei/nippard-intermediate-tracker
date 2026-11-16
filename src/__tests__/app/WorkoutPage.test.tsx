@@ -19,6 +19,7 @@ const db = vi.hoisted(() => ({
   updateSetLog: vi.fn(),
   saveExerciseNote: vi.fn(),
   upsertPreferences: vi.fn(),
+  saveExerciseSwaps: vi.fn(),
   getExerciseHistory: vi.fn().mockResolvedValue([]),
   getLatestBodyWeight: vi.fn().mockResolvedValue(null),
 }));
@@ -29,8 +30,14 @@ vi.mock("@/lib/workout-init", () => boot);
 
 vi.mock("@/context/RestTimerContext", () => ({ useRestTimer: () => ({ start: vi.fn() }) }));
 
+/** An alternate is an exercise of its own, with the slot's sets and reps. */
+const alternate = (id: string, name: string, warmupProtocol: string) => ({
+  id, name, alternates: [], muscleGroup: "chest", restSeconds: [60, 90], warmupProtocol, repRange: [6, 10], earlySetRpe: [7, 8],
+  lastSetTarget: "failure", earlySetCount: 1, lastSetCount: 1, formNote: "", isBodyweight: false, weightPerSide: false,
+}) as unknown as Exercise;
 const exercise = (id: string, name: string, warmupProtocol = "none"): Exercise => ({
-  id, name, alternates: ["", ""], muscleGroup: "chest", restSeconds: [60, 90],
+  id, name, alternates: [alternate(`${id}-db`, `${name} (DB)`, warmupProtocol), alternate(`${id}-machine`, `${name} (Machine)`, warmupProtocol)],
+  muscleGroup: "chest", restSeconds: [60, 90],
   warmupProtocol, repRange: [6, 10], earlySetRpe: [7, 8], lastSetTarget: "failure",
   earlySetCount: 1, lastSetCount: 1, formNote: "", isBodyweight: false, weightPerSide: false,
 }) as Exercise;
@@ -85,7 +92,7 @@ beforeEach(() => {
   programFailed = false;
   workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press")] };
   bootWith();
-  for (const fn of [db.updateSessionProgress, db.completeSession, db.logSetAndAdvance, db.deleteWorkoutSession]) {
+  for (const fn of [db.updateSessionProgress, db.completeSession, db.logSetAndAdvance, db.deleteWorkoutSession, db.saveExerciseSwaps]) {
     fn.mockResolvedValue(undefined);
   }
 });
@@ -168,6 +175,103 @@ describe("WorkoutPage — skipping saves the next exercise's warm-up, not its fi
 
     expect(db.updateSessionProgress).toHaveBeenCalledWith("sess-1", 1, -1);
     expect(activeSlide()).toHaveAccessibleName("Warm-up");
+  });
+});
+
+// ─── Swapping to an alternate ────────────────────────────────────────────────
+
+describe("WorkoutPage — swapping to an alternate exercise", () => {
+  const heading = (name: string) => screen.getByRole("heading", { name });
+
+  async function swapTo(name: RegExp | string, { makeDefault = false } = {}) {
+    await click(screen.getByRole("button", { name: "Swap exercise" }));
+    await click(screen.getByRole("radio", { name }));
+    if (makeDefault) await click(screen.getByRole("checkbox"));
+    await click(screen.getByRole("button", { name: /^Use / }));
+  }
+
+  it("swaps for this workout only: the new exercise is shown, saved on the session, and not made a default", async () => {
+    await renderPage();
+
+    await swapTo(/Bench Press \(DB\)/);
+
+    expect(heading("Bench Press (DB)")).toBeInTheDocument();
+    expect(screen.getByText("Instead of Bench Press")).toBeInTheDocument();
+    expect(db.saveExerciseSwaps).toHaveBeenCalledWith("sess-1", { bench: "bench-db" });
+    expect(db.upsertPreferences).not.toHaveBeenCalled();
+  });
+
+  it("logs the sets under the alternate's own id, so its history stays its own", async () => {
+    await renderPage();
+    await swapTo(/Bench Press \(DB\)/);
+
+    // The alternate has no history yet, so nothing is pre-filled.
+    const [weight, reps] = screen.getAllByRole("spinbutton");
+    fireEvent.change(weight, { target: { value: "40" } });
+    fireEvent.change(reps, { target: { value: "12" } });
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    expect(db.logSetAndAdvance).toHaveBeenCalledWith(expect.objectContaining({ exerciseId: "bench-db", setIndex: 0, weight: 40, reps: 12 }));
+  });
+
+  it("shows the alternate's own last time after a swap, not the main exercise's", async () => {
+    const dbPrev = { ...prevSet, id: "q", exerciseId: "bench-db", weight: 40, reps: 12 };
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet] }, "bench-db": { lastSets: [dbPrev] } } });
+    await renderPage();
+    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+
+    await swapTo(/Bench Press \(DB\)/);
+
+    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("40kg × 12");
+  });
+
+  it("saves the swap as the default for future workouts too when asked", async () => {
+    await renderPage();
+
+    await swapTo(/Bench Press \(Machine\)/, { makeDefault: true });
+
+    expect(db.saveExerciseSwaps).toHaveBeenCalledWith("sess-1", { bench: "bench-machine" });
+    expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { alternateSelections: { bench: "bench-machine" } });
+  });
+
+  it("starts on the saved default, and a swap back to the main exercise overrides it for today only", async () => {
+    bootWith({ prefs: { unit: "kg", alternateSelections: { bench: "bench-db" }, exerciseNotes: {} } });
+    await renderPage();
+    expect(heading("Bench Press (DB)")).toBeInTheDocument();
+
+    await swapTo("Bench Press");
+
+    expect(heading("Bench Press")).toBeInTheDocument();
+    expect(db.saveExerciseSwaps).toHaveBeenCalledWith("sess-1", { bench: "bench" });
+    expect(db.upsertPreferences).not.toHaveBeenCalled(); // the saved default is untouched
+  });
+
+  it("resumes a workout on the exercise swapped in earlier", async () => {
+    bootWith({ session: { ...session, exerciseSwaps: { bench: "bench-machine" } } });
+    await renderPage();
+    expect(heading("Bench Press (Machine)")).toBeInTheDocument();
+  });
+
+  it("stays on the original and says so when the swap can't be saved", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    db.saveExerciseSwaps.mockRejectedValue(new Error("offline"));
+    await renderPage();
+    await click(screen.getByRole("button", { name: "Swap exercise" }));
+    await click(screen.getByRole("radio", { name: /Bench Press \(DB\)/ }));
+
+    await click(screen.getByRole("button", { name: /^Use / }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't switch exercise");
+    expect(heading("Bench Press")).toBeInTheDocument();
+  });
+
+  it("can't be swapped once a set has been logged for the exercise", async () => {
+    await renderPage();
+    expect(screen.getByRole("button", { name: "Swap exercise" })).toBeInTheDocument();
+
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    expect(screen.queryByRole("button", { name: "Swap exercise" })).toBeNull();
   });
 });
 

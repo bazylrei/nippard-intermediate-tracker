@@ -4,17 +4,19 @@ import type { Exercise } from "@/lib/types";
 import { Repeat2, ExternalLink, Info } from "lucide-react";
 
 interface Props {
+  /** The exercise being done: the slot's own, or the alternate chosen for it. */
   exercise: Exercise;
+  /** The slot's own exercise; differs from `exercise` after a swap. */
   originalExercise: Exercise;
-  alternateIndex: number;
+  /** False once a set has been logged: the exercise can't change mid-way. */
+  canSwap: boolean;
   note: string | undefined;
-  onSwap: () => void;
+  onOpenSwap: () => void;
   onOpenNotes: () => void;
 }
 
-export default function ExerciseInfo({ exercise, originalExercise, alternateIndex, note, onSwap, onOpenNotes }: Props) {
-  const nextIdx = (alternateIndex + 1) % 3;
-  const names = [originalExercise.name, originalExercise.alternates[0], originalExercise.alternates[1]];
+export default function ExerciseInfo({ exercise, originalExercise, canSwap, note, onOpenSwap, onOpenNotes }: Props) {
+  const swapped = exercise.id !== originalExercise.id;
   return (
     <>
       <div className="space-y-1">
@@ -28,14 +30,17 @@ export default function ExerciseInfo({ exercise, originalExercise, alternateInde
             <Info size={20} />
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onSwap}
-            className="flex items-center gap-1.5 text-xs text-subtle hover:text-primary transition-colors cursor-pointer"
-          >
-            <Repeat2 size={13} />
-            Swap to {names[nextIdx]}
-          </button>
+        <div className="flex items-center gap-3">
+          {canSwap && originalExercise.alternates.length > 0 && (
+            <button
+              onClick={onOpenSwap}
+              className="flex items-center gap-1.5 text-xs text-subtle hover:text-primary transition-colors cursor-pointer"
+            >
+              <Repeat2 size={13} />
+              Swap exercise
+            </button>
+          )}
+          {swapped && <span className="text-xs text-subtle">Instead of {originalExercise.name}</span>}
         </div>
       </div>
 

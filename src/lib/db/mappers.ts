@@ -1,5 +1,6 @@
 import type { Tables } from "../database.types";
 import type { SetLog, WorkoutSession } from "../types";
+import { parseExerciseChoices } from "../alternates";
 
 export function mapSession(row: Tables<"workout_sessions">): WorkoutSession {
   return {
@@ -13,6 +14,7 @@ export function mapSession(row: Tables<"workout_sessions">): WorkoutSession {
     completedAt: row.completed_at,
     currentExerciseIndex: row.current_exercise_index ?? 0,
     currentSetIndex: row.current_set_index ?? 0,
+    exerciseSwaps: parseExerciseChoices(row.exercise_swaps),
   };
 }
 

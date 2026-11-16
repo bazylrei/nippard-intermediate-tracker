@@ -86,6 +86,12 @@ export async function updateSessionProgress(
     .eq("id", sessionId));
 }
 
+/** Saves the alternates chosen for this workout only (the whole map, so a retry is safe). */
+export async function saveExerciseSwaps(sessionId: string, swaps: Record<string, string>): Promise<void> {
+  const sb = createClient();
+  unwrap("saveExerciseSwaps", await sb.from("workout_sessions").update({ exercise_swaps: swaps }).eq("id", sessionId));
+}
+
 export async function completeSession(sessionId: string): Promise<void> {
   const sb = createClient();
   unwrap("completeSession", await sb

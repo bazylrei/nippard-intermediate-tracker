@@ -1,13 +1,10 @@
 import type { Exercise, ExerciseRecord, SetLog, WorkoutSession } from "./types";
+import { chooseExercise, type ExerciseChoices } from "./alternates";
 import { clearActiveWorkout, saveActiveWorkout } from "./active-workout";
 
-export function resolveExercises(exercises: Exercise[], selections: Record<string, number>): Exercise[] {
-  return exercises.map((ex) => {
-    const idx = selections[ex.id] ?? 0;
-    if (idx === 1) return { ...ex, name: ex.alternates[0] };
-    if (idx === 2) return { ...ex, name: ex.alternates[1] };
-    return ex;
-  });
+/** The exercises to do today: each slot's own exercise, or the alternate chosen for it. */
+export function resolveExercises(exercises: Exercise[], choices: ExerciseChoices): Exercise[] {
+  return exercises.map((ex) => chooseExercise(ex, choices));
 }
 
 export function totalSetsForExercise(ex: Exercise): number {

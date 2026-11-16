@@ -6,7 +6,7 @@ import type { Exercise, SetLog } from "@/lib/types";
 const baseExercise: Exercise = {
   id: "ex-1",
   name: "Bench Press",
-  alternates: ["DB Bench", "Cable Fly"],
+  alternates: [],
   muscleGroup: "chest",
   restSeconds: [120, 180],
   warmupProtocol: "3-set",
