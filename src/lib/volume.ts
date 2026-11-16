@@ -1,5 +1,6 @@
 import type { BodyWeightLog } from "./types";
 import { localYmd } from "./dates";
+import { MUSCLE_REGIONS, regionOf, type RegionVolumes } from "./muscle-regions";
 
 /** What decides how much weight a set really moves. */
 export interface LoadFlags {
@@ -37,25 +38,48 @@ export interface VolumeSet {
   loggedAt: string;
 }
 
+/** What weekly volume needs to know about an exercise: how to load its sets and which muscle group it trains. */
+export interface VolumeExercise extends LoadFlags {
+  muscleGroup: string;
+}
+
+export interface WeekVolume {
+  week: number;
+  /** Volume (kg × reps): the sum of `byRegion`. */
+  volume: number;
+  /** The week's volume per body region, each rounded; zero for a region not trained. */
+  byRegion: RegionVolumes;
+}
+
 export interface WeeklyVolume {
-  /** Volume (kg × reps) per program week, weeks ascending. */
-  weeks: { week: number; volume: number }[];
+  /** Weeks ascending. */
+  weeks: WeekVolume[];
   /** Bodyweight sets were counted without a body weight (none logged yet), so they're understated. */
   missingBodyWeight: boolean;
 }
 
-/** Total volume per program week, with per-side and bodyweight loads applied. */
-export function weeklyVolume(sets: VolumeSet[], flagsById: Record<string, LoadFlags>, logs: BodyWeightLog[]): WeeklyVolume {
-  const byWeek = new Map<number, number>();
+const UNKNOWN_EXERCISE: VolumeExercise = { weightPerSide: false, isBodyweight: false, muscleGroup: "" };
+
+function emptyRegions(): RegionVolumes {
+  return Object.fromEntries(MUSCLE_REGIONS.map(({ id }) => [id, 0])) as RegionVolumes;
+}
+
+/** Volume per program week and body region, with per-side and bodyweight loads applied. */
+export function weeklyVolume(sets: VolumeSet[], exercisesById: Record<string, VolumeExercise>, logs: BodyWeightLog[]): WeeklyVolume {
+  const byWeek = new Map<number, RegionVolumes>();
   let missingBodyWeight = false;
   for (const set of sets) {
-    const flags = flagsById[set.exerciseId] ?? { weightPerSide: false, isBodyweight: false };
-    const bodyWeight = flags.isBodyweight ? bodyWeightOn(logs, localYmd(new Date(set.loggedAt))) : null;
-    if (flags.isBodyweight && bodyWeight === null) missingBodyWeight = true;
-    const volume = setLoadKg(set.weightKg, flags, bodyWeight) * set.reps;
-    byWeek.set(set.week, (byWeek.get(set.week) ?? 0) + volume);
+    const exercise = exercisesById[set.exerciseId] ?? UNKNOWN_EXERCISE;
+    const bodyWeight = exercise.isBodyweight ? bodyWeightOn(logs, localYmd(new Date(set.loggedAt))) : null;
+    if (exercise.isBodyweight && bodyWeight === null) missingBodyWeight = true;
+    const regions = byWeek.get(set.week) ?? emptyRegions();
+    regions[regionOf(exercise.muscleGroup)] += setLoadKg(set.weightKg, exercise, bodyWeight) * set.reps;
+    byWeek.set(set.week, regions);
   }
-  const weeks = Array.from(byWeek, ([week, volume]) => ({ week, volume: Math.round(volume) })).sort((a, b) => a.week - b.week);
+  const weeks = Array.from(byWeek, ([week, raw]) => {
+    const byRegion = Object.fromEntries(Object.entries(raw).map(([id, v]) => [id, Math.round(v)])) as RegionVolumes;
+    return { week, volume: Object.values(byRegion).reduce((a, b) => a + b, 0), byRegion };
+  }).sort((a, b) => a.week - b.week);
   return { weeks, missingBodyWeight };
 }
 

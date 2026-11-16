@@ -18,6 +18,14 @@
   --accent:     #18794E;
   --accent-fg:  #FFFFFF;
   --danger:     #CE2C31;
+  /* Body-region series colours (volume chart): validated as a set for colour-blind separation on --surface. */
+  --region-chest:     #2a78d6;
+  --region-back:      #eb6834;
+  --region-shoulders: #1baf7a;
+  --region-arms:      #eda100;
+  --region-legs:      #e87ba4;
+  --region-core:      #008300;
+  --region-other:     #6250d6;
 }
 
 /* ── Dark mode tokens ────────────────────────────────────────────────────── */
@@ -35,6 +43,13 @@
     --accent:     #30A46C;
     --accent-fg:  #0E0E0C;
     --danger:     #E5484D;
+    --region-chest:     #3987e5;
+    --region-back:      #d95926;
+    --region-shoulders: #199e70;
+    --region-arms:      #c98500;
+    --region-legs:      #d55181;
+    --region-core:      #0ca30c;
+    --region-other:     #9085e9;
   }
 }
 
@@ -52,6 +67,13 @@ html.dark {
   --accent:     #30A46C;
   --accent-fg:  #0E0E0C;
   --danger:     #E5484D;
+  --region-chest:     #3987e5;
+  --region-back:      #d95926;
+  --region-shoulders: #199e70;
+  --region-arms:      #c98500;
+  --region-legs:      #d55181;
+  --region-core:      #0ca30c;
+  --region-other:     #9085e9;
 }
 
 html.light {
@@ -67,6 +89,13 @@ html.light {
   --accent:     #18794E;
   --accent-fg:  #FFFFFF;
   --danger:     #CE2C31;
+  --region-chest:     #2a78d6;
+  --region-back:      #eb6834;
+  --region-shoulders: #1baf7a;
+  --region-arms:      #eda100;
+  --region-legs:      #e87ba4;
+  --region-core:      #008300;
+  --region-other:     #6250d6;
 }
 
 /* ── Tailwind theme tokens ───────────────────────────────────────────────── */

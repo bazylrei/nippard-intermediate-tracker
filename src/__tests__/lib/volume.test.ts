@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { BodyWeightLog } from "@/lib/types";
-import { bodyWeightOn, setLoadKg, weeklyVolume, sessionVolumes, volumeChangePercent, type VolumeSet, type SessionSet } from "@/lib/volume";
+import { bodyWeightOn, setLoadKg, weeklyVolume, sessionVolumes, volumeChangePercent, type VolumeSet, type SessionSet, type WeeklyVolume } from "@/lib/volume";
 
 const plain = { weightPerSide: false, isBodyweight: false };
 const perSide = { weightPerSide: true, isBodyweight: false };
@@ -46,34 +46,61 @@ describe("bodyWeightOn", () => {
 describe("weeklyVolume", () => {
   const set = (exerciseId: string, weightKg: number, reps: number, week: number, loggedAt = "2026-10-20T10:00:00Z"): VolumeSet =>
     ({ exerciseId, weightKg, reps, week, loggedAt });
-  const flags = { bench: plain, "db-row": perSide, "pull-up": bodyweight };
+  const exercises = {
+    bench: { ...plain, muscleGroup: "chest" },
+    "db-row": { ...perSide, muscleGroup: "back" },
+    "pull-up": { ...bodyweight, muscleGroup: "back" },
+    curl: { ...plain, muscleGroup: "biceps" },
+    pushdown: { ...plain, muscleGroup: "triceps" },
+    squat: { ...plain, muscleGroup: "quads" },
+  };
+  /** Just each week's total. */
+  const totals = (result: WeeklyVolume) => result.weeks.map(({ week, volume }) => ({ week, volume }));
 
   it("applies each set's load and groups by program week", () => {
     const result = weeklyVolume(
       [set("bench", 100, 5, 1), set("db-row", 30, 10, 1), set("pull-up", 0, 10, 2)],
-      flags,
+      exercises,
       [log("2026-10-01", 80)],
     );
-    expect(result).toEqual({ weeks: [{ week: 1, volume: 1100 }, { week: 2, volume: 800 }], missingBodyWeight: false });
+    expect(totals(result)).toEqual([{ week: 1, volume: 1100 }, { week: 2, volume: 800 }]);
+    expect(result.missingBodyWeight).toBe(false);
+  });
+
+  it("splits each week by body region, folding muscle groups into their region", () => {
+    const result = weeklyVolume(
+      [set("bench", 100, 5, 1), set("db-row", 30, 10, 1), set("curl", 20, 10, 1), set("pushdown", 25, 10, 1), set("squat", 120, 5, 1)],
+      exercises,
+      [],
+    );
+    expect(result.weeks[0]).toEqual({
+      week: 1,
+      volume: 2150,
+      byRegion: { chest: 500, back: 600, shoulders: 0, arms: 450, legs: 600, core: 0, other: 0 },
+    });
   });
 
   it("uses the body weight of the day each set was done", () => {
     const logs = [log("2026-10-01", 80), log("2026-11-01", 85)];
     const result = weeklyVolume(
       [set("pull-up", 0, 10, 1, "2026-10-20T10:00:00Z"), set("pull-up", 0, 10, 5, "2026-11-10T10:00:00Z")],
-      flags,
+      exercises,
       logs,
     );
-    expect(result.weeks).toEqual([{ week: 1, volume: 800 }, { week: 5, volume: 850 }]);
+    expect(totals(result)).toEqual([{ week: 1, volume: 800 }, { week: 5, volume: 850 }]);
   });
 
   it("flags bodyweight sets counted without a body weight", () => {
-    expect(weeklyVolume([set("pull-up", 5, 10, 1)], flags, [])).toEqual({ weeks: [{ week: 1, volume: 50 }], missingBodyWeight: true });
-    expect(weeklyVolume([set("bench", 100, 5, 1)], flags, []).missingBodyWeight).toBe(false);
+    const result = weeklyVolume([set("pull-up", 5, 10, 1)], exercises, []);
+    expect(totals(result)).toEqual([{ week: 1, volume: 50 }]);
+    expect(result.missingBodyWeight).toBe(true);
+    expect(weeklyVolume([set("bench", 100, 5, 1)], exercises, []).missingBodyWeight).toBe(false);
   });
 
-  it("treats an exercise missing from the catalogue as plain", () => {
-    expect(weeklyVolume([set("retired", 20, 10, 1)], flags, []).weeks).toEqual([{ week: 1, volume: 200 }]);
+  it("treats an exercise missing from the catalogue as plain, under Other", () => {
+    const [week] = weeklyVolume([set("retired", 20, 10, 1)], exercises, []).weeks;
+    expect(week.volume).toBe(200);
+    expect(week.byRegion.other).toBe(200);
   });
 });
 
