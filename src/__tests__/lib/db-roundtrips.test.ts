@@ -24,7 +24,7 @@ import {
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
-  getWeeklyVolume, getLoggedExerciseIds, getExerciseWorkingSets,
+  getWeeklyVolume, getLoggedExerciseIds,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -390,18 +390,6 @@ describe("getWeeklyVolume", () => {
     );
     // 2 × 30 × 10 = 600, plus (80 + 10) × 8 = 720
     expect(totals(await getWeeklyVolume("user-1"))).toEqual([{ week: 1, volume: 1320 }]);
-  });
-});
-
-describe("getExerciseWorkingSets", () => {
-  it("reads working sets for just the given exercises, with their sessions", async () => {
-    responses.push({ data: [{ session_id: "s1", exercise_id: "bench", weight_kg: 100, reps: 5, logged_at: "2026-11-10T10:00:00Z" }], error: null });
-    expect(await getExerciseWorkingSets("user-1", ["bench", "row"])).toEqual([
-      { sessionId: "s1", exerciseId: "bench", weightKg: 100, reps: 5, loggedAt: "2026-11-10T10:00:00Z" },
-    ]);
-    expect(fn("in")).toHaveBeenCalledWith("exercise_id", ["bench", "row"]);
-    expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
-    expect(fn("from")).toHaveBeenCalledTimes(1);
   });
 });
 

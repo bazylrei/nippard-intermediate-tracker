@@ -3,11 +3,15 @@
 import { dayLabel } from "@/lib/day-types";
 import type { Exercise, SetLog } from "@/lib/types";
 import { Trophy, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { kgToDisplay } from "@/lib/units";
-import { setLoadKg, volumeChangePercent } from "@/lib/volume";
+import { setLoadKg } from "@/lib/volume";
 import type { PostWorkoutData } from "@/hooks/useWorkoutHistory";
 import BodyWeightCta from "@/components/BodyWeightCta";
-import ExerciseProgressChart from "@/components/workout/ExerciseProgressChart";
+import { formatCalendarDate } from "@/lib/dates";
+
+/** Recessive axis text: muted ink, small, tabular figures. */
+const AXIS_TICK = { fill: "var(--muted)", fontSize: 11, style: { fontVariantNumeric: "tabular-nums" } };
 
 interface Props {
   week: number;
@@ -21,7 +25,7 @@ interface Props {
 }
 
 export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSets, postWorkout, unit, onHome, onProgress }: Props) {
-  const { history: postHistory, volumes, bodyWeightKg } = postWorkout;
+  const { history: postHistory, bodyWeightKg } = postWorkout;
   const doneIds = new Set(sessionSets.filter((s) => s.setIndex >= 0).map((s) => s.exerciseId));
   const needsBodyWeight = bodyWeightKg === null && exercises.some((ex) => ex.isBodyweight && doneIds.has(ex.id));
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
@@ -70,18 +74,11 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
               if (exSets.length === 0) return null;
 
               const history = postHistory[ex.id] ?? [];
-              // Volume joins the weight points by date; a date with no volume leaves a gap.
-              const volumeByDate = new Map((volumes[ex.id] ?? []).map((v) => [v.date, v.volume]));
-              const chartData = history.slice(-8).map((h, i, arr) => {
-                const volume = volumeByDate.get(h.date);
-                return {
-                  date: h.date,
-                  weight: kgToDisplay(h.weight, unit),
-                  ...(volume !== undefined && { volume: Math.round(kgToDisplay(volume, unit)) }),
-                  isToday: i === arr.length - 1,
-                };
-              });
-              const volumeChange = volumeChangePercent(volumes[ex.id] ?? []);
+              const chartData = history.slice(-8).map((h, i, arr) => ({
+                date: h.date,
+                weight: kgToDisplay(h.weight, unit),
+                isToday: i === arr.length - 1,
+              }));
 
               const todayBest = exSets.reduce((m, s) => s.weight > m.weight ? s : m, exSets[0]);
               const prevPoint = history.length >= 2 ? history[history.length - 2] : null;
@@ -127,16 +124,65 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
                     )}
                     <div className="text-xs text-muted">
                       Vol: <span className="text-fg font-display font-semibold">{Math.round(kgToDisplay(totalVolume, unit))}{unit}</span>
-                      {volumeChange !== null && (
-                        <span className={`font-display font-semibold ${volumeChange > 0 ? "text-accent" : volumeChange < 0 ? "text-danger" : "text-muted"}`}>
-                          {" "}({volumeChange > 0 ? "+" : ""}{volumeChange}% vs last)
-                        </span>
-                      )}
                       {volumeMissesBodyWeight && <span className="text-subtle"> · added weight only</span>}
                     </div>
                   </div>
 
-                  {chartData.length >= 2 && <ExerciseProgressChart points={chartData} unit={unit} />}
+                  {/* Sparkline chart */}
+                  {chartData.length >= 2 && (
+                    <div>
+                      <p className="text-[10px] text-subtle uppercase tracking-widest mb-1 font-display">Weight progression (last set)</p>
+                      {/* Height includes the date-axis band so its labels aren't clipped. */}
+                      <ResponsiveContainer width="100%" height={150}>
+                        <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                          <CartesianGrid vertical={false} stroke="var(--border)" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={formatCalendarDate}
+                            tick={AXIS_TICK}
+                            axisLine={false}
+                            tickLine={false}
+                            interval="preserveStartEnd"
+                            minTickGap={12}
+                          />
+                          <YAxis
+                            domain={["auto", "auto"]}
+                            tickFormatter={(v: number) => `${v}${unit}`}
+                            tick={AXIS_TICK}
+                            axisLine={false}
+                            tickLine={false}
+                            tickCount={4}
+                            width={52}
+                          />
+                          <Tooltip
+                            content={({ active, payload }) => {
+                              if (!active || !payload?.length) return null;
+                              const d = payload[0].payload as { date: string; weight: number; isToday: boolean };
+                              return (
+                                <div className="glass rounded-lg px-2 py-1 text-xs font-display font-semibold"
+                                  style={{ border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)", background: "var(--surface)" }}>
+                                  {d.isToday ? "Today" : formatCalendarDate(d.date)} · {d.weight}{unit}
+                                </div>
+                              );
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="weight"
+                            stroke="var(--primary)"
+                            strokeWidth={2}
+                            dot={(props) => {
+                              const { cx, cy, payload } = props as { cx: number; cy: number; payload: { isToday: boolean } };
+                              if (payload.isToday) {
+                                return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="var(--primary)" stroke="var(--bg)" strokeWidth={2} />;
+                              }
+                              return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={2} fill="var(--primary)" opacity={0.4} />;
+                            }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                   {chartData.length < 2 && (
                     <p className="text-xs text-subtle text-center py-2">First time logging this exercise — come back next session to see your progress.</p>
                   )}
