@@ -15,6 +15,9 @@ const TABS = [
 
 const WORKOUT_PATH = "/workout";
 
+/** Pages that belong to a tab without being under its path: Settings is opened from Program. */
+const ALSO_ACTIVE_ON: Record<string, string[]> = { "/program": ["/settings"] };
+
 interface Tab {
   label: string;
   icon: LucideIcon;
@@ -36,7 +39,7 @@ function useTabs(): Tab[] {
 
   const tabs: Tab[] = TABS.map(({ href, label, icon }) => ({
     label, icon, href,
-    active: href === "/" ? pathname === "/" : pathname.startsWith(href),
+    active: href === "/" ? pathname === "/" : [href, ...(ALSO_ACTIVE_ON[href] ?? [])].some((path) => pathname.startsWith(path)),
   }));
   if (workout || onWorkout) {
     tabs.splice(tabs.length / 2, 0, {

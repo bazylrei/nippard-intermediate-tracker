@@ -33,7 +33,6 @@ export default function SettingsPanel({ prefs, bodyWeightKg, onChangeUnit, onSav
 
   return (
     <div className="glass gloss rounded-2xl p-4 space-y-3">
-      <h3 className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Settings</h3>
       <UnitSetting unit={prefs.unit} onChange={onChangeUnit} />
       <ThemeSetting />
       <div className="flex items-center justify-between gap-3">

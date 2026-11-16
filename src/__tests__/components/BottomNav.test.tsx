@@ -33,6 +33,14 @@ describe("AppNav", () => {
     expect(mobileBar().getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
   });
 
+  it("keeps the Program tab selected on Settings, which is opened from Program", () => {
+    pathname = "/settings";
+    render(<AppNav />);
+    expect(mobileBar().getByRole("button", { name: "Program" })).toHaveAttribute("aria-current", "page");
+    expect(mobileBar().getByRole("button", { name: "Home" })).not.toHaveAttribute("aria-current");
+    expect(mobileBar().getByRole("button", { name: "Progress" })).not.toHaveAttribute("aria-current");
+  });
+
   it("adds a Workout tab in the middle while a workout is in progress, leading back to it", () => {
     saveActiveWorkout(inProgress);
     pathname = "/progress";

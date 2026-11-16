@@ -11,9 +11,7 @@ const db = vi.hoisted(() => ({
   getIncompleteSession: vi.fn(),
   getCompletedSlots: vi.fn(),
   getPreferences: vi.fn(),
-  upsertPreferences: vi.fn(),
   getLatestBodyWeight: vi.fn(),
-  logBodyWeight: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
 
@@ -23,7 +21,6 @@ const program = [{ week: 1, days: [day("upper-a"), day("lower-a"), day("push")] 
 vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
 
 import MyProgram from "@/app/(main)/program/page";
-import { localYmd } from "@/lib/dates";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,10 +33,6 @@ beforeEach(() => {
     { sessionId: "s2", week: 1, dayIndex: 1 },
     { sessionId: "s1", week: 1, dayIndex: 0 },
   ]);
-  db.getPreferences.mockResolvedValue({ unit: "kg", alternateSelections: {}, exerciseNotes: {}, heightCm: 180, weekStartsOn: 1 });
-  db.upsertPreferences.mockResolvedValue(undefined);
-  db.getLatestBodyWeight.mockResolvedValue({ loggedOn: "2026-11-09", weightKg: 80, source: "manual" });
-  db.logBodyWeight.mockResolvedValue(undefined);
 });
 
 async function renderPage() {
@@ -47,100 +40,24 @@ async function renderPage() {
   await screen.findByText("Week 1 Overview");
 }
 
-const openSettings = () => fireEvent.click(screen.getAllByRole("button")[0]);
-
 describe("Program page — week overview", () => {
   it("links each completed day to its workout and leaves the rest plain", async () => {
     await renderPage();
-    const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href"));
+    const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/settings");
     expect(hrefs).toEqual(["/history/s1", "/history/s2"]);
   });
 });
 
 describe("Program page — settings", () => {
-  it("toggles the unit and saves it through the DB layer", async () => {
+  it("links to the Settings page from its header", async () => {
     await renderPage();
-    openSettings();
-    fireEvent.click(screen.getByRole("radio", { name: "LBS" }));
-    expect(screen.getByRole("radio", { name: "LBS" })).toHaveAttribute("aria-checked", "true");
-    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { unit: "lbs" }));
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
 
-  it("doesn't save anything when the current unit is tapped again", async () => {
+  it("no longer loads preferences or weigh-ins: those are the Settings page's", async () => {
     await renderPage();
-    openSettings();
-    fireEvent.click(screen.getByRole("radio", { name: "KG" }));
-    expect(db.upsertPreferences).not.toHaveBeenCalled();
-  });
-
-  it("reverts the unit and shows an alert when the save fails", async () => {
-    db.upsertPreferences.mockRejectedValue(new Error("offline"));
-    await renderPage();
-    openSettings();
-    fireEvent.click(screen.getByRole("radio", { name: "LBS" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't change the weight unit");
-    expect(screen.getByRole("radio", { name: "KG" })).toHaveAttribute("aria-checked", "true");
-  });
-
-  it("shows the latest weigh-in, and logs a new one for today when it's changed", async () => {
-    await renderPage();
-    openSettings();
-    const input = screen.getByLabelText("Body weight (kg)");
-    expect(input).toHaveValue(80);
-    fireEvent.change(input, { target: { value: "82.5" } });
-    fireEvent.blur(input);
-    await waitFor(() => expect(db.logBodyWeight).toHaveBeenCalledWith("user-1", localYmd(new Date()), 82.5));
-    expect(db.upsertPreferences).not.toHaveBeenCalled();
-  });
-
-  it("shows and takes body weight in lbs for lbs users, storing kg", async () => {
-    db.getPreferences.mockResolvedValue({ unit: "lbs", alternateSelections: {}, exerciseNotes: {}, heightCm: 180, weekStartsOn: 1 });
-    await renderPage();
-    openSettings();
-    const input = screen.getByLabelText("Body weight (lbs)");
-    expect(input).toHaveValue(176.25); // 80kg
-    fireEvent.change(input, { target: { value: "176.37" } });
-    fireEvent.blur(input);
-    await waitFor(() => expect(db.logBodyWeight).toHaveBeenCalled());
-    expect(db.logBodyWeight.mock.calls[0][2]).toBeCloseTo(80, 2);
-  });
-
-  it("saves height on its own", async () => {
-    await renderPage();
-    openSettings();
-    const input = screen.getByLabelText("Height (cm)");
-    fireEvent.change(input, { target: { value: "182" } });
-    fireEvent.blur(input);
-    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { heightCm: 182 }));
-  });
-
-  it("saves the first day of the week", async () => {
-    await renderPage();
-    openSettings();
-    expect(screen.getByLabelText("Week starts on")).toHaveValue("1");
-    fireEvent.change(screen.getByLabelText("Week starts on"), { target: { value: "0" } });
-    await waitFor(() => expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { weekStartsOn: 0 }));
-    expect(screen.getByLabelText("Week starts on")).toHaveValue("0");
-  });
-
-  it("does not save when a field is left unchanged", async () => {
-    await renderPage();
-    openSettings();
-    fireEvent.blur(screen.getByLabelText("Height (cm)"));
-    fireEvent.blur(screen.getByLabelText("Body weight (kg)"));
-    expect(db.upsertPreferences).not.toHaveBeenCalled();
-    expect(db.logBodyWeight).not.toHaveBeenCalled();
-  });
-
-  it("reverts the body weight and shows an alert when logging it fails", async () => {
-    db.logBodyWeight.mockRejectedValue(new Error("offline"));
-    await renderPage();
-    openSettings();
-    const input = screen.getByLabelText("Body weight (kg)");
-    fireEvent.change(input, { target: { value: "90" } });
-    fireEvent.blur(input);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't save your body weight");
-    expect(screen.getByLabelText("Body weight (kg)")).toHaveValue(80);
+    expect(db.getPreferences).not.toHaveBeenCalled();
+    expect(db.getLatestBodyWeight).not.toHaveBeenCalled();
   });
 });
 
@@ -153,7 +70,7 @@ describe("Program page — loading and sign-out", () => {
 
   it("signs out through lib/auth and goes to the sign-in page", async () => {
     await renderPage();
-    fireEvent.click(screen.getAllByRole("button")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/auth"));
     expect(auth.signOut).toHaveBeenCalled();
   });
@@ -161,7 +78,7 @@ describe("Program page — loading and sign-out", () => {
   it("stays put and shows an alert when signing out fails", async () => {
     auth.signOut.mockRejectedValue(new Error("offline"));
     await renderPage();
-    fireEvent.click(screen.getAllByRole("button")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't sign out");
     expect(router.replace).not.toHaveBeenCalledWith("/auth");
   });
