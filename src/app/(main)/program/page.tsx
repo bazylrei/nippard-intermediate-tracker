@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth";
-import { requireSignedInUser, SIGN_IN_PATH } from "@/lib/require-user";
+import { requireSignedInUser } from "@/lib/require-user";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getCompletedSlots, getIncompleteSession, type CompletedSlot } from "@/lib/db";
 import { getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
@@ -13,11 +11,10 @@ import type { WorkoutPosition } from "@/lib/types";
 import { latestSessionBySlot, startWorkoutHref, workoutDetailHref } from "@/lib/workout-history";
 import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import WeekDayTile from "@/components/program/WeekDayTile";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
-import { useSaveError } from "@/hooks/useSaveError";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { cacheGet, cacheSet } from "@/lib/cache";
-import { Dumbbell, LogOut, Settings } from "lucide-react";
+import { Dumbbell } from "lucide-react";
+import BackToProfile from "@/components/BackToProfile";
 
 const CACHE_KEY = "dashboard-v4";
 
@@ -25,7 +22,6 @@ type CachedDashboard = {
   resume: WorkoutPosition | null;
   /** Newest first; the first entry is the last completed workout. */
   completed: CompletedSlot[];
-  email: string;
 };
 
 export default function MyProgram() {
@@ -34,10 +30,8 @@ export default function MyProgram() {
   const cached = cacheGet<CachedDashboard>(CACHE_KEY);
   const [loading, setLoading] = useState(!cached);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [email, setEmail] = useState(cached?.email ?? "");
   const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
   const [completed, setCompleted] = useState<CompletedSlot[]>(cached?.completed ?? []);
-  const saveError = useSaveError();
 
   useEffect(() => {
     async function init() {
@@ -56,19 +50,13 @@ export default function MyProgram() {
         return;
       }
       const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
-      const resolvedEmail = user.email ?? "";
       setResume(resumeAt);
       setCompleted(slots);
-      setEmail(resolvedEmail);
-      cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots, email: resolvedEmail });
+      cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots });
       setLoading(false);
     }
     void init();
   }, [router]);
-
-  async function handleSignOut() {
-    if (await saveError.attempt(signOut, "Couldn't sign out. Try again.")) router.replace(SIGN_IN_PATH);
-  }
 
   // With a cached dashboard on screen, a failed refresh just leaves it as is.
   if (loading && loadFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -89,27 +77,13 @@ export default function MyProgram() {
     <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
 
       {/* Header */}
-      <div className="flex items-center justify-between pt-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
-            <Dumbbell className="text-primary" size={20} />
-          </div>
-          <div>
-            <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">{ACTIVE_PROGRAM_NAME}</h1>
-            <p className="text-xs text-muted">{email}</p>
-          </div>
+      <div className="flex items-center gap-2 pt-2">
+        <BackToProfile />
+        <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
+          <Dumbbell className="text-primary" size={20} />
         </div>
-        <div className="flex items-center gap-1">
-          <Link href="/settings" aria-label="Settings" className="p-2 text-muted hover:text-fg transition-colors rounded-xl">
-            <Settings size={18} />
-          </Link>
-          <button onClick={handleSignOut} aria-label="Sign out" className="p-2 text-muted hover:text-fg transition-colors rounded-xl cursor-pointer">
-            <LogOut size={18} />
-          </button>
-        </div>
+        <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">{ACTIVE_PROGRAM_NAME}</h1>
       </div>
-
-      {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
       {/* Program progress */}
       <div className="glass gloss rounded-2xl p-5 space-y-3">

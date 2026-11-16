@@ -74,6 +74,11 @@ describe("Program editor", () => {
 });
 
 describe("Builder list", () => {
+  it("leads back to Profile, which it is opened from", async () => {
+    render(<BuilderPage />);
+    expect(await screen.findByRole("link", { name: "Back to Profile" })).toHaveAttribute("href", "/profile");
+  });
+
   it("reverts the public toggle and shows an alert when saving fails", async () => {
     db.toggleProgramPublic.mockRejectedValue(new Error("offline"));
     render(<BuilderPage />);
