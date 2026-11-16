@@ -15,6 +15,7 @@ import { useExerciseTransition } from "@/hooks/useExerciseTransition";
 import { useSaveError } from "@/hooks/useSaveError";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
+import RestTimerBar from "@/components/RestTimerBar";
 import WarmupSlide from "@/components/workout/WarmupSlide";
 import SetDetailSheet from "@/components/SetDetailSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
@@ -154,6 +155,9 @@ function WorkoutContent() {
           onClose={() => setShowExerciseList(false)}
         />
       )}
+
+      {/* In the flow, not over the header, so the exercise list stays reachable while resting. */}
+      <RestTimerBar placement="inline" />
 
       {/* Header */}
       <WorkoutHeader

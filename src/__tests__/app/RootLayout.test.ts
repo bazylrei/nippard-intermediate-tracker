@@ -6,7 +6,6 @@ vi.mock("next/font/google", () => ({
 }));
 vi.mock("@/context/ProgramContext", () => ({ ProgramProvider: () => null }));
 vi.mock("@/context/RestTimerContext", () => ({ RestTimerProvider: () => null }));
-vi.mock("@/components/RestTimerBar", () => ({ default: () => null }));
 vi.mock("@/lib/program-db", () => ({ ACTIVE_PROGRAM_NAME: "Test Program" }));
 
 import { createElement } from "react";

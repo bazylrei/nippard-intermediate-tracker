@@ -11,11 +11,11 @@ function Starter({ seconds }: { seconds: number }) {
   return null;
 }
 
-function renderWithTimer(seconds?: number) {
+function renderWithTimer(seconds?: number, placement?: "overlay" | "inline") {
   return render(
     <RestTimerProvider>
       {seconds !== undefined && <Starter seconds={seconds} />}
-      <RestTimerBar />
+      <RestTimerBar placement={placement} />
     </RestTimerProvider>
   );
 }
@@ -101,5 +101,16 @@ describe("RestTimerBar", () => {
 
     expect(progressLine).toBeDefined();
     expect(progressLine?.style.width).toBe("100%");
+  });
+
+  it("pins itself over the top of the page by default", () => {
+    act(() => { renderWithTimer(60); });
+    const bar = screen.getByRole("timer", { name: "Rest remaining" }).closest(".fixed");
+    expect(bar).not.toBeNull();
+  });
+
+  it("sits in the page's flow when inline, so it pushes content down instead of covering it", () => {
+    act(() => { renderWithTimer(60, "inline"); });
+    expect(screen.getByRole("timer", { name: "Rest remaining" }).closest(".fixed")).toBeNull();
   });
 });
