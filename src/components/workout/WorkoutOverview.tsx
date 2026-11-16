@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import Link from "next/link";
 import { dayLabel } from "@/lib/day-types";
 import type { Exercise } from "@/lib/types";
 import { Play } from "lucide-react";
@@ -8,11 +10,27 @@ interface Props {
   week: number;
   dayType: string;
   exercises: Exercise[];
-  onBegin: () => void;
+  /** Starts the workout; reports its own failure and leaves the overview open. */
+  onBegin: () => Promise<void>;
+  /** Why beginning failed, if it did. */
+  error?: React.ReactNode;
 }
 
-export default function WorkoutOverview({ week, dayType, exercises, onBegin }: Props) {
+/** The day before it starts: nothing is recorded, and the timer doesn't run, until Begin is pressed. */
+export default function WorkoutOverview({ week, dayType, exercises, onBegin, error }: Props) {
   const resolvedExercises = exercises;
+  const [beginning, setBeginning] = useState(false);
+
+  /** One tap, one session: further taps are ignored until it's started (or has failed). */
+  async function begin() {
+    if (beginning) return;
+    setBeginning(true);
+    try {
+      await onBegin();
+    } finally {
+      setBeginning(false);
+    }
+  }
   return (
       <div className="h-full flex flex-col max-w-lg mx-auto">
         <div className="flex items-center gap-3 p-4" style={{ borderBottom: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
@@ -45,14 +63,19 @@ export default function WorkoutOverview({ week, dayType, exercises, onBegin }: P
           </div>
         </div>
 
-        <div className="p-4" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+        <div className="p-4 space-y-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+          {error}
           <button
-            onClick={() => onBegin()}
+            onClick={begin}
+            disabled={beginning}
             className="btn-primary gloss w-full flex items-center justify-center gap-2 font-display font-bold text-lg py-4 rounded-2xl"
           >
             <Play size={20} fill="currentColor" />
-            Begin Workout
+            {beginning ? "Starting…" : "Begin Workout"}
           </button>
+          <Link href="/program" className="block text-center text-sm text-muted hover:text-fg py-1">
+            Choose a different workout
+          </Link>
         </div>
       </div>
   );
