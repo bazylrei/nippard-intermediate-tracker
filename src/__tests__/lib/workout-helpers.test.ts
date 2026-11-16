@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, planAfterSet,
-  bestSetToShow, recordFor, saveWorkoutInProgress, clearWorkoutInProgress,
+  resumeSetIndex, phaseAt, bestSetToShow, recordFor, saveWorkoutInProgress, clearWorkoutInProgress,
 } from "@/lib/workout-helpers";
 import { readActiveWorkout } from "@/lib/active-workout";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
@@ -67,6 +67,11 @@ describe("planAfterSet", () => {
     expect(planAfterSet([a, b], sets, 1, 1)).toEqual({ kind: "nextExercise", exerciseIndex: 0, setIndex: -1 });
   });
 
+  it("goes back to a partly done exercise at its next set, not its warm-up", () => {
+    const sets = [set("a", 0), set("b", 0), set("b", 1)];
+    expect(planAfterSet([a, b], sets, 1, 1)).toEqual({ kind: "nextExercise", exerciseIndex: 0, setIndex: 1 });
+  });
+
   it("completes the workout when every exercise is done", () => {
     const sets = [set("a", 0), set("a", 1), set("b", 0), set("b", 1)];
     expect(planAfterSet([a, b], sets, 1, 1)).toEqual({ kind: "complete", exerciseIndex: 1, setIndex: 1 });
@@ -76,6 +81,26 @@ describe("planAfterSet", () => {
     // Last set logged for "a" but an earlier set is missing; "b" is done.
     const sets = [set("a", 1), set("b", 0), set("b", 1)];
     expect(planAfterSet([a, b], sets, 0, 1)).toEqual({ kind: "nextExercise", exerciseIndex: 1, setIndex: -1 });
+  });
+});
+
+describe("resumeSetIndex", () => {
+  it("starts an untouched exercise at its warm-up", () => {
+    expect(resumeSetIndex(ex, [set("bench", -1), set("squat", 0)])).toBe(-1);
+  });
+  it("resumes a started exercise at its first unlogged set, past the warm-up", () => {
+    expect(resumeSetIndex(ex, [set("bench", 0), set("bench", 1)])).toBe(2);
+  });
+  it("opens a finished exercise at the warm-up position, since no set is left to log", () => {
+    expect(resumeSetIndex(ex, [set("bench", 0), set("bench", 1), set("bench", 2)])).toBe(-1);
+  });
+});
+
+describe("phaseAt", () => {
+  it("is the warm-up at -1 and the sets from 0", () => {
+    expect(phaseAt(-1)).toBe("warmup");
+    expect(phaseAt(0)).toBe("sets");
+    expect(phaseAt(2)).toBe("sets");
   });
 });
 

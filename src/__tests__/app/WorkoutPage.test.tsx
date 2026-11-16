@@ -180,6 +180,39 @@ describe("WorkoutPage — skipping saves the next exercise's warm-up, not its fi
   });
 });
 
+describe("WorkoutPage — going back to an exercise from the list", () => {
+  const benchSet = { id: "d1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null } as SetLog;
+
+  async function pickFromList(name: string) {
+    await click(screen.getByRole("button", { name: "Exercise list" }));
+    await click(screen.getByRole("button", { name: new RegExp(name) }));
+  }
+
+  beforeEach(() => {
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press", "1-set"), exercise("fly", "Cable Fly", "1-set")] };
+  });
+
+  it("returns to a started exercise at its next set, not the warm-up already done", async () => {
+    bootWith({ exerciseIndex: 1, setIndex: -1, phase: "warmup", sessionSets: [benchSet] });
+    await renderPage();
+
+    await pickFromList("Bench Press");
+
+    expect(activeSlide()).toHaveAccessibleName("Set 2 of 2");
+    expect(db.updateSessionProgress).toHaveBeenCalledWith("sess-1", 0, 1);
+  });
+
+  it("opens an exercise with nothing logged at its warm-up", async () => {
+    bootWith({ sessionSets: [benchSet] });
+    await renderPage();
+
+    await pickFromList("Cable Fly");
+
+    expect(activeSlide()).toHaveAccessibleName("Warm-up");
+    expect(db.updateSessionProgress).toHaveBeenCalledWith("sess-1", 1, -1);
+  });
+});
+
 // ─── Swapping to an alternate ────────────────────────────────────────────────
 
 describe("WorkoutPage — swapping to an alternate exercise", () => {
