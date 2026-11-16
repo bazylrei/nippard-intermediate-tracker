@@ -46,6 +46,7 @@ export type Database = {
       }
       exercises: {
         Row: {
+          created_by: string | null
           equipment: string | null
           form_note: string | null
           id: string
@@ -60,6 +61,7 @@ export type Database = {
           youtube_url: string | null
         }
         Insert: {
+          created_by?: string | null
           equipment?: string | null
           form_note?: string | null
           id: string
@@ -74,6 +76,7 @@ export type Database = {
           youtube_url?: string | null
         }
         Update: {
+          created_by?: string | null
           equipment?: string | null
           form_note?: string | null
           id?: string
@@ -448,6 +451,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      delete_own_exercise: { Args: { p_exercise_id: string }; Returns: boolean }
       duplicate_program_week: {
         Args: {
           p_new_total_weeks: number

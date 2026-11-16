@@ -10,7 +10,8 @@ import { getTotalSessions } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
-import { ChevronRight, ClipboardList, LibraryBig, LogOut, Settings, UserRound, type LucideIcon } from "lucide-react";
+import { ChevronRight, ClipboardList, Dumbbell, LibraryBig, LogOut, Settings, UserRound, type LucideIcon } from "lucide-react";
+import { EXERCISES_PATH } from "@/lib/exercise-routes";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -50,8 +51,9 @@ export default function ProfilePage() {
         />
       </Section>
 
-      <Section title="Programs">
+      <Section title="Programs & exercises">
         <Row href="/builder" icon={LibraryBig} title="All programs" subtitle="Yours and shared ones · build and edit in the builder" />
+        <Row href={EXERCISES_PATH} icon={Dumbbell} title="Exercises" subtitle="Browse every exercise and add your own" />
       </Section>
 
       <Section title="Account">

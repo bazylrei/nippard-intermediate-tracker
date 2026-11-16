@@ -20,7 +20,7 @@ const TRAILING_TABS = [
 const WORKOUT_PATH = "/workout";
 
 /** Pages that belong to a tab without being under its path: everything opened from Profile. */
-const ALSO_ACTIVE_ON: Record<string, string[]> = { "/profile": ["/program", "/builder", "/settings"] };
+const ALSO_ACTIVE_ON: Record<string, string[]> = { "/profile": ["/program", "/builder", "/exercises", "/settings"] };
 
 interface Tab {
   label: string;
