@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { BodyWeightLog } from "@/lib/types";
-import { bodyWeightOn, setLoadKg, weeklyVolume, type VolumeSet } from "@/lib/volume";
+import { bodyWeightOn, setLoadKg, weeklyVolume, sessionVolumes, volumeChangePercent, type VolumeSet, type SessionSet } from "@/lib/volume";
 
 const plain = { weightPerSide: false, isBodyweight: false };
 const perSide = { weightPerSide: true, isBodyweight: false };
@@ -74,5 +74,58 @@ describe("weeklyVolume", () => {
 
   it("treats an exercise missing from the catalogue as plain", () => {
     expect(weeklyVolume([set("retired", 20, 10, 1)], flags, []).weeks).toEqual([{ week: 1, volume: 200 }]);
+  });
+});
+
+describe("sessionVolumes", () => {
+  const set = (sessionId: string, exerciseId: string, weightKg: number, reps: number, loggedAt: string): SessionSet =>
+    ({ sessionId, exerciseId, weightKg, reps, loggedAt });
+  const flags = { bench: plain, row: perSide, "pull-up": bodyweight };
+
+  it("sums each exercise's sets per session, oldest session first", () => {
+    const sets = [
+      set("s2", "bench", 100, 5, "2026-11-12T10:05:00Z"),
+      set("s1", "bench", 90, 5, "2026-11-05T10:00:00Z"),
+      set("s2", "bench", 100, 5, "2026-11-12T10:00:00Z"),
+      set("s1", "row", 20, 10, "2026-11-05T10:30:00Z"),
+    ];
+    expect(sessionVolumes(sets, flags, [])).toEqual({
+      bench: [{ date: "2026-11-05", volume: 450 }, { date: "2026-11-12", volume: 1000 }],
+      row: [{ date: "2026-11-05", volume: 400 }], // per side: 2 × 20 × 10
+    });
+  });
+
+  it("adds the body weight known at each set to bodyweight exercises", () => {
+    const sets = [set("s1", "pull-up", 0, 10, "2026-10-20T10:00:00Z"), set("s2", "pull-up", 0, 10, "2026-11-12T10:00:00Z")];
+    const logs = [log("2026-10-01", 82), log("2026-11-01", 79)];
+    expect(sessionVolumes(sets, flags, logs)["pull-up"].map((p) => p.volume)).toEqual([820, 790]);
+  });
+
+  it("counts a bodyweight set by its added weight alone when no weigh-in exists", () => {
+    expect(sessionVolumes([set("s1", "pull-up", 10, 8, "2026-11-12T10:00:00Z")], flags, [])["pull-up"][0].volume).toBe(80);
+  });
+
+  it("treats an exercise with unknown flags as plain", () => {
+    expect(sessionVolumes([set("s1", "mystery", 50, 4, "2026-11-12T10:00:00Z")], {}, []).mystery[0].volume).toBe(200);
+  });
+
+  it("is empty with no sets", () => {
+    expect(sessionVolumes([], flags, [])).toEqual({});
+  });
+});
+
+describe("volumeChangePercent", () => {
+  const series = (...volumes: number[]) => volumes.map((volume, i) => ({ date: `2026-11-0${i + 1}`, volume }));
+
+  it("compares the latest session with the one before, rounded", () => {
+    expect(volumeChangePercent(series(900, 1000, 1080))).toBe(8);
+    expect(volumeChangePercent(series(1000, 750))).toBe(-25);
+    expect(volumeChangePercent(series(1000, 1000))).toBe(0);
+  });
+
+  it("is null without a previous session, or when the previous volume was zero", () => {
+    expect(volumeChangePercent([])).toBeNull();
+    expect(volumeChangePercent(series(1000))).toBeNull();
+    expect(volumeChangePercent(series(0, 500))).toBeNull();
   });
 });

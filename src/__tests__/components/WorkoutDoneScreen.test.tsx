@@ -4,24 +4,27 @@ import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
 import type { Exercise, SetLog } from "@/lib/types";
 
 // jsdom has no layout, so Recharts would draw nothing: stub it, recording what the chart is given.
-type AxisProps = { dataKey?: string; tickFormatter?: (v: never) => string };
-const chart = vi.hoisted(() => ({ data: [] as unknown[], x: null as AxisProps | null, y: null as AxisProps | null }));
+type AxisProps = { dataKey?: string; yAxisId?: string; tickFormatter?: (v: never) => string };
+const chart = vi.hoisted(() => ({ data: [] as unknown[], x: null as AxisProps | null, y: {} as Record<string, AxisProps>, lines: [] as string[] }));
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  LineChart: ({ data, children }: { data: unknown[]; children: React.ReactNode }) => { chart.data = data; return <div>{children}</div>; },
+  LineChart: ({ data, children }: { data: unknown[]; children: React.ReactNode }) => { chart.data = data; chart.y = {}; chart.lines = []; return <div>{children}</div>; },
   XAxis: (props: AxisProps) => { chart.x = props; return null; },
-  YAxis: (props: AxisProps) => { chart.y = props; return null; },
-  CartesianGrid: () => null, Line: () => null, Tooltip: () => null,
+  YAxis: (props: AxisProps) => { chart.y[props.yAxisId ?? ""] = props; return null; },
+  CartesianGrid: () => null, Tooltip: () => null,
+  Line: (props: { dataKey: string }) => { chart.lines.push(props.dataKey); return null; },
 }));
 
 const exercise = { id: "bench", name: "Bench", muscleGroup: "chest", weightPerSide: false } as Exercise;
 const sets = [{ id: "s", exerciseId: "bench", setIndex: 0, weight: 105, reps: 5 }] as SetLog[];
 const postHistory = { bench: [{ date: "2026-11-05", weight: 100, reps: 5 }, { date: "2026-11-12", weight: 105, reps: 5 }] };
 
+const volumes = { bench: [{ date: "2026-11-05", volume: 500 }, { date: "2026-11-12", volume: 540 }] };
+
 function renderDone(unit: "kg" | "lbs") {
   render(
     <WorkoutDoneScreen week={2} dayType="full-body" exercises={[exercise]} sessionSets={sets}
-      postWorkout={{ history: postHistory, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit={unit} onHome={vi.fn()} onProgress={vi.fn()} />,
+      postWorkout={{ history: postHistory, volumes, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit={unit} onHome={vi.fn()} onProgress={vi.fn()} />,
   );
 }
 
@@ -42,29 +45,70 @@ describe("WorkoutDoneScreen", () => {
     renderDone("kg");
 
     expect(chart.data).toEqual([
-      { date: "2026-11-05", weight: 100, isToday: false },
-      { date: "2026-11-12", weight: 105, isToday: true },
+      { date: "2026-11-05", weight: 100, volume: 500, isToday: false },
+      { date: "2026-11-12", weight: 105, volume: 540, isToday: true },
     ]);
     expect(chart.x?.dataKey).toBe("date");
     expect(chart.x?.tickFormatter?.("2026-11-05" as never)).toBe("Nov 5");
-    expect(chart.y?.tickFormatter?.(100 as never)).toBe("100kg");
+    expect(chart.y.weight?.tickFormatter?.(100 as never)).toBe("100kg");
   });
 
   it("plots and labels the weight axis in lbs for lbs users", () => {
     renderDone("lbs");
 
     expect(chart.data).toEqual([
-      { date: "2026-11-05", weight: 220.5, isToday: false },
-      { date: "2026-11-12", weight: 231.5, isToday: true },
+      { date: "2026-11-05", weight: 220.5, volume: 1102, isToday: false },
+      { date: "2026-11-12", weight: 231.5, volume: 1191, isToday: true },
     ]);
-    expect(chart.y?.tickFormatter?.(220 as never)).toBe("220lbs");
+    expect(chart.y.weight?.tickFormatter?.(220 as never)).toBe("220lbs");
+  });
+
+  it("shows how volume changed since last time", () => {
+    renderDone("kg");
+    expect(screen.getByText("Vol:").parentElement).toHaveTextContent("(+8% vs last)"); // 500 → 540
+  });
+
+  it("offers no volume change on a first session, or when volume history is missing", () => {
+    render(<WorkoutDoneScreen week={2} dayType="full-body" exercises={[exercise]} sessionSets={sets}
+      postWorkout={{ history: postHistory, volumes: { bench: [{ date: "2026-11-12", volume: 540 }] }, bodyWeightKg: null, logBodyWeight: vi.fn() }}
+      unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />);
+    expect(screen.getByText("Vol:").parentElement).not.toHaveTextContent("% vs last");
+    expect(screen.queryByRole("button", { name: "Volume" })).toBeNull();
+    expect(chart.lines).toEqual(["weight"]);
+  });
+
+  it("charts weight and volume together, each on its own axis", () => {
+    renderDone("lbs");
+    expect(chart.lines).toEqual(["weight", "volume"]);
+    expect(chart.y.weight.tickFormatter?.(220 as never)).toBe("220lbs");
+    expect(chart.y.volume.tickFormatter?.(1191 as never)).toBe("1.2klbs");
+    expect(chart.y.volume.tickFormatter?.(900 as never)).toBe("900lbs");
+  });
+
+  it("toggles each line off and back on, but never hides both", () => {
+    renderDone("kg");
+    const weight = screen.getByRole("button", { name: "Weight" });
+    const volume = screen.getByRole("button", { name: "Volume" });
+
+    fireEvent.click(volume);
+    expect(chart.lines).toEqual(["weight"]);
+    expect(volume).toHaveAttribute("aria-pressed", "false");
+    expect(chart.y.volume).toBeUndefined();
+
+    fireEvent.click(weight); // the last visible line stays
+    expect(chart.lines).toEqual(["weight"]);
+
+    fireEvent.click(volume);
+    fireEvent.click(weight);
+    expect(chart.lines).toEqual(["volume"]);
+    expect(chart.y.weight).toBeUndefined();
   });
 
   it("doubles per-side weights in the volume", () => {
     const dbRow = { id: "db-row", name: "DB Row", muscleGroup: "back", weightPerSide: true, isBodyweight: false } as Exercise;
     const rowSets = [{ id: "r", exerciseId: "db-row", setIndex: 0, weight: 32.5, reps: 10 }] as SetLog[];
     render(<WorkoutDoneScreen week={2} dayType="full-body" exercises={[dbRow]} sessionSets={rowSets}
-      postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />);
+      postWorkout={{ history: {}, volumes: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 650kg");
   });
 
@@ -73,11 +117,11 @@ describe("WorkoutDoneScreen", () => {
     const pullSets = [{ id: "p", exerciseId: "pull-up", setIndex: 0, weight: 10, reps: 8 }] as SetLog[];
     const props = { week: 2, dayType: "full-body", exercises: [pullUp], sessionSets: pullSets, unit: "kg" as const, onHome: vi.fn(), onProgress: vi.fn() };
 
-    const { unmount } = render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
+    const { unmount } = render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, volumes: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 720kg"); // (80 + 10) × 8
     unmount();
 
-    render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
+    render(<WorkoutDoneScreen {...props} postWorkout={{ history: {}, volumes: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
     expect(screen.getByText("Vol:").parentElement).toHaveTextContent("Vol: 80kg · added weight only");
   });
 
@@ -88,7 +132,7 @@ describe("WorkoutDoneScreen", () => {
 
     it("offers to log body weight when a bodyweight exercise was done without one", async () => {
       const logBodyWeight = vi.fn().mockResolvedValue(undefined);
-      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight }} />);
+      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, volumes: {}, bodyWeightKg: null, logBodyWeight }} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Log body weight" }));
       fireEvent.change(screen.getByLabelText("Body weight (kg)"), { target: { value: "80" } });
@@ -97,13 +141,13 @@ describe("WorkoutDoneScreen", () => {
     });
 
     it("doesn't ask once body weight is known", () => {
-      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
+      render(<WorkoutDoneScreen {...base} exercises={[pullUp]} postWorkout={{ history: {}, volumes: {}, bodyWeightKg: 80, logBodyWeight: vi.fn() }} />);
       expect(screen.queryByRole("button", { name: "Log body weight" })).toBeNull();
     });
 
     it("doesn't ask when no bodyweight exercise was done", () => {
       render(<WorkoutDoneScreen {...base} exercises={[exercise]} sessionSets={sets}
-        postWorkout={{ history: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
+        postWorkout={{ history: {}, volumes: {}, bodyWeightKg: null, logBodyWeight: vi.fn() }} />);
       expect(screen.queryByRole("button", { name: "Log body weight" })).toBeNull();
     });
   });

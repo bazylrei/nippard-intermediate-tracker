@@ -1,7 +1,7 @@
 import { createClient } from "../supabase";
 import { unwrap } from "./result";
 import { getBodyWeightLogs } from "./body-weight";
-import { weeklyVolume, type LoadFlags, type VolumeSet, type WeeklyVolume } from "../volume";
+import { weeklyVolume, type LoadFlags, type SessionSet, type VolumeSet, type WeeklyVolume } from "../volume";
 
 export async function getExerciseHistory(
   userId: string,
@@ -22,6 +22,20 @@ export async function getExerciseHistory(
     weight: row.weight_kg,
     reps: row.reps,
     dayType: row.workout_sessions?.day_type ?? "",
+  }));
+}
+
+/** Every working set the user has logged for these exercises, with the session each belongs to. */
+export async function getExerciseWorkingSets(userId: string, exerciseIds: string[]): Promise<SessionSet[]> {
+  const sb = createClient();
+  const rows = unwrap("getExerciseWorkingSets", await sb
+    .from("set_logs")
+    .select("session_id, exercise_id, weight_kg, reps, logged_at")
+    .eq("user_id", userId)
+    .in("exercise_id", exerciseIds)
+    .gte("set_index", 0));
+  return (rows ?? []).map((s) => ({
+    sessionId: s.session_id, exerciseId: s.exercise_id, weightKg: s.weight_kg, reps: s.reps, loggedAt: s.logged_at,
   }));
 }
 
