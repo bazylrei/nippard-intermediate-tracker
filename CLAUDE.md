@@ -20,7 +20,8 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 ### Route Structure
 
 - `/(main)/` — Home: suggested next workout + feed of recent completed workouts
-- `/(main)/program` — My program: progress bar, next workout, week overview, settings
+- `/(main)/program` — My program: progress bar, next workout, week overview. Its header links to Settings and signs out
+- `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`. Opened from Program, so the Program tab stays selected on it
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
 - `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
 - `/(main)/builder/[programId]` — Full CRUD program editor
