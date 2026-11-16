@@ -41,19 +41,6 @@ export async function getIncompleteSessionWithSets(
  * Position of the most recently completed workout, or null if none.
  * What comes next depends on the program's schedule — see `nextWorkout()`.
  */
-export async function getLastCompletedWorkout(userId: string): Promise<WorkoutPosition | null> {
-  const sb = createClient();
-  const data = unwrap("getLastCompletedWorkout", await sb
-    .from("workout_sessions")
-    .select("week, day_index")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .order("completed_at", { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  return data ? { week: data.week, dayIndex: data.day_index } : null;
-}
-
 export async function createSession(
   userId: string,
   week: number,
@@ -92,12 +79,14 @@ export async function saveExerciseSwaps(sessionId: string, swaps: Record<string,
   unwrap("saveExerciseSwaps", await sb.from("workout_sessions").update({ exercise_swaps: swaps }).eq("id", sessionId));
 }
 
+/** Marks a session finished, with whatever was logged. Safe to retry: an already-finished session keeps its time. */
 export async function completeSession(sessionId: string): Promise<void> {
   const sb = createClient();
   unwrap("completeSession", await sb
     .from("workout_sessions")
     .update({ completed_at: new Date().toISOString() })
-    .eq("id", sessionId));
+    .eq("id", sessionId)
+    .is("completed_at", null));
 }
 
 /** One completed or in-progress session with all its logged sets, in one round trip. Null if not found (or not yours — RLS). */

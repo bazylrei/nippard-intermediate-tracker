@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import type { WeekSchedule } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
@@ -8,8 +8,10 @@ const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({
-  getIncompleteSession: vi.fn(),
+  getIncompleteSessionWithSets: vi.fn(),
   getCompletedSlots: vi.fn(),
+  completeSession: vi.fn(),
+  deleteWorkoutSession: vi.fn(),
   getPreferences: vi.fn(),
   getLatestBodyWeight: vi.fn(),
 }));
@@ -17,7 +19,10 @@ vi.mock("@/lib/db", () => db);
 
 const ex = { id: "bench", name: "Bench", repRange: [6, 8] };
 const day = (dayType: string) => ({ dayType, exercises: [ex] });
-const program = [{ week: 1, days: [day("upper-a"), day("lower-a"), day("push")] }] as unknown as WeekSchedule[];
+const program = [
+  { week: 1, days: [day("upper-a"), day("lower-a"), day("push")] },
+  { week: 2, days: [day("upper-a"), day("lower-a"), day("push")] },
+] as unknown as WeekSchedule[];
 vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
 
 import MyProgram from "@/app/(main)/program/page";
@@ -27,7 +32,9 @@ beforeEach(() => {
   localStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   auth.getSignedInUser.mockResolvedValue({ id: "user-1", email: "me@example.com" });
-  db.getIncompleteSession.mockResolvedValue(null);
+  db.getIncompleteSessionWithSets.mockResolvedValue(null);
+  db.completeSession.mockResolvedValue(undefined);
+  db.deleteWorkoutSession.mockResolvedValue(undefined);
   db.getCompletedSlots.mockResolvedValue([
     { sessionId: "s2", week: 1, dayIndex: 1 },
     { sessionId: "s1", week: 1, dayIndex: 0 },
@@ -39,11 +46,96 @@ async function renderPage() {
   await screen.findByText("Week 1 Overview");
 }
 
+const tile = (name: RegExp) => screen.getByRole("button", { name });
+const unfinishedUpper = {
+  session: { id: "u1", week: 1, dayIndex: 0, dayType: "upper-a" },
+  sets: [{ setIndex: -1 }, { setIndex: 0 }, { setIndex: 1 }],
+};
+
 describe("Program page — week overview", () => {
   it("links each completed day to its workout and leaves the rest plain", async () => {
     await renderPage();
     const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/profile");
     expect(hrefs).toEqual(["/history/s1", "/history/s2"]);
+  });
+
+  it("ticks only the days actually done, and suggests a skipped one", async () => {
+    db.getCompletedSlots.mockResolvedValue([{ sessionId: "s3", week: 1, dayIndex: 2 }, { sessionId: "s1", week: 1, dayIndex: 0 }]);
+    await renderPage();
+    const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/profile");
+    expect(hrefs).toEqual(["/history/s1", "/history/s3"]);
+    expect(within(tile(/Lower — Strength/)).getByText("Up next")).toBeInTheDocument();
+    expect(within(tile(/Lower — Strength/)).getByText("2")).toBeInTheDocument(); // not ticked
+  });
+
+  it("counts progress from the days done", async () => {
+    await renderPage();
+    expect(screen.getByText("33% complete")).toBeInTheDocument(); // 2 of 6
+  });
+
+  it("browses other weeks", async () => {
+    await renderPage();
+    expect(screen.getByRole("button", { name: "Previous week" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    expect(screen.getByText("Week 2 Overview")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next week" })).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: /exercises/ })).toHaveLength(3); // none done in week 2
+  });
+});
+
+describe("Program page — choosing a workout", () => {
+  it("confirms a chosen day before starting it", async () => {
+    await renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(tile(/Push/));
+    const sheet = screen.getByRole("dialog", { name: "Start Push — Hypertrophy" });
+    expect(router.push).not.toHaveBeenCalled();
+
+    await act(async () => { fireEvent.click(within(sheet).getByRole("button", { name: "Start workout" })); });
+    expect(router.push).toHaveBeenCalledWith("/workout?week=2&day=2");
+  });
+
+  it("saves the unfinished workout as it is, then starts the chosen one", async () => {
+    db.getCompletedSlots.mockResolvedValue([]);
+    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    await renderPage();
+    fireEvent.click(tile(/Push/));
+    expect(screen.getByText(/unfinished, with 2 sets logged/)).toBeInTheDocument(); // warm-up not counted
+
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save it & start" })); });
+    expect(db.completeSession).toHaveBeenCalledWith("u1");
+    expect(db.deleteWorkoutSession).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/workout?week=1&day=2");
+  });
+
+  it("can discard the unfinished workout instead", async () => {
+    db.getCompletedSlots.mockResolvedValue([]);
+    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    await renderPage();
+    fireEvent.click(tile(/Push/));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Discard it & start" })); });
+    expect(db.deleteWorkoutSession).toHaveBeenCalledWith("u1");
+    expect(router.push).toHaveBeenCalledWith("/workout?week=1&day=2");
+  });
+
+  it("doesn't start the new workout if settling the unfinished one fails", async () => {
+    db.getCompletedSlots.mockResolvedValue([]);
+    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    db.completeSession.mockRejectedValue(new Error("offline"));
+    await renderPage();
+    fireEvent.click(tile(/Push/));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save it & start" })); });
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't start the workout");
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("resumes the unfinished day straight away", async () => {
+    db.getCompletedSlots.mockResolvedValue([]);
+    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    await renderPage();
+    fireEvent.click(tile(/In progress/));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(router.push).toHaveBeenCalledWith("/workout?week=1&day=0");
   });
 });
 

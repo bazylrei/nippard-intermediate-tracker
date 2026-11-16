@@ -22,7 +22,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 - `/(main)/` — Home: suggested next workout + feed of recent completed workouts
 - `/(main)/profile` — Hub for the current program, all programs (Builder), Exercises, Settings and sign-out. Pages opened from it (`/program`, `/builder`, `/exercises`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
 - `/(main)/exercises` — Exercise glossary (search, grouped by muscle group). `/exercises/new`, `/exercises/[exerciseId]` (detail; Edit/Delete on your own) and `/exercises/[exerciseId]/edit`. Opened from Profile
-- `/(main)/program` — My program: progress bar, next workout, week overview
+- `/(main)/program` — My program: progress bar, next workout, week overview (browse any week; tap a day not done to start it, via a confirm sheet that saves or discards an unfinished workout)
 - `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`
 - `/(main)/community` — Placeholder for the upcoming social features
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
@@ -39,7 +39,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 
 ### Data Flow: Starting a Workout
 
-Dashboard fetches next/incomplete session → user navigates to `/workout?week=X&day=Y` → page creates a new `workout_sessions` row → `ProgramContext` supplies exercise details → `SetLogger` writes each set to `set_logs` in real time → completion marks the session and redirects home.
+Home/Program suggest the next (or unfinished) day, or the user picks any day not done on Program → user navigates to `/workout?week=X&day=Y` → page creates a new `workout_sessions` row → `ProgramContext` supplies exercise details → `SetLogger` writes each set to `set_logs` in real time → completion (after the last exercise, or early via Finish workout with whatever is logged) marks the session and shows the done screen.
 
 ### Key Files
 
@@ -52,7 +52,7 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 | `src/lib/auth.ts` | `getSignedInUser()` (local session, no Auth-server round trip), `signIn` / `signUp` / `signOut` |
 | `src/lib/require-user.ts` | `requireSignedInUser(router)` — redirects to sign-in when signed out; use it in every page/hook load |
 | `supabase/migrations/` | Source of truth for the schema; `supabase-schema.sql` is the original bootstrap only |
-| `src/lib/program-data.ts` | Schedule navigation: `nextWorkout`, session numbering, totals |
+| `src/lib/program-data.ts` | Schedule navigation: `programRun` (days done, next workout), session numbering, totals |
 | `src/lib/day-types.ts` | The one day-type table; always display via `dayLabel()` |
 | `src/lib/units.ts` | The one kg↔lbs conversion (`kgToDisplay` / `displayToKg`) |
 | `src/lib/alternates.ts` | Choosing among a slot's alternates: `chooseExercise`, `mergeChoices` (swaps over defaults), `parseExerciseChoices` (ignores the old position/boolean format) |
@@ -70,7 +70,8 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 - **Weight is always stored in kg**; every screen converts with `lib/units.ts` for lbs users (charts, volumes and deltas too).
 - **Alternate exercises are real exercises.** Each `program_day_exercises` slot points at up to two (`alternate_1_exercise_id`, `alternate_2_exercise_id`), so an alternate has its own id, flags (`weight_per_side`, `is_bodyweight`), rest, warm-up and history. `loadFullProgram` builds them as full `Exercise`s carrying the slot's sets/reps/RPE. Which one to do is resolved by `lib/alternates.ts`: this workout's swaps (`workout_sessions.exercise_swaps`) win over the user's saved defaults (`user_preferences.alternate_selections`), both `{ mainExerciseId: chosenExerciseId }`. A swap is for the current workout only unless "make this my default" is ticked in the swap sheet, and it can't change once a set is logged for the exercise. Never rename an exercise to show an alternate: sets must log under the alternate's own id.
 - **Embed `exercises` from `program_day_exercises` with an explicit foreign key** (`exercises!program_day_exercises_exercise_id_fkey(...)`): the table references `exercises` three times, so an unnamed embed is ambiguous and the API rejects it.
-- **Never hard-code program dimensions.** Builder-edited programs can have any number of weeks, days per week, and gaps. Next workout, session numbers and totals come from the loaded schedule via `nextWorkout()` / `getSessionNumber()` / `getTotalSessions()` in `program-data.ts`; the DB stores only the last completed position.
+- **Never hard-code program dimensions.** Builder-edited programs can have any number of weeks, days per week, and gaps. Next workout, session numbers and totals come from the loaded schedule via `programRun()` / `getSessionNumber()` / `getTotalSessions()` in `program-data.ts`.
+- **Days can be done in any order.** A day is done from its completed sessions, never from its position: `programRun` counts completions per day, and the current run is the lowest count across the schedule (so a finished program starts a fresh run). Next is the earliest day not done, after any unfinished workout.
 - **Saves are never silent**: use `useSaveError().attempt()` (or try/catch + `report`) for writes from UI handlers; sheets stay open with an inline error if `onSave` rejects.
 - **Pages are client components** (`"use client"`) that load data in an effect; a failed first load must show `FullScreenMessage`, never an endless "Loading…".
 - **Shared UI**: `FullScreenMessage`, `SaveErrorAlert`, `CompletedWorkoutCell`, `NextWorkoutCard`, and the `.btn-primary` utility (globals.css) for primary buttons. Use theme tokens (`bg-surface`, `text-muted`, `text-primary`…), never raw Tailwind palette colours.

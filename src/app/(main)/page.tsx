@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
@@ -38,6 +39,11 @@ export default function Home() {
           isResume={hasResume}
           onStart={() => router.push(startWorkoutHref(nextSession))}
         />
+      )}
+      {nextSession && nextDay && (
+        <Link href="/program" className="-mt-2 text-center text-sm text-muted hover:text-fg py-1">
+          Choose a different workout
+        </Link>
       )}
 
       <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted px-1 pt-2">

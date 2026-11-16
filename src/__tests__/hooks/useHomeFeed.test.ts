@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const db = vi.hoisted(() => ({
   getIncompleteSession: vi.fn(),
-  getLastCompletedWorkout: vi.fn(),
+  getCompletedSlots: vi.fn(),
   getRecentWorkouts: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
@@ -22,13 +22,16 @@ import { useHomeFeed } from "@/hooks/useHomeFeed";
 
 const weeks = (n: number, days: number): WeekSchedule[] =>
   Array.from({ length: n }, (_, w) => ({ week: w + 1, days: Array(days).fill(day) }));
+/** Completed slots (newest first, as the query returns them) for every day of weeks 1…`through`. */
+const completedThrough = (through: number, days: number) =>
+  Array.from({ length: through * days }, (_, i) => ({ sessionId: `s${i}`, week: Math.floor(i / days) + 1, dayIndex: i % days })).reverse();
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   program = weeks(13, 5);
   db.getIncompleteSession.mockResolvedValue(null);
-  db.getLastCompletedWorkout.mockResolvedValue({ week: 12, dayIndex: 4 });
+  db.getCompletedSlots.mockResolvedValue(completedThrough(12, 5));
   db.getRecentWorkouts.mockResolvedValue({ sessions: [], sets: [] });
 });
 
@@ -38,6 +41,13 @@ describe("useHomeFeed", () => {
     await waitFor(() => expect(result.current.feed).not.toBeNull());
     expect(result.current.feed?.nextSession).toEqual({ week: 13, dayIndex: 0 });
     expect(result.current.feed?.hasResume).toBe(false);
+  });
+
+  it("suggests a skipped day before later ones", async () => {
+    db.getCompletedSlots.mockResolvedValue(completedThrough(12, 5).filter((s) => !(s.week === 3 && s.dayIndex === 1)));
+    const { result } = renderHook(() => useHomeFeed());
+    await waitFor(() => expect(result.current.feed).not.toBeNull());
+    expect(result.current.feed?.nextSession).toEqual({ week: 3, dayIndex: 1 });
   });
 
   it("prefers resuming an unfinished workout", async () => {

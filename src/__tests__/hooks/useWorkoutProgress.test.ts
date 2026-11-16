@@ -92,6 +92,28 @@ describe("useWorkoutProgress — moving between exercises", () => {
     expect(result.current.done).toBe(false);
   });
 
+  it("finishes early with only some sets logged", async () => {
+    const { result } = setup();
+    act(() => result.current.restore({ ...START, sessionSets: [logged("bench", 0)], phase: "sets" }));
+
+    await act(() => result.current.finishWorkout());
+
+    expect(db.completeSession).toHaveBeenCalledWith("sess-1");
+    expect(result.current.done).toBe(true);
+    expect(readActiveWorkout()).toBeNull();
+  });
+
+  it("stays on the workout when finishing early fails", async () => {
+    db.completeSession.mockRejectedValue(new Error("offline"));
+    const { result, saveError } = setup();
+    act(() => result.current.restore({ ...START, sessionSets: [logged("bench", 0)], phase: "sets" }));
+
+    await act(() => result.current.finishWorkout());
+
+    expect(result.current.done).toBe(false);
+    expect(saveError.attempt).toHaveBeenCalledWith(expect.any(Function), "Couldn't finish the workout. Try again.");
+  });
+
   it("knows which exercises are done", () => {
     const { result } = setup();
     act(() => result.current.restore({ ...START, sessionSets: [logged("bench", 0), logged("bench", 1)], phase: "sets" }));

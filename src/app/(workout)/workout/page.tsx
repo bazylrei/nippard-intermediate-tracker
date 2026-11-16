@@ -27,6 +27,7 @@ import ExerciseListOverlay from "@/components/workout/ExerciseListOverlay";
 import WorkoutHeader from "@/components/workout/WorkoutHeader";
 import ExerciseInfo from "@/components/workout/ExerciseInfo";
 import FinishedExerciseNotice from "@/components/workout/FinishedExerciseNotice";
+import FinishWorkoutButton from "@/components/workout/FinishWorkoutButton";
 import ExerciseSetCarousel from "@/components/workout/ExerciseSetCarousel";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
@@ -216,6 +217,7 @@ function WorkoutContent() {
         </section>
 
         <SkipExerciseButton onSkip={progress.skipExercise} />
+        <FinishWorkoutButton setCount={sessionSets.filter((s) => s.setIndex >= 0).length} onFinish={progress.finishWorkout} />
       </div>
 
       {swapSheet && <ExerciseSwapSheet {...swapSheet} />}
