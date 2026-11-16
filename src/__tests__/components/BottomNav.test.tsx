@@ -39,7 +39,7 @@ describe("AppNav", () => {
     expect(mobileBar().getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
   });
 
-  it.each(["/profile", "/program", "/builder/prog-1", "/settings"])("selects Profile on %s, which is opened from it", (path) => {
+  it.each(["/profile", "/program", "/builder/prog-1", "/exercises/custom-1", "/settings"])("selects Profile on %s, which is opened from it", (path) => {
     pathname = path;
     render(<AppNav />);
     expect(mobileBar().getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");

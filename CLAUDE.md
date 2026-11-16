@@ -20,7 +20,8 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 ### Route Structure
 
 - `/(main)/` — Home: suggested next workout + feed of recent completed workouts
-- `/(main)/profile` — Hub for the current program, all programs (Builder), Settings and sign-out. Pages opened from it (`/program`, `/builder`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
+- `/(main)/profile` — Hub for the current program, all programs (Builder), Exercises, Settings and sign-out. Pages opened from it (`/program`, `/builder`, `/exercises`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
+- `/(main)/exercises` — Exercise glossary (search, grouped by muscle group). `/exercises/new`, `/exercises/[exerciseId]` (detail; Edit/Delete on your own) and `/exercises/[exerciseId]/edit`. Opened from Profile
 - `/(main)/program` — My program: progress bar, next workout, week overview
 - `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`
 - `/(main)/community` — Placeholder for the upcoming social features
@@ -76,6 +77,7 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 - **Round trips are the main latency cost** (the DB is in `eu-west-2`). Combine dependent queries with PostgREST embeds (`select("*, set_logs(*)")`) or a Postgres function called via `sb.rpc()`; run independent ones with `Promise.all`.
 - **Multi-step writes are Postgres functions**, not chained client calls: `log_set` (set + session progress, idempotent on a client-generated id), `duplicate_program_week` (atomic). Child rows are removed by `ON DELETE CASCADE` — don't delete them by hand.
 - **Set logging is optimistic**: the workout page advances immediately and rolls back if `logSetAndAdvance` throws.
+- **Users can add exercises** (`lib/db/exercises.ts`, validated by `lib/exercise-form.ts`). `exercises.created_by` is null for built-ins; a custom exercise is private to its creator but readable by anyone who can see a program that uses it or logged sets for it (RLS). Ids are client-made (`newExerciseId()`, `custom-<uuid>`) so a retried create is a no-op. There is no DELETE policy: delete with `delete_own_exercise` (refuses when any program slot or logged set uses it — `set_logs` has no FK to `exercises`, and the alternate FKs are `ON DELETE SET NULL`).
 - **Cross-user aggregates need `SECURITY DEFINER`** (RLS hides other users' rows), e.g. `program_user_counts`. Return aggregates only, and check visibility inside the function.
 
 ### Environment Variables

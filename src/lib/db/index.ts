@@ -5,3 +5,4 @@ export * from "./set-logs";
 export * from "./progress";
 export * from "./builder";
 export * from "./builder-duplicate";
+export * from "./exercises";
