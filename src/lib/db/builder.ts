@@ -112,13 +112,17 @@ export type RawDay = {
   program_day_exercises: RawPDE[];
 };
 
-/** Columns needed to build a BuilderDay; select from `program_days`. */
+/**
+ * Columns needed to build a BuilderDay; select from `program_days`. The embed
+ * names its foreign key because program_day_exercises can reference exercises
+ * more than once (alternates); without the name the API refuses the query.
+ */
 export const BUILDER_DAY_SELECT = `
   id, week, day_index, day_type,
   program_day_exercises(
     id, position, rep_range_min, rep_range_max, early_set_count, last_set_count,
     early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target,
-    exercises(id, name, warmup_protocol)
+    exercises!program_day_exercises_exercise_id_fkey(id, name, warmup_protocol)
   )
 ` as const;
 
