@@ -39,7 +39,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 
 ### Data Flow: Starting a Workout
 
-Home/Program suggest the next (or unfinished) day, or the user picks any day not done on Program → user navigates to `/workout?week=X&day=Y` → page creates a new `workout_sessions` row → `ProgramContext` supplies exercise details → `SetLogger` writes each set to `set_logs` in real time → completion (after the last exercise, or early via Finish workout with whatever is logged) marks the session and shows the done screen.
+Home/Program suggest the next (or unfinished) day, or the user picks any day not done on Program → user navigates to `/workout?week=X&day=Y` → page shows the day's overview (nothing recorded yet) → "Begin Workout" creates the `workout_sessions` row (`beginWorkout`), which starts the timer → `ProgramContext` supplies exercise details → `SetLogger` writes each set to `set_logs` in real time → completion (after the last exercise, or early via Finish workout with whatever is logged) marks the session and shows the done screen.
 
 ### Key Files
 

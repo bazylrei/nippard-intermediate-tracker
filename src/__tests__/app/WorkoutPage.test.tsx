@@ -25,7 +25,7 @@ const db = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db", () => db);
 
-const boot = vi.hoisted(() => ({ bootstrapWorkout: vi.fn() }));
+const boot = vi.hoisted(() => ({ bootstrapWorkout: vi.fn(), beginWorkout: vi.fn() }));
 vi.mock("@/lib/workout-init", () => boot);
 
 const rest = vi.hoisted(() => ({ isActive: false, remaining: 0, total: 0, start: vi.fn(), stop: vi.fn() }));
@@ -167,6 +167,53 @@ describe("WorkoutPage save failures are visible, never silent", () => {
 });
 
 // ─── Resuming at the right place ─────────────────────────────────────────────
+
+describe("WorkoutPage — a new workout starts only when begun", () => {
+  async function renderOverview() {
+    bootWith({ session: null, phase: "overview" });
+    await act(async () => { render(<WorkoutPage />); });
+  }
+
+  it("opens on the overview without creating a session", async () => {
+    await renderOverview();
+    expect(screen.getByRole("button", { name: /Begin Workout/ })).toBeInTheDocument();
+    expect(boot.beginWorkout).not.toHaveBeenCalled();
+  });
+
+  it("offers a different workout instead", async () => {
+    await renderOverview();
+    expect(screen.getByRole("link", { name: "Choose a different workout" })).toHaveAttribute("href", "/program");
+  });
+
+  it("creates the session on Begin and goes into the workout", async () => {
+    boot.beginWorkout.mockResolvedValue(session);
+    await renderOverview();
+    await click(screen.getByRole("button", { name: /Begin Workout/ }));
+
+    expect(boot.beginWorkout).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", week: 1, dayIndex: 0, dayType: "upper-a" }));
+    expect(screen.getByText("Skip exercise")).toBeInTheDocument();
+  });
+
+  it("creates one session however often Begin is tapped", async () => {
+    let resolve: (s: WorkoutSession) => void = () => {};
+    boot.beginWorkout.mockReturnValue(new Promise((r) => { resolve = r; }));
+    await renderOverview();
+    const begin = screen.getByRole("button", { name: /Begin Workout/ });
+    fireEvent.click(begin);
+    fireEvent.click(begin);
+    await act(async () => { resolve(session); });
+    expect(boot.beginWorkout).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays on the overview and says so when the session can't be created", async () => {
+    boot.beginWorkout.mockRejectedValue(new Error("offline"));
+    await renderOverview();
+    await click(screen.getByRole("button", { name: /Begin Workout/ }));
+
+    expect(screen.getByText("Couldn't start the workout. Try again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Begin Workout/ })).toBeEnabled();
+  });
+});
 
 describe("WorkoutPage — finishing early", () => {
   beforeEach(() => {
@@ -563,7 +610,7 @@ describe("WorkoutPage — invalid or failed starts", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     boot.bootstrapWorkout.mockRejectedValue(new Error("offline"));
     await act(async () => { render(<WorkoutPage />); });
-    expect(screen.getByText(/Couldn't start the workout/)).toBeInTheDocument();
+    expect(screen.getByText(/Couldn't load the workout/)).toBeInTheDocument();
   });
 
   it("explains when the program itself couldn't be loaded", async () => {

@@ -6,7 +6,7 @@ import { deleteWorkoutSession } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutSession, SetLog, ExerciseRecord } from "@/lib/types";
 import { resolveExercises, loggedWorkingSets, clearWorkoutInProgress, recordFor } from "@/lib/workout-helpers";
-import { bootstrapWorkout } from "@/lib/workout-init";
+import { beginWorkout, bootstrapWorkout } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
@@ -91,6 +91,20 @@ function WorkoutContent() {
     init();
   }, [week, dayIndex, router, workoutDay, programReady, programId, setPrefs, restore]);
 
+  /** Creates the session only now, so opening a day to look at it never starts one. */
+  async function handleBegin() {
+    if (!userId || !workoutDay) return;
+    if (session) { progress.begin(); return; }
+    let started: WorkoutSession | null = null;
+    const ok = await saveError.attempt(async () => {
+      started = await beginWorkout({ userId, week, dayIndex, programId, dayType: workoutDay.dayType, exercises: resolvedExercises });
+    }, "Couldn't start the workout. Try again.");
+    if (!ok || !started) return;
+    saveError.clear();
+    setSession(started);
+    progress.begin();
+  }
+
   async function handleDiscard() {
     if (session && !(await saveError.attempt(() => deleteWorkoutSession(session.id), "Couldn't discard the workout. Try again."))) {
       setConfirmDiscard(false);
@@ -106,9 +120,24 @@ function WorkoutContent() {
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
-  if (loadFailed) return <FullScreenMessage message="Couldn't start the workout. Check your connection and try again." />;
+  if (loadFailed) return <FullScreenMessage message="Couldn't load the workout. Check your connection and try again." />;
   if (loading) return <FullScreenMessage message="Loading workout…" />;
-  if (!workoutDay || !currentExercise || !session) return <FullScreenMessage message="Invalid workout." />;
+  if (!workoutDay || !currentExercise) return <FullScreenMessage message="Invalid workout." />;
+
+  // ── Overview: nothing is recorded until the workout is begun ─────────────
+  if (phase === "overview" && !done) {
+    return (
+      <WorkoutOverview
+        week={week}
+        dayType={workoutDay.dayType}
+        exercises={resolvedExercises}
+        onBegin={handleBegin}
+        error={saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
+      />
+    );
+  }
+
+  if (!session) return <FullScreenMessage message="Invalid workout." />;
 
   // ── Done screen ──────────────────────────────────────────────────────────
   if (done) {
@@ -122,18 +151,6 @@ function WorkoutContent() {
         unit={prefs.unit}
         onHome={() => router.push("/")}
         onProgress={() => router.push("/progress")}
-      />
-    );
-  }
-
-  // ── Overview screen ──────────────────────────────────────────────────────
-  if (phase === "overview") {
-    return (
-      <WorkoutOverview
-        week={week}
-        dayType={workoutDay.dayType}
-        exercises={resolvedExercises}
-        onBegin={progress.begin}
       />
     );
   }

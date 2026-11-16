@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => db);
 vi.mock("@/lib/auth", () => auth);
 vi.mock("@/lib/cache", () => ({ cacheSet: vi.fn(), cacheGet: vi.fn(), cacheDelete: vi.fn() }));
 
-import { bootstrapWorkout } from "@/lib/workout-init";
+import { beginWorkout, bootstrapWorkout } from "@/lib/workout-init";
 import { cacheSet } from "@/lib/cache";
 
 const prefs = { unit: "kg", alternateSelections: {}, exerciseNotes: {} };
@@ -77,12 +77,21 @@ describe("bootstrapWorkout", () => {
     expect(boot).toMatchObject({ exerciseIndex: 0, setIndex: -1, phase: "warmup" });
   });
 
-  it("starts a new session when the unfinished one is for a different day", async () => {
+  it("only shows a new day: no session, nothing in progress, until it's begun", async () => {
+    db.getIncompleteSessionWithSets.mockResolvedValue(null);
+    const boot = await bootstrapWorkout({ week: 2, dayIndex: 1, programId: "prog-1", workoutDay });
+
+    expect(db.createSession).not.toHaveBeenCalled();
+    expect(cacheSet).not.toHaveBeenCalledWith("active_workout", expect.anything());
+    expect(boot).toMatchObject({ session: null, sessionSets: [], exerciseIndex: 0, setIndex: 0, phase: "overview" });
+  });
+
+  it("doesn't resume an unfinished workout for a different day", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ dayIndex: 4 }), sets });
     const boot = await bootstrapWorkout({ week: 2, dayIndex: 1, programId: "prog-1", workoutDay });
 
-    expect(db.createSession).toHaveBeenCalledWith("user-1", 2, 1, "upper-a", "prog-1");
-    expect(boot).toMatchObject({ sessionSets: [], exerciseIndex: 0, setIndex: 0, phase: "overview" });
+    expect(db.createSession).not.toHaveBeenCalled();
+    expect(boot).toMatchObject({ session: null, sessionSets: [], phase: "overview" });
   });
 
   it("shows the exercise swapped in for this workout as the one in progress", async () => {
@@ -104,3 +113,19 @@ describe("bootstrapWorkout", () => {
   });
 });
 
+
+describe("beginWorkout", () => {
+  it("creates the session when the workout is begun, and marks it in progress", async () => {
+    const started = await beginWorkout({ userId: "user-1", week: 2, dayIndex: 1, programId: "prog-1", dayType: "upper-a", exercises });
+
+    expect(db.createSession).toHaveBeenCalledWith("user-1", 2, 1, "upper-a", "prog-1");
+    expect(started.id).toBe("new");
+    expect(cacheSet).toHaveBeenCalledWith("active_workout", expect.objectContaining({ exerciseName: "Bench", exerciseIndex: 0 }));
+  });
+
+  it("marks nothing in progress when the session can't be created", async () => {
+    db.createSession.mockRejectedValue(new Error("offline"));
+    await expect(beginWorkout({ userId: "user-1", week: 2, dayIndex: 1, programId: null, dayType: "upper-a", exercises })).rejects.toThrow("offline");
+    expect(cacheSet).not.toHaveBeenCalled();
+  });
+});
