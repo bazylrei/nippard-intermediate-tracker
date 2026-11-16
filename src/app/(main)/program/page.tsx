@@ -1,77 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
-import { getCompletedSlots, getIncompleteSession, type CompletedSlot } from "@/lib/db";
-import { getSessionNumber, getTotalSessions, nextWorkout } from "@/lib/program-data";
+import { getSessionNumber, getTotalSessions, programRun } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
+import { useProgramOverview } from "@/hooks/useProgramOverview";
 import type { WorkoutPosition } from "@/lib/types";
 import { latestSessionBySlot, startWorkoutHref, workoutDetailHref } from "@/lib/workout-history";
+import { settleUnfinishedWorkout, type UnfinishedChoice } from "@/lib/unfinished-workout";
+import { dayLabel } from "@/lib/day-types";
 import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
-import WeekDayTile from "@/components/program/WeekDayTile";
+import WeekDayTile, { type DayStatus } from "@/components/program/WeekDayTile";
+import StartWorkoutSheet from "@/components/program/StartWorkoutSheet";
 import FullScreenMessage from "@/components/FullScreenMessage";
-import { cacheGet, cacheSet } from "@/lib/cache";
-import { Dumbbell } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
 
-const CACHE_KEY = "dashboard-v4";
-
-type CachedDashboard = {
-  resume: WorkoutPosition | null;
-  /** Newest first; the first entry is the last completed workout. */
-  completed: CompletedSlot[];
-};
+const samePosition = (a: WorkoutPosition | null | undefined, b: WorkoutPosition) =>
+  !!a && a.week === b.week && a.dayIndex === b.dayIndex;
 
 export default function MyProgram() {
   const router = useRouter();
   const { program } = useProgramContext();
-  const cached = cacheGet<CachedDashboard>(CACHE_KEY);
-  const [loading, setLoading] = useState(!cached);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [resume, setResume] = useState<WorkoutPosition | null>(cached?.resume ?? null);
-  const [completed, setCompleted] = useState<CompletedSlot[]>(cached?.completed ?? []);
+  const { overview, failed } = useProgramOverview();
+  /** The week being browsed; until one is picked, the next workout's week. */
+  const [pickedWeek, setPickedWeek] = useState<number | null>(null);
+  const [choosing, setChoosing] = useState<WorkoutPosition | null>(null);
 
-  useEffect(() => {
-    async function init() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
+  if (failed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
+  if (!overview) return <FullScreenMessage message="Loading…" />;
 
-      let incomplete, slots;
-      try {
-        [incomplete, slots] = await Promise.all([
-          getIncompleteSession(user.id),
-          getCompletedSlots(user.id),
-        ]);
-      } catch (error) {
-        console.error(error);
-        setLoadFailed(true);
-        return;
-      }
-      const resumeAt = incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null;
-      setResume(resumeAt);
-      setCompleted(slots);
-      cacheSet(CACHE_KEY, { resume: resumeAt, completed: slots });
-      setLoading(false);
-    }
-    void init();
-  }, [router]);
-
-  // With a cached dashboard on screen, a failed refresh just leaves it as is.
-  if (loading && loadFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
-  if (loading) return <FullScreenMessage message="Loading…" />;
-
-  // Derived from the program's real schedule — it can have any number of weeks and days.
-  const nextSession = resume ?? nextWorkout(completed[0] ?? null, program);
+  // Derived from the program's real schedule — it can have any number of weeks and days, done in any order.
+  const { unfinished, completed } = overview;
+  const run = programRun(completed, program);
+  const nextSession = unfinished?.position ?? run.next;
   const sessionAt = latestSessionBySlot(completed);
-  const hasResume = !!resume;
   const totalWeeks = program.length;
-  const nextDay = nextSession ? program.find((w) => w.week === nextSession.week)?.days[nextSession.dayIndex] : null;
-  const sessionNum = nextSession ? getSessionNumber(nextSession, program) : 1;
+  const dayAt = (p: WorkoutPosition) => program.find((w) => w.week === p.week)?.days[p.dayIndex];
+  const nextDay = nextSession ? dayAt(nextSession) : null;
   const totalSessions = getTotalSessions(program);
-  const progressPct = totalSessions ? Math.round(((sessionNum - 1) / totalSessions) * 100) : 0;
-  const weekDays = program.find((w) => w.week === (nextSession?.week ?? 1))?.days ?? [];
+  const progressPct = totalSessions ? Math.round((run.doneCount / totalSessions) * 100) : 0;
+
+  const weekNumbers = program.map((w) => w.week).sort((a, b) => a - b);
+  const shownWeek = pickedWeek ?? nextSession?.week ?? weekNumbers[0] ?? 1;
+  const weekPos = weekNumbers.indexOf(shownWeek);
+  const weekDays = program.find((w) => w.week === shownWeek)?.days ?? [];
+  const choosingDay = choosing ? dayAt(choosing) : null;
+
+  function statusOf(position: WorkoutPosition): DayStatus {
+    if (samePosition(unfinished?.position, position)) return "in-progress";
+    if (samePosition(nextSession, position)) return "next";
+    return run.isDone(position) ? "done" : "todo";
+  }
+
+  async function start(position: WorkoutPosition, choice: UnfinishedChoice | null) {
+    if (unfinished && choice) await settleUnfinishedWorkout(unfinished.sessionId, choice);
+    router.push(startWorkoutHref(position));
+  }
 
   return (
     <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
@@ -90,7 +76,7 @@ export default function MyProgram() {
         <div className="flex items-center justify-between">
           <span className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Program Progress</span>
           <span className="font-display font-bold text-sm text-fg">
-            {Math.max(0, sessionNum - 1)}<span className="text-muted font-normal"> / {totalSessions}</span>
+            {run.doneCount}<span className="text-muted font-normal"> / {totalSessions}</span>
           </span>
         </div>
         <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "color-mix(in srgb, var(--fg) 10%, transparent)" }}>
@@ -100,9 +86,9 @@ export default function MyProgram() {
           />
         </div>
         <div className="flex justify-between text-xs text-subtle">
-          <span>Week 1</span>
+          <span>Week {weekNumbers[0] ?? 1}</span>
           <span className="text-muted font-display font-semibold">{progressPct}% complete</span>
-          <span>Week {totalWeeks}</span>
+          <span>Week {weekNumbers.at(-1) ?? totalWeeks}</span>
         </div>
       </div>
 
@@ -110,37 +96,67 @@ export default function MyProgram() {
         <NextWorkoutCard
           week={nextSession.week}
           totalWeeks={totalWeeks}
-          sessionNumber={sessionNum}
+          sessionNumber={getSessionNumber(nextSession, program)}
           day={nextDay}
-          isResume={hasResume}
+          isResume={!!unfinished}
           onStart={() => router.push(startWorkoutHref(nextSession))}
         />
       )}
 
-      {/* Week overview — 2×N grid tiles */}
+      {/* Week overview — any day not done can be chosen */}
       <div className="space-y-3">
-        <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted px-1">
-          Week {nextSession?.week ?? 1} Overview
-        </h3>
+        <div className="flex items-center justify-between px-1">
+          <button
+            onClick={() => setPickedWeek(weekNumbers[weekPos - 1])}
+            disabled={weekPos <= 0}
+            aria-label="Previous week"
+            className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted">
+            Week {shownWeek} Overview
+          </h3>
+          <button
+            onClick={() => setPickedWeek(weekNumbers[weekPos + 1])}
+            disabled={weekPos < 0 || weekPos >= weekNumbers.length - 1}
+            aria-label="Next week"
+            className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-2.5">
           {weekDays.map((day, i) => {
-            const week = nextSession?.week ?? 1;
-            const isDone = nextSession ? i < nextSession.dayIndex : false;
-            const sessionId = isDone ? sessionAt({ week, dayIndex: i }) : undefined;
+            if (!day) return null;
+            const position = { week: shownWeek, dayIndex: i };
+            const status = statusOf(position);
+            const sessionId = status === "done" ? sessionAt(position) : undefined;
             return (
               <WeekDayTile
                 key={i}
                 day={day}
                 number={i + 1}
-                isDone={isDone}
-                isNext={i === nextSession?.dayIndex}
+                status={status}
                 href={sessionId && workoutDetailHref(sessionId)}
+                onSelect={status === "done" ? undefined
+                  : status === "in-progress" ? () => router.push(startWorkoutHref(position))
+                  : () => setChoosing(position)}
               />
             );
           })}
         </div>
       </div>
 
+      {choosing && choosingDay && (
+        <StartWorkoutSheet
+          week={choosing.week}
+          day={choosingDay}
+          unfinished={unfinished ? { label: dayLabel(unfinished.dayType), setCount: unfinished.setCount } : null}
+          onStart={(choice) => start(choosing, choice)}
+          onClose={() => setChoosing(null)}
+        />
+      )}
     </div>
   );
 }

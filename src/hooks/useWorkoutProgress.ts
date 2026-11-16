@@ -73,14 +73,19 @@ export function useWorkoutProgress({ session, userId, exercises, saveError, onRe
     saveProgress(exIdx, sIdx);
   }
 
+  /** Ends the workout with whatever is logged (it needn't be done in full); stays on it if saving fails. */
+  async function finishWorkout() {
+    if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
+    clearWorkoutInProgress();
+    setState((s) => ({ ...s, done: true }));
+  }
+
   async function skipExercise() {
     if (exerciseIndex + 1 < exercises.length) {
       goToExercise(exerciseIndex + 1);
       return;
     }
-    if (session && !(await saveError.attempt(() => completeSession(session.id), "Couldn't finish the workout. Try again."))) return;
-    clearWorkoutInProgress();
-    setState((s) => ({ ...s, done: true }));
+    await finishWorkout();
   }
 
   function completeWarmup() {
@@ -138,6 +143,6 @@ export function useWorkoutProgress({ session, userId, exercises, saveError, onRe
 
   return {
     exerciseIndex, phase: state.phase, sessionSets, done: state.done, currentExercise, workingSetIndex,
-    restore, begin, goToExercise, skipExercise, completeWarmup, logSet, editSet, isExerciseDone,
+    restore, begin, goToExercise, skipExercise, finishWorkout, completeWarmup, logSet, editSet, isExerciseDone,
   };
 }

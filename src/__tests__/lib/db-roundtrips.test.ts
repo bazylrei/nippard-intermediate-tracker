@@ -50,6 +50,15 @@ beforeEach(() => {
 
 // ─── Fail fast ───────────────────────────────────────────────────────────────
 
+describe("completeSession", () => {
+  it("only finishes a session that isn't finished yet, so a retry keeps the first finish time", async () => {
+    responses.push({ data: null, error: null });
+    await completeSession("sess-1");
+    expect(fn("eq")).toHaveBeenCalledWith("id", "sess-1");
+    expect(fn("is")).toHaveBeenCalledWith("completed_at", null);
+  });
+});
+
 describe("writes fail fast", () => {
   it("completeSession throws a DbError naming the operation when Supabase errors", async () => {
     responses.push(failure("network down"));

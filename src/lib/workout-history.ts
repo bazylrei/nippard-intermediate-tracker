@@ -1,4 +1,5 @@
 import type { SetLog, WorkoutPosition } from "./types";
+import { slotKey } from "./program-data";
 
 /** The one place that knows the URL for training a scheduled day. */
 export function startWorkoutHref({ week, dayIndex }: WorkoutPosition): string {
@@ -26,8 +27,6 @@ export function groupWorkingSets(sets: SetLog[]): ExerciseSets[] {
   }
   return Array.from(groups, ([exerciseId, list]) => ({ exerciseId, sets: list }));
 }
-
-const slotKey = ({ week, dayIndex }: WorkoutPosition) => `${week}:${dayIndex}`;
 
 /**
  * Most recent session id for each program slot. Expects `slots` newest-first,

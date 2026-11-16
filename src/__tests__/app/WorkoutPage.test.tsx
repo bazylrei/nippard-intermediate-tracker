@@ -168,6 +168,40 @@ describe("WorkoutPage save failures are visible, never silent", () => {
 
 // ─── Resuming at the right place ─────────────────────────────────────────────
 
+describe("WorkoutPage — finishing early", () => {
+  beforeEach(() => {
+    workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly")] };
+  });
+
+  it("can't finish before anything is logged", async () => {
+    await renderPage();
+    expect(screen.queryByRole("button", { name: "Finish workout" })).toBeNull();
+  });
+
+  it("finishes with only some exercises done, showing the done screen", async () => {
+    bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
+    await renderPage();
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    expect(screen.getByText("Finish now with 1 set logged?")).toBeInTheDocument();
+    await click(screen.getByRole("button", { name: "Finish" }));
+
+    expect(await screen.findByText("Workout Complete!")).toBeInTheDocument();
+    expect(db.completeSession).toHaveBeenCalledWith("sess-1");
+    expect(localStorage.getItem("workout_cache_active_workout")).toBeNull();
+  });
+
+  it("stays on the workout and says so when finishing fails", async () => {
+    db.completeSession.mockRejectedValue(new Error("offline"));
+    bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
+    await renderPage();
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    await click(screen.getByRole("button", { name: "Finish" }));
+
+    expect(screen.queryByText("Workout Complete!")).toBeNull();
+    expect(screen.getByText("Couldn't finish the workout. Try again.")).toBeInTheDocument();
+  });
+});
+
 describe("WorkoutPage — skipping saves the next exercise's warm-up, not its first set", () => {
   it("saves the warm-up position (-1) so leaving and coming back resumes in the warm-up", async () => {
     workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly", "1-set")] };

@@ -1,20 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getIncompleteSession, getLastCompletedWorkout, getRecentWorkouts } from "@/lib/db";
+import { getCompletedSlots, getIncompleteSession, getRecentWorkouts } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
-import { nextWorkout } from "@/lib/program-data";
+import { programRun } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import type { WorkoutPosition } from "@/lib/types";
 
 const FEED_LIMIT = 20;
-const CACHE_KEY = "home-feed-v2";
+const CACHE_KEY = "home-feed-v3";
 
 /** What the server told us; the suggested next workout is derived from it and the program. */
 interface FeedData {
   resume: WorkoutPosition | null;
-  lastCompleted: WorkoutPosition | null;
+  /** Every completed workout's day, so the next one is the earliest not yet done. */
+  completed: WorkoutPosition[];
   items: WorkoutFeedItem[];
 }
 
@@ -37,14 +38,14 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
       const user = await requireSignedInUser(router);
       if (!user) return;
 
-      const [incomplete, lastCompleted, recent] = await Promise.all([
+      const [incomplete, completed, recent] = await Promise.all([
         getIncompleteSession(user.id),
-        getLastCompletedWorkout(user.id),
+        getCompletedSlots(user.id),
         getRecentWorkouts(user.id, FEED_LIMIT),
       ]);
       const fresh: FeedData = {
         resume: incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null,
-        lastCompleted,
+        completed: completed.map(({ week, dayIndex }) => ({ week, dayIndex })),
         items: buildWorkoutFeed(recent.sessions, recent.sets),
       };
       setData(fresh);
@@ -54,7 +55,7 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
   }, [router]);
 
   const feed = useMemo<HomeFeed | null>(() => data && {
-    nextSession: data.resume ?? nextWorkout(data.lastCompleted, program),
+    nextSession: data.resume ?? programRun(data.completed, program).next,
     hasResume: !!data.resume,
     items: data.items,
   }, [data, program]);

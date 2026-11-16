@@ -29,7 +29,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
-  getLastCompletedWorkout, getPreferences, saveExerciseNote, getIncompleteSession, getRecentWorkouts,
+  getPreferences, saveExerciseNote, getIncompleteSession, getRecentWorkouts,
 } from "@/lib/db";
 
 beforeEach(() => {
@@ -44,22 +44,6 @@ beforeEach(() => {
   });
   mockSingle.mockResolvedValue({ data: null, error: null });
   mockUpsert.mockResolvedValue({ data: null, error: null });
-});
-
-// ─── getLastCompletedWorkout ───────────────────────────────────────────────────
-// (What comes *next* depends on the program schedule — see program-data tests.)
-
-describe("getLastCompletedWorkout", () => {
-  it("returns null when no session has been completed", async () => {
-    mockSingle.mockResolvedValue({ data: null, error: null });
-    expect(await getLastCompletedWorkout("user-1")).toBeNull();
-  });
-
-  it("returns the position of the most recently completed session", async () => {
-    mockSingle.mockResolvedValue({ data: { week: 12, day_index: 4 }, error: null });
-    expect(await getLastCompletedWorkout("user-1")).toEqual({ week: 12, dayIndex: 4 });
-    expect(mockChain.order).toHaveBeenCalledWith("completed_at", { ascending: false });
-  });
 });
 
 // ─── getPreferences ────────────────────────────────────────────────────────────
