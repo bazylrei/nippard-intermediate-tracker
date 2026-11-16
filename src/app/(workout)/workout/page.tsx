@@ -11,6 +11,7 @@ import FullScreenMessage from "@/components/FullScreenMessage";
 import { usePostHistory } from "@/hooks/useWorkoutHistory";
 import { useWorkoutPrefs } from "@/hooks/useWorkoutPrefs";
 import { useWorkoutProgress, START } from "@/hooks/useWorkoutProgress";
+import { useExerciseTransition } from "@/hooks/useExerciseTransition";
 import { useSaveError } from "@/hooks/useSaveError";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
@@ -24,6 +25,7 @@ import WorkoutOverview from "@/components/workout/WorkoutOverview";
 import ExerciseListOverlay from "@/components/workout/ExerciseListOverlay";
 import WorkoutHeader from "@/components/workout/WorkoutHeader";
 import ExerciseInfo from "@/components/workout/ExerciseInfo";
+import FinishedExerciseNotice from "@/components/workout/FinishedExerciseNotice";
 import ExerciseSetCarousel from "@/components/workout/ExerciseSetCarousel";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
@@ -53,6 +55,7 @@ function WorkoutContent() {
   );
   const progress = useWorkoutProgress({ session, userId, exercises: resolvedExercises, saveError, onRest: startRestTimer });
   const { exerciseIndex, phase, sessionSets, done, currentExercise, workingSetIndex, restore } = progress;
+  const transition = useExerciseTransition(exerciseIndex, resolvedExercises, progress.isExerciseDone);
 
   const record = recordFor(recordsByExercise, currentExercise);
   const postWorkout = usePostHistory(done, userId, resolvedExercises);
@@ -170,34 +173,43 @@ function WorkoutContent() {
       <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
         {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
-        <ExerciseInfo
-          exercise={currentExercise}
-          originalExercise={workoutDay.exercises[exerciseIndex]}
-          canSwap={setsForExercise.length === 0}
-          note={prefs.exerciseNotes?.[currentExercise.id]}
-          onOpenSwap={() => openSwap(workoutDay.exercises[exerciseIndex])}
-          onOpenNotes={() => setShowNotes(true)}
-        />
+        {/* Keyed by position so moving to another exercise replays the slide-in. */}
+        <section
+          key={exerciseIndex}
+          aria-label={currentExercise.name}
+          className={`space-y-5 ${transition.direction ? `exercise-enter-${transition.direction}` : ""}`}
+        >
+          {transition.finished && <FinishedExerciseNotice name={transition.finished.name} />}
 
-        <ExerciseSetCarousel
-          key={currentExercise.id}
-          exercise={currentExercise}
-          currentSetIndex={warmingUp ? null : workingSetIndex}
-          warmup={hasWarmup ? (
-            <WarmupSlide
-              steps={currentWarmupSteps}
-              active={warmingUp}
-              onComplete={progress.completeWarmup}
-              prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
-              unit={prefs.unit}
-            />
-          ) : undefined}
-          loggedSets={setsForExercise}
-          record={record}
-          unit={prefs.unit}
-          onLog={progress.logSet}
-          onView={setViewingSet}
-        />
+          <ExerciseInfo
+            exercise={currentExercise}
+            originalExercise={workoutDay.exercises[exerciseIndex]}
+            canSwap={setsForExercise.length === 0}
+            note={prefs.exerciseNotes?.[currentExercise.id]}
+            onOpenSwap={() => openSwap(workoutDay.exercises[exerciseIndex])}
+            onOpenNotes={() => setShowNotes(true)}
+          />
+
+          <ExerciseSetCarousel
+            key={currentExercise.id}
+            exercise={currentExercise}
+            currentSetIndex={warmingUp ? null : workingSetIndex}
+            warmup={hasWarmup ? (
+              <WarmupSlide
+                steps={currentWarmupSteps}
+                active={warmingUp}
+                onComplete={progress.completeWarmup}
+                prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
+                unit={prefs.unit}
+              />
+            ) : undefined}
+            loggedSets={setsForExercise}
+            record={record}
+            unit={prefs.unit}
+            onLog={progress.logSet}
+            onView={setViewingSet}
+          />
+        </section>
 
         <SkipExerciseButton onSkip={progress.skipExercise} />
       </div>
