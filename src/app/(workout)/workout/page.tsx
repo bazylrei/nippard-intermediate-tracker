@@ -73,7 +73,7 @@ function WorkoutContent() {
       setLoading(true);
       let boot;
       try {
-        boot = await bootstrapWorkout({ week, dayIndex, programId, workoutDay });
+        boot = await bootstrapWorkout({ week, dayIndex, workoutDay });
       } catch (error) {
         console.error(error);
         setLoadFailed(true);
@@ -89,7 +89,7 @@ function WorkoutContent() {
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, router, workoutDay, programReady, programId, setPrefs, restore]);
+  }, [week, dayIndex, router, workoutDay, programReady, setPrefs, restore]);
 
   /** Creates the session only now, so opening a day to look at it never starts one. */
   async function handleBegin() {

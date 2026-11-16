@@ -24,16 +24,15 @@ export interface WorkoutBootstrap {
 interface Params {
   week: number;
   dayIndex: number;
-  programId: string | null;
   /** The scheduled day being trained — callers must not start a workout for a day that doesn't exist. */
   workoutDay: { dayType: string; exercises: Exercise[] };
 }
 
-export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }: Params): Promise<WorkoutBootstrap | null> {
+export async function bootstrapWorkout({ week, dayIndex, workoutDay }: Params): Promise<WorkoutBootstrap | null> {
   const user = await getSignedInUser();
   if (!user) return null;
 
-  const { exercises, dayType } = workoutDay;
+  const { exercises } = workoutDay;
   // Everything the page needs, in one parallel round trip.
   // A slot can be done as its own exercise or either alternate, and swapped before the first set,
   // so load last-time and best for all of them in the same round trip.
