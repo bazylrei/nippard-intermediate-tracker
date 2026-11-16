@@ -46,8 +46,6 @@ export type Database = {
       }
       exercises: {
         Row: {
-          alternate_1: string | null
-          alternate_2: string | null
           equipment: string | null
           form_note: string | null
           id: string
@@ -62,8 +60,6 @@ export type Database = {
           youtube_url: string | null
         }
         Insert: {
-          alternate_1?: string | null
-          alternate_2?: string | null
           equipment?: string | null
           form_note?: string | null
           id: string
@@ -78,8 +74,6 @@ export type Database = {
           youtube_url?: string | null
         }
         Update: {
-          alternate_1?: string | null
-          alternate_2?: string | null
           equipment?: string | null
           form_note?: string | null
           id?: string
