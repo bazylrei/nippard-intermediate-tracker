@@ -1,3 +1,4 @@
+import type { WeeklyVolume } from "@/lib/volume";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // An awaitable query-builder mock: every chained method returns the chain, and
@@ -360,20 +361,21 @@ describe("getRecentWorkouts without a limit", () => {
 // ─── Progress ────────────────────────────────────────────────────────────────
 
 describe("getWeeklyVolume", () => {
-  // Three parallel queries, answered in order: sets, exercise flags, weigh-ins.
+  // Three parallel queries, answered in order: sets, exercises, weigh-ins.
+  const totals = (result: WeeklyVolume) => result.weeks.map(({ week, volume }) => ({ week, volume }));
   const set = (exercise_id: string, weight_kg: number, reps: number, week: number) =>
     ({ exercise_id, weight_kg, reps, logged_at: "2026-11-10T10:00:00Z", workout_sessions: { week, completed_at: "x" } });
 
   it("sums kg × reps per week, rounds, and sorts weeks ascending", async () => {
     responses.push(
       { data: [set("bench", 100, 5, 2), set("bench", 50.5, 3, 1), set("bench", 100, 5, 2)], error: null },
-      { data: [{ id: "bench", is_bodyweight: false, weight_per_side: false }], error: null },
+      { data: [{ id: "bench", is_bodyweight: false, weight_per_side: false, muscle_group: "chest" }], error: null },
       { data: [], error: null },
     );
-    expect(await getWeeklyVolume("user-1")).toEqual({
-      weeks: [{ week: 1, volume: 152 }, { week: 2, volume: 1000 }],
-      missingBodyWeight: false,
-    });
+    const result = await getWeeklyVolume("user-1");
+    expect(totals(result)).toEqual([{ week: 1, volume: 152 }, { week: 2, volume: 1000 }]);
+    expect(result.weeks[1].byRegion.chest).toBe(1000);
+    expect(result.missingBodyWeight).toBe(false);
     expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
   });
 
@@ -381,13 +383,13 @@ describe("getWeeklyVolume", () => {
     responses.push(
       { data: [set("db-row", 30, 10, 1), set("pull-up", 10, 8, 1)], error: null },
       { data: [
-        { id: "db-row", is_bodyweight: false, weight_per_side: true },
-        { id: "pull-up", is_bodyweight: true, weight_per_side: false },
+        { id: "db-row", is_bodyweight: false, weight_per_side: true, muscle_group: "back" },
+        { id: "pull-up", is_bodyweight: true, weight_per_side: false, muscle_group: "back" },
       ], error: null },
       { data: [{ logged_on: "2026-11-09", weight_kg: 80, source: "manual" }], error: null },
     );
     // 2 × 30 × 10 = 600, plus (80 + 10) × 8 = 720
-    expect(await getWeeklyVolume("user-1")).toEqual({ weeks: [{ week: 1, volume: 1320 }], missingBodyWeight: false });
+    expect(totals(await getWeeklyVolume("user-1"))).toEqual([{ week: 1, volume: 1320 }]);
   });
 });
 

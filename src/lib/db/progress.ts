@@ -1,7 +1,7 @@
 import { createClient } from "../supabase";
 import { unwrap } from "./result";
 import { getBodyWeightLogs } from "./body-weight";
-import { weeklyVolume, type LoadFlags, type SessionSet, type VolumeSet, type WeeklyVolume } from "../volume";
+import { weeklyVolume, type SessionSet, type VolumeExercise, type VolumeSet, type WeeklyVolume } from "../volume";
 
 export async function getExerciseHistory(
   userId: string,
@@ -39,11 +39,13 @@ export async function getExerciseWorkingSets(userId: string, exerciseIds: string
   }));
 }
 
-/** Per-side / bodyweight flags for every exercise, keyed by id (the catalogue is small). */
-async function getExerciseLoadFlags(): Promise<Record<string, LoadFlags>> {
+/** Load flags and muscle group for every exercise, keyed by id (the catalogue is small). */
+async function getVolumeExercises(): Promise<Record<string, VolumeExercise>> {
   const sb = createClient();
-  const rows = unwrap("getExerciseLoadFlags", await sb.from("exercises").select("id, is_bodyweight, weight_per_side"));
-  return Object.fromEntries((rows ?? []).map((r) => [r.id, { isBodyweight: r.is_bodyweight, weightPerSide: r.weight_per_side }]));
+  const rows = unwrap("getVolumeExercises", await sb.from("exercises").select("id, is_bodyweight, weight_per_side, muscle_group"));
+  return Object.fromEntries((rows ?? []).map((r) => [
+    r.id, { isBodyweight: r.is_bodyweight, weightPerSide: r.weight_per_side, muscleGroup: r.muscle_group },
+  ]));
 }
 
 /** Working sets from completed sessions, with each one's program week and time. */
@@ -61,17 +63,17 @@ async function getCompletedWorkingSets(userId: string): Promise<VolumeSet[]> {
 }
 
 /**
- * Total working-set volume per program week (completed sessions only), counting
+ * Working-set volume per program week and body region (completed sessions only), counting
  * per-side weights twice and adding body weight to bodyweight exercises.
- * Sets, exercise flags and weigh-ins load in one parallel round trip.
+ * Sets, exercises and weigh-ins load in one parallel round trip.
  */
 export async function getWeeklyVolume(userId: string): Promise<WeeklyVolume> {
-  const [sets, flags, logs] = await Promise.all([
+  const [sets, exercises, logs] = await Promise.all([
     getCompletedWorkingSets(userId),
-    getExerciseLoadFlags(),
+    getVolumeExercises(),
     getBodyWeightLogs(userId),
   ]);
-  return weeklyVolume(sets, flags, logs);
+  return weeklyVolume(sets, exercises, logs);
 }
 
 /** Ids of every exercise the user has logged a working set for. */
