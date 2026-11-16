@@ -1,62 +1,77 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Dumbbell, House, ClipboardList, TrendingUp, Wrench, type LucideIcon } from "lucide-react";
+import { Dumbbell, House, TrendingUp, UserRound, UsersRound, type LucideIcon } from "lucide-react";
 import { useActiveWorkout } from "@/hooks/useActiveWorkout";
+import { useStartNextWorkout } from "@/hooks/useStartNextWorkout";
 import { CenterWorkoutTab, SidebarWorkoutTab } from "./WorkoutTab";
 import { startWorkoutHref } from "@/lib/workout-history";
 
-const TABS = [
-  { href: "/",         label: "Home",     icon: House         },
-  { href: "/program",  label: "Program",  icon: ClipboardList },
+/** Two tabs either side of the Workout button, which always sits in the middle. */
+const LEADING_TABS = [
+  { href: "/",         label: "Home",     icon: House      },
   { href: "/progress", label: "Progress", icon: TrendingUp },
-  { href: "/builder",  label: "Builder",  icon: Wrench     },
+] as const;
+const TRAILING_TABS = [
+  { href: "/community", label: "Community", icon: UsersRound },
+  { href: "/profile",   label: "Profile",   icon: UserRound  },
 ] as const;
 
 const WORKOUT_PATH = "/workout";
 
-/** Pages that belong to a tab without being under its path: Settings is opened from Program. */
-const ALSO_ACTIVE_ON: Record<string, string[]> = { "/program": ["/settings"] };
+/** Pages that belong to a tab without being under its path: everything opened from Profile. */
+const ALSO_ACTIVE_ON: Record<string, string[]> = { "/profile": ["/program", "/builder", "/settings"] };
 
 interface Tab {
   label: string;
   icon: LucideIcon;
   active: boolean;
-  /** Where tapping goes; null when already there. */
+  /** Where tapping goes; null when already there (or, for an idle Workout tab, when it starts the next workout). */
   href: string | null;
-  /** Set on the Workout tab, which shows the live workout clock. */
-  workout?: { startedAt?: string };
+  /** Set on the Workout tab. */
+  workout?: {
+    /** No workout in progress: the tab starts the next one. */
+    idle: boolean;
+    startedAt?: string;
+  };
+}
+
+function isActive(href: string, pathname: string): boolean {
+  if (href === "/") return pathname === "/";
+  return [href, ...(ALSO_ACTIVE_ON[href] ?? [])].some((path) => pathname.startsWith(path));
 }
 
 /**
- * The fixed tabs, plus a Workout tab in the middle while a workout is in
- * progress (or while on the workout screen) — it marks where you are and leads back.
+ * The fixed tabs with the Workout tab always in the middle. While a workout is
+ * in progress it shows the live clock and leads back; otherwise it starts the next one.
  */
 function useTabs(): Tab[] {
   const pathname = usePathname();
   const workout = useActiveWorkout();
   const onWorkout = pathname.startsWith(WORKOUT_PATH);
+  const toTab = ({ href, label, icon }: { href: string; label: string; icon: LucideIcon }): Tab =>
+    ({ label, icon, href, active: isActive(href, pathname) });
 
-  const tabs: Tab[] = TABS.map(({ href, label, icon }) => ({
-    label, icon, href,
-    active: href === "/" ? pathname === "/" : [href, ...(ALSO_ACTIVE_ON[href] ?? [])].some((path) => pathname.startsWith(path)),
-  }));
-  if (workout || onWorkout) {
-    tabs.splice(tabs.length / 2, 0, {
-      label: "Workout",
-      icon: Dumbbell,
-      active: onWorkout,
-      href: onWorkout || !workout ? null : startWorkoutHref(workout),
-      workout: { startedAt: workout?.startedAt },
-    });
-  }
-  return tabs;
+  // On the workout screen (including its finished screen, after the workout is cleared) the tab marks where you are.
+  const idle = !workout && !onWorkout;
+  const workoutTab: Tab = {
+    label: idle ? "Start" : "Workout",
+    icon: Dumbbell,
+    active: onWorkout,
+    href: workout && !onWorkout ? startWorkoutHref(workout) : null,
+    workout: { idle, startedAt: workout?.startedAt },
+  };
+  return [...LEADING_TABS.map(toTab), workoutTab, ...TRAILING_TABS.map(toTab)];
 }
 
 export default function AppNav() {
   const router = useRouter();
   const tabs = useTabs();
-  const select = ({ href }: Tab) => { if (href) router.push(href); };
+  const startNextWorkout = useStartNextWorkout();
+  const select = ({ href, workout }: Tab) => {
+    if (href) router.push(href);
+    else if (workout?.idle) void startNextWorkout();
+  };
 
   return (
     <>
@@ -68,7 +83,7 @@ export default function AppNav() {
         </div>
         <nav className="flex flex-col gap-1">
           {tabs.map((tab) => tab.workout ? (
-            <SidebarWorkoutTab key={tab.label} startedAt={tab.workout.startedAt} active={tab.active} onSelect={() => select(tab)} />
+            <SidebarWorkoutTab key="workout" {...tab.workout} active={tab.active} onSelect={() => select(tab)} />
           ) : (
             <button
               key={tab.label}
@@ -93,7 +108,7 @@ export default function AppNav() {
         style={{ height: "var(--app-nav-h)" }}
       >
         {tabs.map((tab) => tab.workout ? (
-          <CenterWorkoutTab key={tab.label} startedAt={tab.workout.startedAt} active={tab.active} onSelect={() => select(tab)} />
+          <CenterWorkoutTab key="workout" {...tab.workout} active={tab.active} onSelect={() => select(tab)} />
         ) : (
           <button
             key={tab.label}

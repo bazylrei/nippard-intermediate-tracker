@@ -20,12 +20,14 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 ### Route Structure
 
 - `/(main)/` — Home: suggested next workout + feed of recent completed workouts
-- `/(main)/program` — My program: progress bar, next workout, week overview. Its header links to Settings and signs out
-- `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`. Opened from Program, so the Program tab stays selected on it
+- `/(main)/profile` — Hub for the current program, all programs (Builder), Settings and sign-out. Pages opened from it (`/program`, `/builder`, `/settings`) keep the Profile tab selected and lead back with `BackToProfile`
+- `/(main)/program` — My program: progress bar, next workout, week overview
+- `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`
+- `/(main)/community` — Placeholder for the upcoming social features
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
 - `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
 - `/(main)/builder/[programId]` — Full CRUD program editor
-- `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button); pages fill `.workout-viewport`. While a workout is in progress the tab bar shows a raised centre Workout tab (elapsed time, or the rest countdown)
+- `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button); pages fill `.workout-viewport`. The tab bar (`Home · Progress · ▶ · Community · Profile`) always has a raised centre button: idle it starts the next workout (`findNextWorkout`); while a workout is in progress it shows the elapsed time, or the rest countdown, and leads back
 - `/auth` — Email/password sign-in/sign-up
 
 ### State Layers

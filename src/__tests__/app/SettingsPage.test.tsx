@@ -36,6 +36,11 @@ async function renderPage() {
 }
 
 describe("Settings page — loading", () => {
+  it("leads back to Profile, which it is opened from", async () => {
+    await renderPage();
+    expect(screen.getByRole("link", { name: "Back to Profile" })).toHaveAttribute("href", "/profile");
+  });
+
   it("shows the settings once preferences and the latest weigh-in have loaded", async () => {
     await renderPage();
     expect(screen.getByRole("radiogroup", { name: "Weight unit" })).toBeInTheDocument();

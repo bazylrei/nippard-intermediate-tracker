@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { WeekSchedule } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn(), signOut: vi.fn() }));
+const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({
@@ -27,7 +27,6 @@ beforeEach(() => {
   localStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   auth.getSignedInUser.mockResolvedValue({ id: "user-1", email: "me@example.com" });
-  auth.signOut.mockResolvedValue(undefined);
   db.getIncompleteSession.mockResolvedValue(null);
   db.getCompletedSlots.mockResolvedValue([
     { sessionId: "s2", week: 1, dayIndex: 1 },
@@ -43,15 +42,21 @@ async function renderPage() {
 describe("Program page — week overview", () => {
   it("links each completed day to its workout and leaves the rest plain", async () => {
     await renderPage();
-    const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/settings");
+    const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/profile");
     expect(hrefs).toEqual(["/history/s1", "/history/s2"]);
   });
 });
 
-describe("Program page — settings", () => {
-  it("links to the Settings page from its header", async () => {
+describe("Program page — header", () => {
+  it("leads back to Profile, which it is opened from", async () => {
     await renderPage();
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Back to Profile" })).toHaveAttribute("href", "/profile");
+  });
+
+  it("leaves Settings and sign-out to Profile", async () => {
+    await renderPage();
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
   });
 
   it("no longer loads preferences or weigh-ins: those are the Settings page's", async () => {
@@ -61,25 +66,10 @@ describe("Program page — settings", () => {
   });
 });
 
-describe("Program page — loading and sign-out", () => {
+describe("Program page — loading", () => {
   it("explains instead of loading forever when the first load fails", async () => {
     db.getCompletedSlots.mockRejectedValue(new Error("offline"));
     render(<MyProgram />);
     expect(await screen.findByText(/Couldn't load your program/)).toBeInTheDocument();
-  });
-
-  it("signs out through lib/auth and goes to the sign-in page", async () => {
-    await renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/auth"));
-    expect(auth.signOut).toHaveBeenCalled();
-  });
-
-  it("stays put and shows an alert when signing out fails", async () => {
-    auth.signOut.mockRejectedValue(new Error("offline"));
-    await renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't sign out");
-    expect(router.replace).not.toHaveBeenCalledWith("/auth");
   });
 });
