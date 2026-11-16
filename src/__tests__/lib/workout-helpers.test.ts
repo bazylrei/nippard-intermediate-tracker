@@ -6,20 +6,25 @@ import {
 import { readActiveWorkout } from "@/lib/active-workout";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 
+const alt = (id: string, name: string) => ({ id, name, alternates: [], earlySetCount: 2, lastSetCount: 1 }) as unknown as Exercise;
 const ex = {
-  id: "bench", name: "Bench", alternates: ["Dumbbell Press", "Push-up"],
+  id: "bench", name: "Bench", alternates: [alt("db-press", "Dumbbell Press"), alt("push-up", "Push-up")],
   earlySetCount: 2, lastSetCount: 1,
 } as unknown as Exercise;
 
 const set = (exerciseId: string, setIndex: number) => ({ exerciseId, setIndex }) as unknown as SetLog;
 
 describe("resolveExercises", () => {
-  it("keeps the original name for index 0 or unset", () => {
+  it("keeps the slot's own exercise when nothing is chosen", () => {
     expect(resolveExercises([ex], {})[0].name).toBe("Bench");
   });
-  it("swaps in the first and second alternates", () => {
-    expect(resolveExercises([ex], { bench: 1 })[0].name).toBe("Dumbbell Press");
-    expect(resolveExercises([ex], { bench: 2 })[0].name).toBe("Push-up");
+  it("swaps in a chosen alternate, as its own exercise with its own id", () => {
+    const [resolved] = resolveExercises([ex], { bench: "push-up" });
+    expect(resolved).toMatchObject({ id: "push-up", name: "Push-up" });
+  });
+  it("resolves each slot independently", () => {
+    const row = { id: "row", name: "Row", alternates: [alt("cable-row", "Cable Row")] } as unknown as Exercise;
+    expect(resolveExercises([ex, row], { row: "cable-row" }).map((e) => e.id)).toEqual(["bench", "cable-row"]);
   });
 });
 

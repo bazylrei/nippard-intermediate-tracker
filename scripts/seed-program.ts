@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { PROGRAM } from "./program-data-static";
+import { planAlternates } from "./alternate-exercises";
 
 const SUPABASE_URL = "https://avlybhdtpgnynjffgofv.supabase.co";
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -45,8 +46,6 @@ async function main() {
     id: string;
     name: string;
     muscle_group: string;
-    alternate_1: string | null;
-    alternate_2: string | null;
     rest_min: number;
     rest_max: number;
     warmup_protocol: string;
@@ -62,8 +61,6 @@ async function main() {
           id: ex.id,
           name: ex.name,
           muscle_group: ex.muscleGroup,
-          alternate_1: ex.alternates[0] ?? null,
-          alternate_2: ex.alternates[1] ?? null,
           rest_min: ex.restSeconds[0],
           rest_max: ex.restSeconds[1],
           warmup_protocol: ex.warmupProtocol,
@@ -72,6 +69,10 @@ async function main() {
       }
     }
   }
+
+  // Alternates are exercises of their own (see alternate-exercises.ts).
+  const { alternateId, rows: alternateRows } = planAlternates(PROGRAM, exerciseRows);
+  exerciseRows.push(...alternateRows);
 
   console.log("Upserting exercises...");
   const { error: exErr } = await sb
@@ -135,6 +136,8 @@ async function main() {
         program_day_id: dayId,
         exercise_id: ex.id,
         position,
+        alternate_1_exercise_id: ex.alternates[0] ? alternateId(ex.alternates[0]) : null,
+        alternate_2_exercise_id: ex.alternates[1] ? alternateId(ex.alternates[1]) : null,
         rep_range_min: ex.repRange[0],
         rep_range_max: ex.repRange[1],
         early_set_count: ex.earlySetCount,

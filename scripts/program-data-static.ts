@@ -2,7 +2,12 @@
  * Static snapshot of the full program — used ONLY by scripts/seed-program.ts.
  * No app code should import from this file.
  */
-import type { Exercise, WorkoutDay, WeekSchedule, WarmupProtocol } from "../src/lib/types";
+import type { Exercise, WarmupProtocol } from "../src/lib/types";
+
+/** An exercise as written here: its alternates are just names, which scripts/seed-program.ts turns into exercises. */
+type StaticExercise = Omit<Exercise, "alternates"> & { alternates: [string, string] };
+type StaticDay = { dayType: string; exercises: StaticExercise[] };
+type StaticWeek = { week: number; days: StaticDay[] };
 
 function ex(
   id: string,
@@ -18,13 +23,13 @@ function ex(
   lastSetCount: number,
   formNote: string,
   lastSetRpe?: [number, number]
-): Exercise {
+): StaticExercise {
   return { id, name, alternates, muscleGroup, restSeconds, warmupProtocol, repRange, earlySetRpe, lastSetTarget, lastSetRpe, earlySetCount, lastSetCount, formNote, isBodyweight: false, weightPerSide: false };
 }
 
 // ─── Foundation Block (Weeks 1–5) ─────────────────────────────────────────────
 
-function foundationUpperA(e: number, l: number, intro = false): WorkoutDay {
+function foundationUpperA(e: number, l: number, intro = false): StaticDay {
   const t = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
   const rpe: [number, number] = intro ? [7, 8] : [8, 9];
@@ -42,7 +47,7 @@ function foundationUpperA(e: number, l: number, intro = false): WorkoutDay {
   };
 }
 
-function foundationLowerA(e: number, l: number, intro = false): WorkoutDay {
+function foundationLowerA(e: number, l: number, intro = false): StaticDay {
   const t = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
   const ss = intro ? ("rpe" as const) : ("static-stretch" as const);
@@ -60,7 +65,7 @@ function foundationLowerA(e: number, l: number, intro = false): WorkoutDay {
   };
 }
 
-function foundationBackBiceps(e: number, l: number, intro = false): WorkoutDay {
+function foundationBackBiceps(e: number, l: number, intro = false): StaticDay {
   const t = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
   const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
@@ -79,7 +84,7 @@ function foundationBackBiceps(e: number, l: number, intro = false): WorkoutDay {
   };
 }
 
-function foundationPush(e: number, l: number, intro = false): WorkoutDay {
+function foundationPush(e: number, l: number, intro = false): StaticDay {
   const t = intro ? ("rpe" as const) : ("failure" as const);
   const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
   const rpe: [number, number] = intro ? [7, 8] : [8, 9];
@@ -97,7 +102,7 @@ function foundationPush(e: number, l: number, intro = false): WorkoutDay {
   };
 }
 
-function foundationLowerB(e: number, l: number, intro = false): WorkoutDay {
+function foundationLowerB(e: number, l: number, intro = false): StaticDay {
   const t = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
   const myo = intro ? ("rpe" as const) : ("myo-reps" as const);
@@ -155,7 +160,7 @@ function foundationLowerB(e: number, l: number, intro = false): WorkoutDay {
 // Exception: Triceps Pressdown (Bar) earlySetCount=0 when total=1 (myo-reps only).
 // DB Concentration Curl earlySetCount=0 when total=1; earlySetCount=1 when total=2.
 
-function rampingUpperA(week: number): WorkoutDay {
+function rampingUpperA(week: number): StaticDay {
   const intro = week === 6;
   const t    = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
@@ -184,7 +189,7 @@ function rampingUpperA(week: number): WorkoutDay {
   };
 }
 
-function rampingLowerA(week: number): WorkoutDay {
+function rampingLowerA(week: number): StaticDay {
   const intro = week === 6;
   const t    = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
@@ -213,7 +218,7 @@ function rampingLowerA(week: number): WorkoutDay {
   };
 }
 
-function rampingBackBiceps(week: number): WorkoutDay {
+function rampingBackBiceps(week: number): StaticDay {
   const intro = week === 6;
   const t    = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
@@ -244,7 +249,7 @@ function rampingBackBiceps(week: number): WorkoutDay {
   };
 }
 
-function rampingPush(week: number): WorkoutDay {
+function rampingPush(week: number): StaticDay {
   const intro = week === 6;
   const t    = intro ? ("rpe" as const) : ("failure" as const);
   const myo  = intro ? ("rpe" as const) : ("myo-reps" as const);
@@ -274,7 +279,7 @@ function rampingPush(week: number): WorkoutDay {
   };
 }
 
-function rampingLowerB(week: number): WorkoutDay {
+function rampingLowerB(week: number): StaticDay {
   const intro = week === 6;
   const t    = intro ? ("rpe" as const) : ("failure" as const);
   const llps = intro ? ("rpe" as const) : ("failure+llps" as const);
@@ -305,15 +310,15 @@ function rampingLowerB(week: number): WorkoutDay {
   };
 }
 
-function foundationWeek(week: number, e: number, l: number, intro = false): WeekSchedule {
+function foundationWeek(week: number, e: number, l: number, intro = false): StaticWeek {
   return { week, days: [foundationUpperA(e, l, intro), foundationLowerA(e, l, intro), foundationBackBiceps(e, l, intro), foundationPush(e, l, intro), foundationLowerB(e, l, intro)] };
 }
 
-function rampingWeek(week: number): WeekSchedule {
+function rampingWeek(week: number): StaticWeek {
   return { week, days: [rampingUpperA(week), rampingLowerA(week), rampingBackBiceps(week), rampingPush(week), rampingLowerB(week)] };
 }
 
-export const PROGRAM: WeekSchedule[] = [
+export const PROGRAM: StaticWeek[] = [
   foundationWeek(1, 1, 1, true),
   foundationWeek(2, 2, 1),
   foundationWeek(3, 2, 1),

@@ -1,6 +1,7 @@
 import { createClient } from "../supabase";
 import type { TablesUpdate } from "../database.types";
 import type { UserPreferences } from "../types";
+import { parseExerciseChoices } from "../alternates";
 import { unwrap } from "./result";
 
 export async function getPreferences(userId: string): Promise<UserPreferences> {
@@ -13,7 +14,7 @@ export async function getPreferences(userId: string): Promise<UserPreferences> {
 
   return {
     unit: row?.unit === "lbs" ? "lbs" : "kg",
-    alternateSelections: (row?.alternate_selections as Record<string, number> | undefined) ?? {},
+    alternateSelections: parseExerciseChoices(row?.alternate_selections),
     heightCm: row?.height_cm ?? null,
     exerciseNotes: (row?.exercise_notes as Record<string, string> | undefined) ?? {},
     weekStartsOn: row?.week_starts_on ?? 1,

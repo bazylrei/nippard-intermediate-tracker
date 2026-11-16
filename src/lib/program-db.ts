@@ -7,6 +7,10 @@ import type { Exercise, WeekSchedule, WorkoutDay } from "./types";
  */
 export const ACTIVE_PROGRAM_NAME = "Nippard Intermediate";
 
+/** Columns read for a slot's exercise and for each of its alternates. */
+const EXERCISE_COLUMNS =
+  "id, name, muscle_group, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, is_bodyweight, weight_per_side";
+
 type WarmupProtocolRow = { id: string; steps: string[] };
 type FailureTechniqueRow = { id: string; label: string; description: string };
 
@@ -14,8 +18,6 @@ type ExerciseRow = {
   id: string;
   name: string;
   muscle_group: string;
-  alternate_1: string | null;
-  alternate_2: string | null;
   rest_min: number;
   rest_max: number;
   warmup_protocol: string;
@@ -38,6 +40,8 @@ type ProgramDayExerciseRow = {
   last_set_rpe_max: number | null;
   last_set_target: string;
   exercises: ExerciseRow;
+  alternate_1: ExerciseRow | null;
+  alternate_2: ExerciseRow | null;
 };
 
 type ProgramDayRow = {
@@ -47,13 +51,13 @@ type ProgramDayRow = {
   program_day_exercises: ProgramDayExerciseRow[];
 };
 
-function mapToExercise(pde: ProgramDayExerciseRow): Exercise {
-  const ex = pde.exercises;
+/** An exercise as prescribed in a slot: the exercise's own data plus the slot's sets, reps and RPE. */
+function toExercise(ex: ExerciseRow, pde: ProgramDayExerciseRow, alternates: Exercise[]): Exercise {
   return {
     id: ex.id,
     name: ex.name,
     muscleGroup: ex.muscle_group as Exercise["muscleGroup"],
-    alternates: [ex.alternate_1 ?? "", ex.alternate_2 ?? ""],
+    alternates,
     restSeconds: [ex.rest_min, ex.rest_max],
     warmupProtocol: ex.warmup_protocol as Exercise["warmupProtocol"],
     repRange: [pde.rep_range_min, pde.rep_range_max],
@@ -73,6 +77,14 @@ function mapToExercise(pde: ProgramDayExerciseRow): Exercise {
   };
 }
 
+/** The slot's exercise; its alternates get the same prescription under their own ids. */
+function mapToExercise(pde: ProgramDayExerciseRow): Exercise {
+  const alternates = [pde.alternate_1, pde.alternate_2]
+    .filter((alternate): alternate is ExerciseRow => alternate != null)
+    .map((alternate) => toExercise(alternate, pde, []));
+  return toExercise(pde.exercises, pde, alternates);
+}
+
 export async function loadFullProgram(sb: SupabaseClient): Promise<{
   program: WeekSchedule[];
   warmupSteps: Record<string, string[]>;
@@ -83,7 +95,7 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
     sb
       .from("programs")
       .select(
-        `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises!program_day_exercises_exercise_id_fkey(id, name, muscle_group, alternate_1, alternate_2, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, is_bodyweight, weight_per_side)))`
+        `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises!program_day_exercises_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_1:exercises!program_day_exercises_alternate_1_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_2:exercises!program_day_exercises_alternate_2_exercise_id_fkey(${EXERCISE_COLUMNS})))`
       )
       .eq("name", ACTIVE_PROGRAM_NAME)
       .single(),

@@ -19,6 +19,8 @@ import { useRestTimer } from "@/context/RestTimerContext";
 import WarmupSlide from "@/components/workout/WarmupSlide";
 import SetDetailSheet from "@/components/SetDetailSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
+import ExerciseSwapSheet from "@/components/workout/ExerciseSwapSheet";
+import { useExerciseSwap } from "@/hooks/useExerciseSwap";
 import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
 import WorkoutOverview from "@/components/workout/WorkoutOverview";
 import ExerciseListOverlay from "@/components/workout/ExerciseListOverlay";
@@ -37,8 +39,8 @@ function WorkoutContent() {
   const { warmupSteps, programId, ready: programReady, failed: programFailed } = useProgramContext();
   const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
-  const { prefs, setPrefs, toggleAlternate, saveNote } = useWorkoutPrefs(userId);
-  const useAlternate = prefs.alternateSelections;
+  const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
+  const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [setIndex, setSetIndex] = useState(0);
   const [phase, setPhase] = useState<WorkoutPhase>("overview");
@@ -56,8 +58,8 @@ function WorkoutContent() {
 
 
   const resolvedExercises = useMemo(
-    () => resolveExercises(workoutDay?.exercises ?? [], useAlternate),
-    [workoutDay, useAlternate],
+    () => resolveExercises(workoutDay?.exercises ?? [], choices),
+    [workoutDay, choices],
   );
 
   const currentExercise: Exercise | undefined = resolvedExercises[exerciseIndex];
@@ -274,9 +276,9 @@ function WorkoutContent() {
         <ExerciseInfo
           exercise={currentExercise}
           originalExercise={workoutDay.exercises[exerciseIndex]}
-          alternateIndex={useAlternate[currentExercise.id] ?? 0}
+          canSwap={setsForExercise.length === 0}
           note={prefs.exerciseNotes?.[currentExercise.id]}
-          onSwap={() => saveError.attempt(() => toggleAlternate(currentExercise.id), "Couldn't save the exercise swap.")}
+          onOpenSwap={() => openSwap(workoutDay.exercises[exerciseIndex])}
           onOpenNotes={() => setShowNotes(true)}
         />
 
@@ -302,6 +304,8 @@ function WorkoutContent() {
 
         <SkipExerciseButton onSkip={handleSkipExercise} />
       </div>
+
+      {swapSheet && <ExerciseSwapSheet {...swapSheet} />}
 
       {showNotes && (
         <ExerciseNotesSheet

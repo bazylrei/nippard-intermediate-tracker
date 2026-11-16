@@ -10,7 +10,12 @@ export type WarmupProtocol = "none" | "1-set" | "2-set" | "3-set" | "4-set";
 export interface Exercise {
   id: string;
   name: string;
-  alternates: [string, string];
+  /**
+   * Up to two exercises the user can do instead, each a full exercise with its
+   * own id, flags and history, carrying this slot's sets, reps and RPE targets.
+   * Empty on an alternate itself.
+   */
+  alternates: Exercise[];
   muscleGroup: MuscleGroup;
   restSeconds: [number, number]; // [min, max]
   warmupProtocol: WarmupProtocol;
@@ -63,7 +68,8 @@ export interface WorkoutPosition {
 
 export interface UserPreferences {
   unit: "kg" | "lbs";
-  alternateSelections: Record<string, number>; // exerciseId -> 0 (main) | 1 (alt1) | 2 (alt2)
+  /** Default alternate per exercise: main exercise id -> the chosen alternate's exercise id. Absent = the main exercise. */
+  alternateSelections: Record<string, string>;
   heightCm?: number | null;
   /** First day of the user's week, 0 = Sunday … 6 = Saturday. Drives the weekly weigh-in prompt. */
   weekStartsOn: number;
@@ -111,6 +117,8 @@ export interface WorkoutSession {
   completedAt: string | null;
   currentExerciseIndex: number;
   currentSetIndex: number;
+  /** Alternates chosen for this workout only: main exercise id -> chosen exercise id. */
+  exerciseSwaps: Record<string, string>;
 }
 
 export interface ProgramRow {

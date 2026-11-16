@@ -12,11 +12,15 @@ export function useWorkoutPrefs(userId: string | null) {
     cachePrefs(next);
   }
 
-  /** Cycle main → alternate 1 → alternate 2 → main. Optimistic; reverts and rethrows if the save fails. */
-  async function toggleAlternate(exerciseId: string) {
+  /**
+   * Saves which exercise to do by default in place of `mainId` (the main exercise
+   * itself clears the default). Optimistic; reverts and rethrows if the save fails.
+   */
+  async function setDefaultAlternate(mainId: string, chosenId: string) {
     const previous = prefs;
-    const current = prefs.alternateSelections[exerciseId] ?? 0;
-    const alternateSelections = { ...prefs.alternateSelections, [exerciseId]: (current + 1) % 3 };
+    const alternateSelections = { ...prefs.alternateSelections };
+    if (chosenId === mainId) delete alternateSelections[mainId];
+    else alternateSelections[mainId] = chosenId;
     update({ ...prefs, alternateSelections });
     if (!userId) return;
     try {
@@ -34,5 +38,5 @@ export function useWorkoutPrefs(userId: string | null) {
     update({ ...prefs, exerciseNotes: { ...current, [exerciseId]: note } });
   }
 
-  return { prefs, setPrefs, toggleAlternate, saveNote };
+  return { prefs, setPrefs, setDefaultAlternate, saveNote };
 }

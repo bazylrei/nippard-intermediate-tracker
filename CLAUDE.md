@@ -51,6 +51,7 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 | `src/lib/program-data.ts` | Schedule navigation: `nextWorkout`, session numbering, totals |
 | `src/lib/day-types.ts` | The one day-type table; always display via `dayLabel()` |
 | `src/lib/units.ts` | The one kg↔lbs conversion (`kgToDisplay` / `displayToKg`) |
+| `src/lib/alternates.ts` | Choosing among a slot's alternates: `chooseExercise`, `mergeChoices` (swaps over defaults), `parseExerciseChoices` (ignores the old position/boolean format) |
 | `src/lib/db/body-weight.ts` | Body weight is a dated history (`body_weight_logs`, one entry per day, `source` for future health-app sync); the latest entry is the current weight |
 | `src/lib/weigh-in.ts` | When the weekly weigh-in prompt is due (from `weekStartsOn` in preferences) |
 | `src/lib/theme.ts` | Light / dark / system theme, saved per device; `THEME_INIT_SCRIPT` in the root layout's `<head>` applies it before first paint (`html.light` / `html.dark` in globals.css override the device setting) |
@@ -63,7 +64,8 @@ Dashboard fetches next/incomplete session → user navigates to `/workout?week=X
 
 - **Warmup sets use negative indices**: set index −3/−2/−1 are warmup; 0+ are working sets.
 - **Weight is always stored in kg**; every screen converts with `lib/units.ts` for lbs users (charts, volumes and deltas too).
-- **Alternate exercises** are stored in `user_preferences.alternate_selections` and resolved at render time in `SetLogger`, not at the DB level.
+- **Alternate exercises are real exercises.** Each `program_day_exercises` slot points at up to two (`alternate_1_exercise_id`, `alternate_2_exercise_id`), so an alternate has its own id, flags (`weight_per_side`, `is_bodyweight`), rest, warm-up and history. `loadFullProgram` builds them as full `Exercise`s carrying the slot's sets/reps/RPE. Which one to do is resolved by `lib/alternates.ts`: this workout's swaps (`workout_sessions.exercise_swaps`) win over the user's saved defaults (`user_preferences.alternate_selections`), both `{ mainExerciseId: chosenExerciseId }`. A swap is for the current workout only unless "make this my default" is ticked in the swap sheet, and it can't change once a set is logged for the exercise. Never rename an exercise to show an alternate: sets must log under the alternate's own id.
+- **Embed `exercises` from `program_day_exercises` with an explicit foreign key** (`exercises!program_day_exercises_exercise_id_fkey(...)`): the table references `exercises` three times, so an unnamed embed is ambiguous and the API rejects it.
 - **Never hard-code program dimensions.** Builder-edited programs can have any number of weeks, days per week, and gaps. Next workout, session numbers and totals come from the loaded schedule via `nextWorkout()` / `getSessionNumber()` / `getTotalSessions()` in `program-data.ts`; the DB stores only the last completed position.
 - **Saves are never silent**: use `useSaveError().attempt()` (or try/catch + `report`) for writes from UI handlers; sheets stay open with an inline error if `onSave` rejects.
 - **Pages are client components** (`"use client"`) that load data in an effect; a failed first load must show `FullScreenMessage`, never an endless "Loading…".

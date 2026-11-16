@@ -65,6 +65,15 @@ describe("getLastCompletedWorkout", () => {
 // ─── getPreferences ────────────────────────────────────────────────────────────
 
 describe("getPreferences", () => {
+  it("ignores saved alternate selections in the old position / boolean format", async () => {
+    mockSingle.mockResolvedValue({
+      data: { unit: "kg", alternate_selections: { bench: 2, row: 0, curl: true, press: "db-press" }, height_cm: null, exercise_notes: {}, week_starts_on: 1 },
+      error: null,
+    });
+    const result = await getPreferences("user-1");
+    expect(result.alternateSelections).toEqual({ press: "db-press" });
+  });
+
   it("returns defaults when data is null", async () => {
     mockSingle.mockResolvedValue({ data: null, error: null });
     const result = await getPreferences("user-1");
@@ -81,7 +90,7 @@ describe("getPreferences", () => {
     mockSingle.mockResolvedValue({
       data: {
         unit: "lbs",
-        alternate_selections: { ex1: 1 },
+        alternate_selections: { ex1: "ex1-alt" },
         height_cm: 180,
         exercise_notes: { ex1: "my note" },
         week_starts_on: 0,
@@ -91,7 +100,7 @@ describe("getPreferences", () => {
     const result = await getPreferences("user-1");
     expect(result).toEqual({
       unit: "lbs",
-      alternateSelections: { ex1: 1 },
+      alternateSelections: { ex1: "ex1-alt" },
       heightCm: 180,
       exerciseNotes: { ex1: "my note" },
       weekStartsOn: 0,
@@ -164,6 +173,7 @@ describe("getIncompleteSession", () => {
       completed_at: null,
       current_exercise_index: 3,
       current_set_index: 2,
+      exercise_swaps: { bench: "db-bench" },
     };
     mockSingle.mockResolvedValue({ data: mockRow, error: null });
 
@@ -179,6 +189,7 @@ describe("getIncompleteSession", () => {
       completedAt: null,
       currentExerciseIndex: 3,
       currentSetIndex: 2,
+      exerciseSwaps: { bench: "db-bench" },
     });
   });
 

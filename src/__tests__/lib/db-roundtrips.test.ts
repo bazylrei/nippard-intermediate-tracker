@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 import {
   logSetAndAdvance, createSession, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
-  getLatestBodyWeight, logBodyWeight,
+  getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds,
 } from "@/lib/db";
@@ -247,6 +247,21 @@ describe("deletes rely on ON DELETE CASCADE", () => {
     await deleteProgramDay("day-1");
     expect(fn("from")).toHaveBeenCalledTimes(1);
     expect(fn("from")).toHaveBeenCalledWith("program_days");
+  });
+});
+
+// ─── saveExerciseSwaps ───────────────────────────────────────────────────────
+
+describe("saveExerciseSwaps", () => {
+  it("writes the workout's whole swap map to its session", async () => {
+    await saveExerciseSwaps("sess-1", { bench: "db-bench", row: "cable-row" });
+    expect(fn("update")).toHaveBeenCalledWith({ exercise_swaps: { bench: "db-bench", row: "cable-row" } });
+    expect(fn("eq")).toHaveBeenCalledWith("id", "sess-1");
+  });
+
+  it("throws a DbError instead of hiding a failed save", async () => {
+    responses.push(failure("offline"));
+    await expect(saveExerciseSwaps("sess-1", {})).rejects.toThrow(DbError);
   });
 });
 

@@ -3,6 +3,7 @@ import {
   createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
 import { cachePrefs } from "./prefs-cache";
+import { exerciseOptions, mergeChoices } from "./alternates";
 import { resolveExercises, saveWorkoutInProgress } from "./workout-helpers";
 import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession } from "./types";
 
@@ -34,7 +35,9 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
 
   const { exercises, dayType } = workoutDay;
   // Everything the page needs, in one parallel round trip.
-  const exerciseIds = exercises.map((ex) => ex.id);
+  // A slot can be done as its own exercise or either alternate, and swapped before the first set,
+  // so load last-time and best for all of them in the same round trip.
+  const exerciseIds = [...new Set(exercises.flatMap((ex) => exerciseOptions(ex).map((option) => option.id)))];
   const [prefs, existing, lastSets, bestSets] = await Promise.all([
     getPreferences(user.id),
     getIncompleteSessionWithSets(user.id),
@@ -59,7 +62,7 @@ export async function bootstrapWorkout({ week, dayIndex, programId, workoutDay }
 
   const exerciseIndex = resumable ? session.currentExerciseIndex : 0;
   const setIndex = resumable ? session.currentSetIndex : 0;
-  saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, prefs.alternateSelections), session);
+  saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, mergeChoices(prefs.alternateSelections, session.exerciseSwaps)), session);
 
   const recordsByExercise = mergeRecords(lastSets, bestSets);
   return { userId: user.id, prefs, session, sessionSets, recordsByExercise, exerciseIndex, setIndex, phase };
