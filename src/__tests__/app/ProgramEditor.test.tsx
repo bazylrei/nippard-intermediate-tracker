@@ -42,6 +42,15 @@ describe("Program editor", () => {
     expect(screen.queryByRole("button", { name: /Private|Public/ })).toBeNull();
   });
 
+  it("opens a brand-new program on its empty first week, ready to add a day", async () => {
+    db.getBuilderProgram.mockResolvedValue({ ...program, totalWeeks: 1, userCount: 0, days: [] });
+    render(<ProgramEditorPage />);
+    expect(await screen.findByText("Week 1")).toBeInTheDocument();
+    expect(screen.getByText(/No days yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Add day/)).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it("stays on the editor for the creator", async () => {
     render(<ProgramEditorPage />);
     await screen.findByText(/Add day/);

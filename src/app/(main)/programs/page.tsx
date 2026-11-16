@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getPrograms } from "@/lib/db";
+import { createProgram, getPrograms, type NewProgramFields } from "@/lib/db";
 import { canEditProgram } from "@/lib/program-access";
+import { editProgramHref } from "@/lib/program-routes";
 import type { ProgramRow } from "@/lib/types";
 import ProgramCard from "@/components/programs/ProgramCard";
-import { LibraryBig } from "lucide-react";
+import NewProgramSheet from "@/components/programs/NewProgramSheet";
+import { LibraryBig, Plus } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
 
 export default function ProgramsPage() {
@@ -15,6 +17,7 @@ export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramRow[] | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [naming, setNaming] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -31,6 +34,12 @@ export default function ProgramsPage() {
     void load();
   }, [router]);
 
+  /** Creates the program, then opens it in the editor to build. Rejects (the sheet stays open) if saving fails. */
+  async function handleCreate(owner: string, id: string, fields: NewProgramFields) {
+    await createProgram(owner, id, fields);
+    router.push(editProgramHref(id));
+  }
+
   // The rest are readable by the user but not theirs: public today, subscribed ones later.
   const mine = (programs ?? []).filter((p) => canEditProgram(p, userId));
   const available = (programs ?? []).filter((p) => !canEditProgram(p, userId));
@@ -42,7 +51,16 @@ export default function ProgramsPage() {
         <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
           <LibraryBig className="text-primary" size={20} />
         </div>
-        <h1 className="font-display font-bold text-xl text-fg">My programs</h1>
+        <h1 className="flex-1 font-display font-bold text-xl text-fg">My programs</h1>
+        {userId && (
+          <button
+            onClick={() => setNaming(true)}
+            className="btn-primary gloss flex items-center gap-1.5 font-display font-bold text-sm px-4 py-2 rounded-xl cursor-pointer"
+          >
+            <Plus size={14} />
+            New program
+          </button>
+        )}
       </div>
 
       {loadFailed && (
@@ -57,6 +75,10 @@ export default function ProgramsPage() {
 
       {programs && programs.length === 0 && (
         <p className="text-center py-16 text-sm text-subtle">No programs yet.</p>
+      )}
+
+      {naming && userId && (
+        <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
       )}
 
       {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} />}

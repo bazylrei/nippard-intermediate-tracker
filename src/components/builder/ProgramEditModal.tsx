@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Check } from "lucide-react";
 import type { BuilderProgram } from "@/lib/types";
+import { PROGRAM_CATEGORIES } from "./constants";
 
 export default function ProgramEditModal({
   program,
@@ -17,8 +18,6 @@ export default function ProgramEditModal({
   const [description, setDescription] = useState(program.description ?? "");
   const [category, setCategory] = useState(program.category ?? "");
   const [saving, setSaving] = useState(false);
-
-  const CATEGORIES = ["Strength", "Hypertrophy", "Powerlifting", "Conditioning", "Other"];
 
   async function handleSave() {
     if (!name.trim()) return;
@@ -63,7 +62,7 @@ export default function ProgramEditModal({
             className="w-full bg-elevated border border-border rounded-xl px-3 py-2 text-sm text-fg focus:outline-none focus:border-primary"
           >
             <option value="">— None —</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {PROGRAM_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </label>
 

@@ -15,3 +15,5 @@ export const WARMUP_PROTOCOLS = [
   { value: "3-set", label: "3 sets" },
   { value: "4-set", label: "4 sets" },
 ];
+
+export const PROGRAM_CATEGORIES = ["Strength", "Hypertrophy", "Powerlifting", "Conditioning", "Other"];

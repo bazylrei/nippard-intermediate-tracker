@@ -35,6 +35,37 @@ export async function getPrograms(userId: string): Promise<ProgramRow[]> {
   }));
 }
 
+/** What a user fills in when starting a program. */
+export interface NewProgramFields {
+  name: string;
+  description: string;
+  category: string;
+}
+
+/** A fresh id for a new program; the form makes it once, so a retried save can't add a duplicate. */
+export function newProgramId(): string {
+  return crypto.randomUUID();
+}
+
+/**
+ * Starts a private program of your own with one empty week, ready to build in the editor.
+ * Safe to retry with the same id. The database only accepts a program owned by the signed-in user.
+ */
+export async function createProgram(userId: string, id: string, fields: NewProgramFields): Promise<void> {
+  const name = fields.name.trim();
+  if (!name) throw new Error("A program needs a name");
+  const sb = createClient();
+  unwrap("createProgram", await sb.from("programs").upsert({
+    id,
+    name,
+    description: fields.description.trim() || null,
+    category: fields.category || null,
+    created_by: userId,
+    is_public: false,
+    total_weeks: 1,
+  }, { onConflict: "id", ignoreDuplicates: true }));
+}
+
 export async function toggleProgramPublic(programId: string, isPublic: boolean): Promise<void> {
   const sb = createClient();
   unwrap("toggleProgramPublic", await sb.from("programs").update({ is_public: isPublic }).eq("id", programId));
