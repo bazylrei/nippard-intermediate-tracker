@@ -330,6 +330,7 @@ export type Database = {
           exercise_notes: Json
           height_cm: number | null
           id: string
+          onboarded_at: string | null
           unit: string
           updated_at: string
           user_id: string
@@ -341,6 +342,7 @@ export type Database = {
           exercise_notes?: Json
           height_cm?: number | null
           id?: string
+          onboarded_at?: string | null
           unit?: string
           updated_at?: string
           user_id: string
@@ -352,6 +354,7 @@ export type Database = {
           exercise_notes?: Json
           height_cm?: number | null
           id?: string
+          onboarded_at?: string | null
           unit?: string
           updated_at?: string
           user_id?: string

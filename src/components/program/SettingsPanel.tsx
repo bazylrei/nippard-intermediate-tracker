@@ -1,5 +1,6 @@
 import type { UserPreferences } from "@/lib/types";
 import { displayToKg, kgToDisplay, type WeightUnit } from "@/lib/units";
+import { WEEKDAYS } from "@/lib/dates";
 import ThemeSetting from "./ThemeSetting";
 import UnitSetting from "./UnitSetting";
 
@@ -13,8 +14,6 @@ interface Props {
   onLogBodyWeight: (weightKg: number) => void;
   onChangeWeekStart: (day: number) => void;
 }
-
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const inputClass = "w-full rounded-xl px-3 py-2 text-fg text-center font-display text-lg font-semibold focus:outline-none";
 const inputStyle = {

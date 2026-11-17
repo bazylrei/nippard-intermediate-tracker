@@ -24,7 +24,7 @@ import {
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
-  getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId,
+  getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId, isOnboarded, completeOnboarding,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -49,6 +49,40 @@ beforeEach(() => {
 });
 
 // ─── Fail fast ───────────────────────────────────────────────────────────────
+
+describe("onboarding", () => {
+  it("is done once the account has an onboarded time", async () => {
+    responses.push({ data: { onboarded_at: "2026-11-17T09:00:00Z" }, error: null });
+    expect(await isOnboarded("user-1")).toBe(true);
+    expect(fn("select")).toHaveBeenCalledWith("onboarded_at");
+    expect(fn("eq")).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
+  it("isn't done for an account with no preferences yet, or no onboarded time", async () => {
+    responses.push({ data: null, error: null });
+    expect(await isOnboarded("user-1")).toBe(false);
+    responses.push({ data: { onboarded_at: null }, error: null });
+    expect(await isOnboarded("user-1")).toBe(false);
+  });
+
+  it("throws a DbError when the check fails", async () => {
+    responses.push(failure("network down"));
+    await expect(isOnboarded("user-1")).rejects.toThrow(DbError);
+  });
+
+  it("records the finish time, creating the preferences row if there isn't one", async () => {
+    await completeOnboarding("user-1");
+    expect(fn("upsert")).toHaveBeenCalledWith(
+      { user_id: "user-1", onboarded_at: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) },
+      { onConflict: "user_id" },
+    );
+  });
+
+  it("throws a DbError when recording the finish fails", async () => {
+    responses.push(failure("network down"));
+    await expect(completeOnboarding("user-1")).rejects.toThrow("completeOnboarding failed");
+  });
+});
 
 describe("createProgram", () => {
   const fields = { name: "  Summer Cut  ", description: " Six weeks ", category: "Hypertrophy" };
