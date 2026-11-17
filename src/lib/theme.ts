@@ -30,6 +30,24 @@ export function saveThemePreference(theme: ThemePreference): void {
   applyTheme(theme);
 }
 
+/** Whether the device itself is in dark mode (what "System" follows). */
+export function deviceIsDark(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/** The theme actually showing: the saved choice, or the device's appearance while following it. */
+export function effectiveTheme(preference: ThemePreference = readThemePreference()): "light" | "dark" {
+  if (preference !== "system") return preference;
+  return deviceIsDark() ? "dark" : "light";
+}
+
+/** Switches to the other of light and dark, judged from what's showing now, and saves it. Returns the new theme. */
+export function flipTheme(): "light" | "dark" {
+  const next = effectiveTheme() === "dark" ? "light" : "dark";
+  saveThemePreference(next);
+  return next;
+}
+
 /**
  * Inlined in <head> so the saved theme applies before first paint (no flash
  * of the wrong theme). Plain ES5, no imports: it runs before the app loads.

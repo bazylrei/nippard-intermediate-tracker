@@ -59,6 +59,36 @@ describe("Auth — welcome", () => {
   });
 });
 
+describe("Auth — light and dark", () => {
+  const toggle = () => screen.getByRole("button", { name: /^Switch to (light|dark) mode$/ });
+
+  it("offers a light/dark button on the welcome, before there's an account", async () => {
+    await renderPage();
+    expect(toggle()).toBeInTheDocument();
+  });
+
+  it("flips the page and remembers it on this device", async () => {
+    document.documentElement.className = "";
+    localStorage.clear();
+    await renderPage();
+    const before = toggle().getAttribute("aria-label");
+    fireEvent.click(toggle());
+
+    const now = before === "Switch to dark mode" ? "dark" : "light";
+    expect(document.documentElement).toHaveClass(now);
+    expect(toggle().getAttribute("aria-label")).not.toBe(before);
+  });
+
+  it("stays available on every account screen", async () => {
+    await openSignUp();
+    expect(toggle()).toBeInTheDocument();
+    await press("Have an account? Sign in");
+    expect(toggle()).toBeInTheDocument();
+    await press("Forgot password?");
+    expect(toggle()).toBeInTheDocument();
+  });
+});
+
 describe("Auth — creating an account", () => {
   it("needs an email and a password of at least 8 characters", async () => {
     await openSignUp();

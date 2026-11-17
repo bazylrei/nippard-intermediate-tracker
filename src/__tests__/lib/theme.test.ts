@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { applyTheme, readThemePreference, saveThemePreference, THEME_INIT_SCRIPT } from "@/lib/theme";
+import { applyTheme, effectiveTheme, flipTheme, readThemePreference, saveThemePreference, THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const html = () => document.documentElement;
 /** Runs the inline <head> script exactly as the browser would. */
@@ -35,6 +35,54 @@ describe("theme preference", () => {
     applyTheme("dark");
     saveThemePreference("system");
     expect(html().classList.contains("dark") || html().classList.contains("light")).toBe(false);
+  });
+});
+
+/** jsdom has no matchMedia: pretend the device is in dark (or light) mode. */
+function deviceMode(dark: boolean) {
+  window.matchMedia = vi.fn().mockReturnValue({ matches: dark }) as unknown as typeof window.matchMedia;
+}
+
+describe("effectiveTheme", () => {
+  it("is the saved choice, whatever the device is doing", () => {
+    deviceMode(true);
+    saveThemePreference("light");
+    expect(effectiveTheme()).toBe("light");
+    deviceMode(false);
+    saveThemePreference("dark");
+    expect(effectiveTheme()).toBe("dark");
+  });
+
+  it("follows the device while on System", () => {
+    deviceMode(true);
+    expect(effectiveTheme()).toBe("dark");
+    deviceMode(false);
+    expect(effectiveTheme()).toBe("light");
+  });
+});
+
+describe("flipTheme", () => {
+  it("goes from light to dark and back, saving and applying each", () => {
+    deviceMode(false);
+    saveThemePreference("light");
+
+    expect(flipTheme()).toBe("dark");
+    expect(readThemePreference()).toBe("dark");
+    expect(html()).toHaveClass("dark");
+
+    expect(flipTheme()).toBe("light");
+    expect(readThemePreference()).toBe("light");
+    expect(html()).toHaveClass("light");
+  });
+
+  it("flips what's showing while following the device, so one tap always changes the screen", () => {
+    deviceMode(true); // System, device in dark mode
+    expect(flipTheme()).toBe("light");
+    expect(html()).toHaveClass("light");
+
+    saveThemePreference("system");
+    deviceMode(false);
+    expect(flipTheme()).toBe("dark");
   });
 });
 

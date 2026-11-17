@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import UnitSetting from "@/components/program/UnitSetting";
+import ThemeSetting from "@/components/program/ThemeSetting";
 import { WEEKDAYS } from "@/lib/dates";
 import type { WeightUnit } from "@/lib/units";
 
@@ -29,7 +30,7 @@ export default function UnitsStep({ unit, weekStartsOn, onChangeUnit, onChangeWe
   return (
     <div className="flex-1 flex flex-col justify-center gap-6">
       <div className="space-y-2">
-        <h1 className="font-display text-3xl font-bold text-fg leading-tight">How do you like your numbers?</h1>
+        <h1 className="font-display text-3xl font-bold text-fg leading-tight">Set it up your way</h1>
         <p className="text-sm text-muted">You can change these any time in Settings.</p>
       </div>
 
@@ -50,6 +51,7 @@ export default function UnitsStep({ unit, weekStartsOn, onChangeUnit, onChangeWe
           </div>
           <p className="text-xs text-subtle">Sets when your weekly weigh-in comes up.</p>
         </div>
+        <ThemeSetting />
       </div>
 
       <button onClick={next} disabled={saving} className="btn-primary gloss w-full font-display font-bold text-lg py-4 rounded-2xl cursor-pointer disabled:opacity-60">
