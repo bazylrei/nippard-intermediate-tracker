@@ -31,6 +31,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 - `/(main)/programs/[programId]` — Read-only program preview (week switcher, day cards). Shows Edit only when `canEditProgram()` (`lib/program-access.ts`)
 - `/(main)/programs/[programId]/edit` — Full CRUD program editor; anyone who can't edit is sent to the preview. URLs come from `lib/program-routes.ts`; the old `/builder` addresses redirect (next.config.ts)
 - `/(workout)/workout` — Active workout session (`?week=X&day=Y` query params). Own route group: keeps the tab bar (no back button); pages fill `.workout-viewport`. The tab bar (`Home · Progress · ▶ · Community · Profile`) always has a raised centre button: idle it starts the next workout (`findNextWorkout`); while a workout is in progress it shows the elapsed time, or the rest countdown, and leads back
+- `/onboarding` — First-run flow (welcome → units & week start → body weight, skippable → your program → Start first workout / Home). Outside the tab bar. `OnboardingGate` (in the `(main)` layout) sends any account without `user_preferences.onboarded_at` here; a failed check fails open. Accounts that already had preferences or workouts were backfilled as done (migration 012)
 - `/auth` — Email/password sign-in/sign-up
 
 ### State Layers
@@ -60,6 +61,7 @@ Home/Program suggest the next (or unfinished) day, or the user picks any day not
 | `src/lib/alternates.ts` | Choosing among a slot's alternates: `chooseExercise`, `mergeChoices` (swaps over defaults), `parseExerciseChoices` (ignores the old position/boolean format) |
 | `src/lib/db/body-weight.ts` | Body weight is a dated history (`body_weight_logs`, one entry per day, `source` for future health-app sync); the latest entry is the current weight |
 | `src/lib/weigh-in.ts` | When the weekly weigh-in prompt is due (from `weekStartsOn` in preferences) |
+| `src/lib/onboarding.ts` | `checkOnboarded` (a yes is cached per user on the device) / `finishOnboarding`; `ONBOARDING_PATH` |
 | `src/lib/theme.ts` | Light / dark / system theme, saved per device; `THEME_INIT_SCRIPT` in the root layout's `<head>` applies it before first paint (`html.light` / `html.dark` in globals.css override the device setting) |
 | `src/lib/workout-history.ts` | Route helpers (`startWorkoutHref`, `workoutDetailHref`) and set grouping |
 | `scripts/program-data-static.ts` | Hardcoded program structure used by the seed script |

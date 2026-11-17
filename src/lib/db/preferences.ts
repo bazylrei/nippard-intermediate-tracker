@@ -51,3 +51,23 @@ export async function saveExerciseNote(userId: string, exerciseId: string, note:
     { onConflict: "user_id" }
   ));
 }
+
+/** Whether the user has finished onboarding; false for an account that has saved nothing yet. */
+export async function isOnboarded(userId: string): Promise<boolean> {
+  const sb = createClient();
+  const row = unwrap("isOnboarded", await sb
+    .from("user_preferences")
+    .select("onboarded_at")
+    .eq("user_id", userId)
+    .maybeSingle());
+  return !!row?.onboarded_at;
+}
+
+/** Marks onboarding finished. Safe to retry. */
+export async function completeOnboarding(userId: string): Promise<void> {
+  const sb = createClient();
+  unwrap("completeOnboarding", await sb.from("user_preferences").upsert(
+    { user_id: userId, onboarded_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  ));
+}
