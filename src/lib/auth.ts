@@ -18,6 +18,15 @@ export async function signIn(email: string, password: string): Promise<void> {
   if (error) throw error;
 }
 
+export const AUTH_CALLBACK_PATH = "/auth/callback";
+
+/**
+ * The providers the app has a button for. Adding one (Apple, later) is a line
+ * here, its icon, and switching it on in Supabase.
+ */
+export type SocialProvider = "google";
+export const SOCIAL_PROVIDERS: SocialProvider[] = ["google"];
+
 export const RESET_PASSWORD_PATH = "/auth/reset";
 
 /** An address in this app, for the links in emails to come back to. */
@@ -32,6 +41,34 @@ export async function signUp(email: string, password: string): Promise<{ confirm
   const { data, error } = await createClient().auth.signUp({ email, password, options: { emailRedirectTo: appUrl("/") } });
   if (error) throw error;
   return { confirmationNeeded: !data.session };
+}
+
+/**
+ * Starts signing in with a provider: the browser leaves for the provider's own screen and
+ * comes back to `AUTH_CALLBACK_PATH`. Throws the Auth error if it can't start.
+ */
+export async function signInWithProvider(provider: SocialProvider): Promise<void> {
+  const { error } = await createClient().auth.signInWithOAuth({ provider, options: { redirectTo: appUrl(AUTH_CALLBACK_PATH) } });
+  if (error) throw error;
+}
+
+/**
+ * Which of the app's providers are switched on in Supabase, from its public settings, so a
+ * button never leads to an error page. Resolves to none if the settings can't be read: email
+ * sign-in still works.
+ */
+export async function getEnabledSocialProviders(): Promise<SocialProvider[]> {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" },
+    });
+    if (!response.ok) return [];
+    const { external } = (await response.json()) as { external?: Record<string, boolean> };
+    return SOCIAL_PROVIDERS.filter((provider) => external?.[provider] === true);
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }
 
 /** Sends the confirmation email again. Throws the Auth error on failure. */

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 const getSession = vi.hoisted(() => vi.fn());
 const getUser = vi.hoisted(() => vi.fn());
@@ -10,12 +10,13 @@ const resetPasswordForEmail = vi.hoisted(() => vi.fn());
 const updateUser = vi.hoisted(() => vi.fn());
 const unsubscribe = vi.hoisted(() => vi.fn());
 const onAuthStateChange = vi.hoisted(() => vi.fn());
+const signInWithOAuth = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase", () => ({
-  createClient: () => ({ auth: { getSession, getUser, signInWithPassword, signUp: signUpFn, signOut: signOutFn, resend, resetPasswordForEmail, updateUser, onAuthStateChange } }),
+  createClient: () => ({ auth: { getSession, getUser, signInWithPassword, signUp: signUpFn, signOut: signOutFn, resend, resetPasswordForEmail, updateUser, onAuthStateChange, signInWithOAuth } }),
 }));
 
-import { getSignedInUser, signIn, signUp, signOut, resendConfirmation, sendPasswordReset, updatePassword, onSignedInChange } from "@/lib/auth";
+import { getSignedInUser, signIn, signUp, signOut, resendConfirmation, sendPasswordReset, updatePassword, onSignedInChange, signInWithProvider, getEnabledSocialProviders } from "@/lib/auth";
 
 describe("getSignedInUser", () => {
   it("returns the user from the local session without calling the Auth server", async () => {
@@ -109,5 +110,48 @@ describe("onSignedInChange", () => {
 
     stop();
     expect(unsubscribe).toHaveBeenCalled();
+  });
+});
+
+describe("signInWithProvider", () => {
+  it("sends the browser to the provider, coming back to the callback page", async () => {
+    signInWithOAuth.mockResolvedValue({ error: null });
+    await signInWithProvider("google");
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback` } });
+  });
+
+  it("throws the Auth error when it can't start", async () => {
+    signInWithOAuth.mockResolvedValue({ error: new Error("provider is not enabled") });
+    await expect(signInWithProvider("google")).rejects.toThrow("provider is not enabled");
+  });
+});
+
+describe("getEnabledSocialProviders", () => {
+  const settings = (external: Record<string, boolean>, ok = true) =>
+    vi.fn().mockResolvedValue({ ok, json: async () => ({ external }) });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("lists the providers switched on in Supabase that the app has a button for", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
+    const fetchMock = settings({ email: true, google: true, apple: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await getEnabledSocialProviders()).toEqual(["google"]); // Apple is on, but the app has no button yet
+    expect(fetchMock).toHaveBeenCalledWith("https://example.supabase.co/auth/v1/settings", { headers: { apikey: "anon-key" } });
+  });
+
+  it("lists none while Google is off, so no button leads to an error page", async () => {
+    vi.stubGlobal("fetch", settings({ email: true, google: false }));
+    expect(await getEnabledSocialProviders()).toEqual([]);
+  });
+
+  it("lists none, and doesn't throw, when the settings can't be read", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", settings({ google: true }, false));
+    expect(await getEnabledSocialProviders()).toEqual([]);
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    expect(await getEnabledSocialProviders()).toEqual([]);
   });
 });
