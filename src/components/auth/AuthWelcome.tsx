@@ -6,7 +6,13 @@ const POINTS: { icon: LucideIcon; text: string }[] = [
   { icon: ClipboardList, text: "Follow a program, or build your own" },
 ];
 
-export default function WelcomeStep({ onNext }: { onNext: () => void }) {
+interface Props {
+  onCreate: () => void;
+  onSignIn: () => void;
+}
+
+/** The first screen a signed-out visitor sees. */
+export default function AuthWelcome({ onCreate, onSignIn }: Props) {
   return (
     <div className="flex-1 flex flex-col justify-center gap-8">
       <div className="space-y-3 text-center">
@@ -15,7 +21,7 @@ export default function WelcomeStep({ onNext }: { onNext: () => void }) {
           <Dumbbell size={36} className="text-primary" />
         </div>
         <h1 className="font-display text-4xl font-bold text-fg leading-tight">Welcome</h1>
-        <p className="text-muted">Two quick questions and you&apos;re ready to train.</p>
+        <p className="text-muted">Create an account, answer two quick questions, and you&apos;re ready to train.</p>
       </div>
 
       <ul className="glass gloss rounded-2xl p-4 space-y-3">
@@ -30,9 +36,14 @@ export default function WelcomeStep({ onNext }: { onNext: () => void }) {
         ))}
       </ul>
 
-      <button onClick={onNext} className="btn-primary gloss w-full font-display font-bold text-lg py-4 rounded-2xl cursor-pointer">
-        Get started
-      </button>
+      <div className="space-y-2">
+        <button onClick={onCreate} className="btn-primary gloss w-full font-display font-bold text-lg py-4 rounded-2xl cursor-pointer">
+          Create account
+        </button>
+        <button onClick={onSignIn} className="w-full text-sm text-muted hover:text-fg py-2 cursor-pointer">
+          I already have an account
+        </button>
+      </div>
     </div>
   );
 }

@@ -42,10 +42,9 @@ async function renderPage() {
 const press = (name: string | RegExp) => act(async () => { fireEvent.click(screen.getByRole("button", { name })); });
 const dots = () => screen.getByRole("img", { name: /^Step \d of \d$/ }).getAttribute("aria-label");
 
-/** Opens the flow and presses through to the given step. */
+/** Opens the flow (on units) and presses through to the given step. */
 async function goTo(step: "units" | "weight" | "program") {
   await renderPage();
-  await press("Get started");
   if (step === "units") return;
   await press("Next");
   if (step === "weight") return;
@@ -53,20 +52,17 @@ async function goTo(step: "units" | "weight" | "program") {
 }
 
 describe("Onboarding — the steps", () => {
-  it("opens on a welcome, with the steps shown as dots", async () => {
+  it("opens on units, with the steps shown as dots", async () => {
     await renderPage();
-    expect(screen.getByRole("heading", { name: "Welcome" })).toBeInTheDocument();
-    expect(dots()).toBe("Step 1 of 4");
+    expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
+    expect(dots()).toBe("Step 1 of 3");
   });
 
-  it("moves through welcome, units, body weight and program, and back", async () => {
+  it("moves through units, body weight and program, and back", async () => {
     await goTo("units");
-    expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
-    expect(dots()).toBe("Step 2 of 4");
-
     await press("Next");
     expect(screen.getByRole("heading", { name: "What do you weigh?" })).toBeInTheDocument();
-    expect(dots()).toBe("Step 3 of 4");
+    expect(dots()).toBe("Step 2 of 3");
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
@@ -75,10 +71,10 @@ describe("Onboarding — the steps", () => {
   it("has no back button on the first step or the last", async () => {
     await renderPage();
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-    await press("Get started");
     await press("Next");
     await press("Skip for now");
     expect(screen.getByRole("heading", { name: "You're all set" })).toBeInTheDocument();
+    expect(dots()).toBe("Step 3 of 3");
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
   });
 });
@@ -208,7 +204,7 @@ describe("Onboarding — who sees it", () => {
     db.isOnboarded.mockResolvedValue(true);
     await renderPage();
     expect(router.replace).toHaveBeenCalledWith("/");
-    expect(screen.queryByRole("heading", { name: "Welcome" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "How do you like your numbers?" })).toBeNull();
   });
 
   it("sends a signed-out visitor to sign in", async () => {

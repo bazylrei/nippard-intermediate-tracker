@@ -9,7 +9,7 @@ import { displayToKg, type WeightUnit } from "@/lib/units";
 import type { UserPreferences } from "@/lib/types";
 import { useSaveError } from "./useSaveError";
 
-export const ONBOARDING_STEPS = ["welcome", "units", "weight", "program"] as const;
+export const ONBOARDING_STEPS = ["units", "weight", "program"] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 export type OnboardingStatus = "loading" | "ready" | "error";
 
