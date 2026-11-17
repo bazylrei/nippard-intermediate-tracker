@@ -1,42 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getSignedInUser, onSignedInChange, updatePassword } from "@/lib/auth";
+import { updatePassword } from "@/lib/auth";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { SIGN_IN_PATH } from "@/lib/require-user";
 import PasswordField from "@/components/auth/PasswordField";
 import { MIN_PASSWORD_LENGTH } from "@/components/auth/CredentialsForm";
+import { useLinkSession } from "@/hooks/useLinkSession";
 import FullScreenMessage from "@/components/FullScreenMessage";
-
-type LinkStatus = "checking" | "ready" | "invalid";
-
-/** How long to wait for the emailed link to sign the person in before calling it unusable. */
-const LINK_WAIT_MS = 4000;
-
-/**
- * Opening the reset link in the email signs the person in; this waits for that.
- * A link opened in another browser than the one that asked for it can't sign in,
- * and neither can an expired one.
- */
-function useResetLink(): LinkStatus {
-  const [status, setStatus] = useState<LinkStatus>("checking");
-
-  useEffect(() => {
-    const ready = () => setStatus("ready");
-    const stop = onSignedInChange((signedIn) => { if (signedIn) ready(); });
-    getSignedInUser().then((user) => { if (user) ready(); }).catch((error) => console.error(error));
-    const timer = setTimeout(() => setStatus((s) => (s === "ready" ? s : "invalid")), LINK_WAIT_MS);
-    return () => { stop(); clearTimeout(timer); };
-  }, []);
-
-  return status;
-}
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const status = useResetLink();
+  const status = useLinkSession();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

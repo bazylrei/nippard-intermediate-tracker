@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { authErrorMessage } from "@/lib/auth-errors";
+import { authErrorMessage, providerReturnError } from "@/lib/auth-errors";
 
 const withCode = (code: string, message = "raw message") => Object.assign(new Error(message), { code });
 
@@ -31,5 +31,27 @@ describe("authErrorMessage", () => {
     expect(authErrorMessage(new Error(""))).toBe("Something went wrong. Try again.");
     expect(authErrorMessage(undefined)).toBe("Something went wrong. Try again.");
     expect(authErrorMessage("nope")).toBe("Something went wrong. Try again.");
+  });
+});
+
+describe("providerReturnError", () => {
+  it("says nothing went wrong when there's no error in the address", () => {
+    expect(providerReturnError({ search: "", hash: "" })).toBeNull();
+    expect(providerReturnError({ search: "?code=abc123", hash: "" })).toBeNull();
+  });
+
+  it("says sign-in was cancelled when the person backed out on the provider's screen", () => {
+    expect(providerReturnError({ search: "?error=access_denied&error_code=access_denied", hash: "" })).toBe("Sign-in was cancelled.");
+    expect(providerReturnError({ search: "", hash: "#error=access_denied" })).toBe("Sign-in was cancelled.");
+  });
+
+  it("gives a plain message for any other failure, not the provider's technical wording", () => {
+    const message = providerReturnError({ search: "?error=server_error&error_description=Unable+to+exchange+external+code", hash: "" });
+    expect(message).toBe("Couldn't sign you in with that account. Try again, or use your email instead.");
+    expect(message).not.toContain("exchange");
+  });
+
+  it("reads the error from the hash too", () => {
+    expect(providerReturnError({ search: "", hash: "#error=server_error&error_description=boom" })).toContain("Couldn't sign you in");
   });
 });

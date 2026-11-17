@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getSignedInUser, resendConfirmation, sendPasswordReset, signIn, signUp } from "@/lib/auth";
+import { getSignedInUser, resendConfirmation, sendPasswordReset, signIn, signInWithProvider, signUp } from "@/lib/auth";
 import AuthWelcome from "@/components/auth/AuthWelcome";
 import CredentialsForm from "@/components/auth/CredentialsForm";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
@@ -79,6 +79,7 @@ export default function AuthPage() {
           email={email}
           onEmailChange={setEmail}
           onSubmit={view.name === "signin" ? handleSignIn : handleSignUp}
+          onSocial={signInWithProvider}
           onSwitchMode={() => setView(view.name === "signin" ? { name: "signup" } : { name: "signin" })}
           onForgot={() => setView({ name: "forgot" })}
         />

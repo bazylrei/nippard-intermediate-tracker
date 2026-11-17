@@ -6,6 +6,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const auth = vi.hoisted(() => ({
   getSignedInUser: vi.fn(), signIn: vi.fn(), signUp: vi.fn(), resendConfirmation: vi.fn(), sendPasswordReset: vi.fn(),
+  signInWithProvider: vi.fn(), getEnabledSocialProviders: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => auth);
 
@@ -21,6 +22,8 @@ beforeEach(() => {
   auth.signUp.mockResolvedValue({ confirmationNeeded: false });
   auth.resendConfirmation.mockResolvedValue(undefined);
   auth.sendPasswordReset.mockResolvedValue(undefined);
+  auth.signInWithProvider.mockResolvedValue(undefined);
+  auth.getEnabledSocialProviders.mockResolvedValue([]);
 });
 
 async function renderPage() {
@@ -56,6 +59,38 @@ describe("Auth — welcome", () => {
     auth.getSignedInUser.mockResolvedValue({ id: "user-1" });
     await renderPage();
     expect(router.replace).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("Auth — Google", () => {
+  const googleButton = () => screen.getByRole("button", { name: /Continue with Google/ });
+
+  it("is offered on the create-account and sign-in forms once switched on", async () => {
+    auth.getEnabledSocialProviders.mockResolvedValue(["google"]);
+    await openSignUp();
+    expect(googleButton()).toBeInTheDocument();
+    await press("Have an account? Sign in");
+    expect(googleButton()).toBeInTheDocument();
+  });
+
+  it("isn't on the welcome screen, which keeps its two buttons", async () => {
+    auth.getEnabledSocialProviders.mockResolvedValue(["google"]);
+    await renderPage();
+    expect(screen.queryByRole("button", { name: /Continue with Google/ })).toBeNull();
+  });
+
+  it("starts signing in with Google when pressed", async () => {
+    auth.getEnabledSocialProviders.mockResolvedValue(["google"]);
+    await openSignIn();
+    await press(/Continue with Google/);
+    expect(auth.signInWithProvider).toHaveBeenCalledWith("google");
+    expect(router.push).not.toHaveBeenCalled(); // the browser leaves for Google; nothing to route
+  });
+
+  it("doesn't appear while Google is off, leaving the email form alone", async () => {
+    await openSignUp();
+    expect(screen.queryByRole("button", { name: /Continue with Google/ })).toBeNull();
+    expect(screen.getByRole("form", { name: "Create your account" })).toBeInTheDocument();
   });
 });
 

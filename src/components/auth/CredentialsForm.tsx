@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import type { SocialProvider } from "@/lib/auth";
 import { authErrorMessage } from "@/lib/auth-errors";
 import PasswordField, { authFieldClass } from "./PasswordField";
+import SocialButtons from "./SocialButtons";
 
 export const MIN_PASSWORD_LENGTH = 8;
 
@@ -12,6 +14,8 @@ interface Props {
   onEmailChange: (email: string) => void;
   /** Signs in or creates the account; rejects with the Auth error, which the form explains. */
   onSubmit: (email: string, password: string) => Promise<void>;
+  /** Starts signing in with a provider; the buttons only show for providers switched on in Supabase. */
+  onSocial: (provider: SocialProvider) => Promise<void>;
   onSwitchMode: () => void;
   /** Offered when signing in. */
   onForgot: () => void;
@@ -22,7 +26,7 @@ const COPY = {
   signup: { title: "Create your account", submit: "Create account", switchText: "Have an account? Sign in" },
 } as const;
 
-export default function CredentialsForm({ mode, email, onEmailChange, onSubmit, onSwitchMode, onForgot }: Props) {
+export default function CredentialsForm({ mode, email, onEmailChange, onSubmit, onSocial, onSwitchMode, onForgot }: Props) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +51,8 @@ export default function CredentialsForm({ mode, email, onEmailChange, onSubmit, 
   return (
     <form onSubmit={submit} aria-label={copy.title} className="flex-1 flex flex-col justify-center gap-5">
       <h1 className="font-display text-3xl font-bold text-fg leading-tight">{copy.title}</h1>
+
+      <SocialButtons onChoose={onSocial} />
 
       <div className="space-y-1">
         <label htmlFor="auth-email" className="block text-sm text-muted">Email</label>
