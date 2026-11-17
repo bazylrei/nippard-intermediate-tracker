@@ -25,6 +25,7 @@ const prefs = { unit: "kg", weekStartsOn: 1, alternateSelections: {}, exerciseNo
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  document.documentElement.className = "";
   vi.spyOn(console, "error").mockImplementation(() => {});
   auth.getSignedInUser.mockResolvedValue({ id: "user-1" });
   db.isOnboarded.mockResolvedValue(false);
@@ -54,7 +55,7 @@ async function goTo(step: "units" | "weight" | "program") {
 describe("Onboarding — the steps", () => {
   it("opens on units, with the steps shown as dots", async () => {
     await renderPage();
-    expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set it up your way" })).toBeInTheDocument();
     expect(dots()).toBe("Step 1 of 3");
   });
 
@@ -65,7 +66,7 @@ describe("Onboarding — the steps", () => {
     expect(dots()).toBe("Step 2 of 3");
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set it up your way" })).toBeInTheDocument();
   });
 
   it("has no back button on the first step or the last", async () => {
@@ -110,8 +111,27 @@ describe("Onboarding — units and week start", () => {
     await press("Next");
 
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your settings");
-    expect(screen.getByRole("heading", { name: "How do you like your numbers?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set it up your way" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+});
+
+describe("Onboarding — theme", () => {
+  it("offers light, dark or the device's setting, applied at once", async () => {
+    await goTo("units");
+    expect(screen.getByRole("radiogroup", { name: "Theme" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "System" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Dark" }));
+    expect(document.documentElement).toHaveClass("dark");
+    expect(screen.getByRole("radio", { name: "Dark" })).toBeChecked();
+  });
+
+  it("keeps the theme on this device only: it isn't part of what's saved to the account", async () => {
+    await goTo("units");
+    fireEvent.click(screen.getByRole("radio", { name: "Light" }));
+    await press("Next");
+    expect(db.upsertPreferences).toHaveBeenCalledWith("user-1", { unit: "kg", weekStartsOn: 1 });
   });
 });
 
@@ -204,7 +224,7 @@ describe("Onboarding — who sees it", () => {
     db.isOnboarded.mockResolvedValue(true);
     await renderPage();
     expect(router.replace).toHaveBeenCalledWith("/");
-    expect(screen.queryByRole("heading", { name: "How do you like your numbers?" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Set it up your way" })).toBeNull();
   });
 
   it("sends a signed-out visitor to sign in", async () => {
