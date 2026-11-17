@@ -10,7 +10,6 @@ import { ONBOARDING_STEPS, useOnboarding } from "@/hooks/useOnboarding";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import StepDots from "@/components/onboarding/StepDots";
-import WelcomeStep from "@/components/onboarding/WelcomeStep";
 import UnitsStep from "@/components/onboarding/UnitsStep";
 import BodyWeightStep from "@/components/onboarding/BodyWeightStep";
 import ProgramStep from "@/components/onboarding/ProgramStep";
@@ -32,9 +31,9 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen max-w-lg mx-auto flex flex-col p-4 gap-4">
+    <div className="w-full min-h-screen max-w-lg mx-auto flex flex-col p-4 gap-4">
       <div className="flex items-center justify-between pt-2 h-10">
-        {flow.step === "units" || flow.step === "weight" ? (
+        {flow.step === "weight" ? (
           <button onClick={flow.back} aria-label="Back" className="p-2 -ml-2 text-muted hover:text-fg transition-colors rounded-xl cursor-pointer">
             <ArrowLeft size={20} />
           </button>
@@ -45,7 +44,6 @@ export default function OnboardingPage() {
 
       {flow.saveError.message && <SaveErrorAlert message={flow.saveError.message} onDismiss={flow.saveError.clear} />}
 
-      {flow.step === "welcome" && <WelcomeStep onNext={flow.next} />}
       {flow.step === "units" && (
         <UnitsStep
           unit={flow.unit}
