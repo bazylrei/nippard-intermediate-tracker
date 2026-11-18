@@ -539,32 +539,50 @@ describe("WorkoutPage — set carousel", () => {
 
     await click(screen.getByRole("button", { name: /Log Set/ }));
     // A logged set stays reachable from its carousel slide, not from a tile.
-    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /Edit set/ })).toBeInTheDocument();
   });
 
-  it("shows a logged set in the regular set form, prefilled, with no overlay", async () => {
+  it("shows a logged set as a static card, and Edit turns it back into the prefilled set form", async () => {
     await renderPage();
     await click(screen.getByRole("button", { name: /Log Set/ }));
 
     const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    expect(firstSet).toHaveTextContent("100kg × 8");
+    expect(within(firstSet).queryByRole("spinbutton")).toBeNull();
+
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
     const [weight, reps] = within(firstSet).getAllByRole("spinbutton");
     expect(weight).toHaveValue(100);
     expect(reps).toHaveValue(8);
     expect(within(firstSet).getByRole("button", { name: "Save changes" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Set 1" })).toBeNull(); // the old edit sheet's title
   });
 
-  it("saves a correction from the set's own form", async () => {
+  it("saves the correction and goes back to the static card with the new numbers", async () => {
     db.updateSetLog.mockResolvedValue(undefined);
     await renderPage();
     await click(screen.getByRole("button", { name: /Log Set/ }));
 
     const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
     fireEvent.change(within(firstSet).getAllByRole("spinbutton")[0], { target: { value: "105" } });
     await click(within(firstSet).getByRole("button", { name: "Save changes" }));
 
     expect(db.updateSetLog).toHaveBeenCalledWith(expect.any(String), 105, 8, null);
-    expect(within(firstSet).getByRole("button", { name: "Saved" })).toBeInTheDocument();
+    expect(within(firstSet).queryByRole("spinbutton")).toBeNull();
+    expect(firstSet).toHaveTextContent("105kg × 8");
+  });
+
+  it("stays in edit mode with the error when the correction can't be saved", async () => {
+    db.updateSetLog.mockRejectedValue(new Error("offline"));
+    await renderPage();
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
+    await click(within(firstSet).getByRole("button", { name: "Save changes" }));
+
+    expect(within(firstSet).getByRole("alert")).toHaveTextContent("Couldn't save your changes");
+    expect(within(firstSet).getAllByRole("spinbutton")).toHaveLength(2);
   });
 
   it("logs the first working set (not a warm-up index) for an exercise with no warm-up", async () => {

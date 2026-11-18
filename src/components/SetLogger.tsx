@@ -21,7 +21,8 @@ interface Props {
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
   /**
    * Correcting a set already logged: the form starts from it and saves changes
-   * (weight in kg) instead of logging a new set. Rejects if the save fails.
+   * (weight in kg) instead of logging a new set. Rejects if the save fails; the
+   * caller leaves edit mode once it resolves.
    */
   editing?: { set: SetLog; onSave: (weightKg: number, reps: number, rpe: number | null) => Promise<void> };
 }
@@ -45,8 +46,6 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   const [failureHit, setFailureHit] = useState<boolean | null>(null);
   const [showTechniqueInfo, setShowTechniqueInfo] = useState(false);
   const [saving, setSaving] = useState(false);
-  // The form as last saved: while it's still the current form, the button reads "Saved".
-  const [savedForm, setSavedForm] = useState<FormState | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   // An edit starts from the logged set, so last time must not overwrite it.
   const populated = useRef(!!editing);
@@ -82,7 +81,6 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
       setSaveFailed(false);
       try {
         await editing.onSave(displayToKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null);
-        setSavedForm(form);
       } catch (err) {
         console.error(err);
         setSaveFailed(true);
@@ -282,7 +280,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
           className="btn-primary gloss w-full flex items-center justify-center gap-2 font-display font-bold text-lg py-4 rounded-2xl"
         >
           <CheckCircle size={20} />
-          {editing ? (saving ? "Saving…" : savedForm === form ? "Saved" : "Save changes") : "Log Set"}
+          {editing ? (saving ? "Saving…" : "Save changes") : "Log Set"}
         </button>
         {saveFailed && <p role="alert" className="text-sm text-danger text-center">Couldn&apos;t save your changes. Try again.</p>}
       </form>
