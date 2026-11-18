@@ -110,12 +110,13 @@ export function useWorkoutProgress({ session, userId, exercises, saveError, onRe
     const previous = state;
 
     saveError.clear();
-    const [restMin, restMax] = currentExercise.restSeconds;
-    onRest(Math.round((restMin + restMax) / 2));
     if (step.kind === "complete") {
+      // Nothing left to rest for.
       clearWorkoutInProgress();
       setState({ ...state, sessionSets: updated, done: true });
     } else {
+      const [restMin, restMax] = currentExercise.restSeconds;
+      onRest(Math.round((restMin + restMax) / 2));
       const phase = step.kind === "nextExercise" ? phaseAt(step.setIndex) : state.phase;
       setState({ ...state, sessionSets: updated, exerciseIndex: step.exerciseIndex, setIndex: step.setIndex, phase });
       saveWorkoutInProgress(step.exerciseIndex, exercises, session);
