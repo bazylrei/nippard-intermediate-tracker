@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Rectangle, type BarShapeProps, type TooltipContentProps } from "recharts";
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
 import type { WeeklyVolume } from "@/lib/volume";
@@ -19,12 +20,16 @@ interface Props {
 type Row = { week: number; top: MuscleRegion | undefined } & Partial<Record<MuscleRegion, number>>;
 
 /** Rounds only the top segment of each week's stack, the bar's data end. */
-function StackSegment({ region, ...props }: BarShapeProps & { region: MuscleRegion }) {
+function StackSegment({ region, selectedWeek, ...props }: BarShapeProps & { region: MuscleRegion; selectedWeek: number | null }) {
   const row = props.payload as Row;
-  return <Rectangle {...props} radius={row.top === region ? [4, 4, 0, 0] : 0} />;
+  // Once a week is picked, the others recede so the highlighted bar matches the details below.
+  const dimmed = selectedWeek !== null && row.week !== selectedWeek;
+  return <Rectangle {...props} fillOpacity={dimmed ? 0.4 : 1} radius={row.top === region ? [4, 4, 0, 0] : 0} />;
 }
 
 export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }: Props) {
+  // The week the user tapped; until then the details show the latest week.
+  const [pickedWeek, setPickedWeek] = useState<number | null>(null);
   // Regions trained in any week. Each keeps its own colour whichever others appear.
   const regions = MUSCLE_REGIONS.filter(({ id }) => volume.weeks.some((w) => w.byRegion[id] > 0));
   const data: Row[] = volume.weeks.map((w) => {
@@ -32,7 +37,8 @@ export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }:
     for (const { id } of regions) row[id] = Math.round(kgToDisplay(w.byRegion[id], unit));
     return row;
   });
-  const latest = volume.weeks.at(-1);
+  const shown = volume.weeks.find((w) => w.week === pickedWeek) ?? volume.weeks.at(-1);
+  const selectedWeek = shown && pickedWeek !== null ? shown.week : null;
 
   return (
     <div className="space-y-4">
@@ -40,13 +46,13 @@ export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }:
       {volume.missingBodyWeight && (
         <BodyWeightCta unit={unit} message="Bodyweight exercises count only their added weight until you log your body weight." onSave={onLogBodyWeight} />
       )}
-      {!latest ? (
+      {!shown ? (
         <EmptyState message="No volume data yet — complete a workout first." />
       ) : (
         <>
           {chartWidth > 0 && (
             <div className="bg-surface border border-border rounded-2xl p-3">
-              <BarChart width={chartWidth - 24} height={260} data={data} margin={{ top: 8, right: 4, bottom: 4, left: -16 }}>
+              <BarChart width={chartWidth - 24} height={260} data={data} onClick={(state) => setPickedWeek(weekOf(state.activeLabel))} margin={{ top: 8, right: 4, bottom: 4, left: -16 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="week" tick={{ fill: "var(--muted)", fontSize: 12 }} tickFormatter={(v) => `W${v}`} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "var(--muted)", fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} axisLine={false} tickLine={false} />
@@ -61,18 +67,24 @@ export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }:
                     stroke="var(--surface)"
                     strokeWidth={2}
                     maxBarSize={28}
-                    shape={(props: BarShapeProps) => <StackSegment {...props} region={id} />}
+                    shape={(props: BarShapeProps) => <StackSegment {...props} region={id} selectedWeek={selectedWeek} />}
                     isAnimationActive={false}
                   />
                 ))}
               </BarChart>
             </div>
           )}
-          <RegionLegend week={latest} regions={regions} unit={unit} />
+          <RegionLegend week={shown} regions={regions} unit={unit} />
         </>
       )}
     </div>
   );
+}
+
+/** The week under a chart click, or null when it landed outside the bars. */
+function weekOf(label: string | number | undefined): number | null {
+  const week = Number(label);
+  return label === undefined || Number.isNaN(week) ? null : week;
 }
 
 /** One week's readout: every region trained that week, values first, top of the stack first. */

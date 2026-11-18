@@ -14,6 +14,18 @@ describe("WarmupSlide", () => {
     expect(onComplete).toHaveBeenCalledOnce();
   });
 
+  it("prefixes suggestions with 2× for per-side exercises", () => {
+    render(<WarmupSlide steps={steps} active onComplete={vi.fn()} prevWorkingWeightKg={20} unit="kg" weightPerSide />);
+
+    expect(screen.getByText("2× ~10 kg")).toBeInTheDocument();
+  });
+
+  it("shows no 2× for other exercises", () => {
+    render(<WarmupSlide steps={steps} active onComplete={vi.fn()} prevWorkingWeightKg={20} unit="kg" />);
+
+    expect(screen.queryByText(/2×/)).toBeNull();
+  });
+
   it("is a read-only recap once the warm-up is done", () => {
     render(<WarmupSlide steps={steps} active={false} onComplete={vi.fn()} unit="kg" />);
 

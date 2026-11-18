@@ -3,23 +3,20 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, getRecentWorkouts, logBodyWeight } from "@/lib/db";
+import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, logBodyWeight } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
-import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
 import FullScreenMessage from "@/components/FullScreenMessage";
-import HistoryTab from "./HistoryTab";
 import ExerciseTab, { type ExerciseHistoryPoint } from "./ExerciseTab";
 import VolumeTab from "./VolumeTab";
 import type { WeeklyVolume } from "@/lib/volume";
-import { TrendingUp, BarChart3, Clock } from "lucide-react";
+import { TrendingUp, BarChart3 } from "lucide-react";
 
-type Tab = "exercise" | "volume" | "history";
+type Tab = "exercise" | "volume";
 const TABS = [
   { key: "exercise", label: "Exercise", icon: TrendingUp },
   { key: "volume",   label: "Volume",   icon: BarChart3  },
-  { key: "history",  label: "History",  icon: Clock      },
 ] as const satisfies readonly { key: Tab; label: string; icon: unknown }[];
 const isTab = (v: string | null): v is Tab => TABS.some((t) => t.key === v);
 
@@ -36,7 +33,7 @@ function ProgressContent() {
   const searchParams = useSearchParams();
   const { options } = useExerciseCatalog();
   const unit = useWeightUnit();
-  // The tab lives in the URL so Back from a workout's detail page returns to History.
+  // The tab lives in the URL so a reload or Back keeps it.
   const tabParam = searchParams.get("tab");
   const tab: Tab = isTab(tabParam) ? tabParam : "exercise";
   const setTab = (t: Tab) => router.replace(t === "exercise" ? "/progress" : `/progress?tab=${t}`, { scroll: false });
@@ -48,9 +45,6 @@ function ProgressContent() {
   const [history, setHistory] = useState<ExerciseHistoryPoint[]>([]);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
-  const [historyItems, setHistoryItems] = useState<WorkoutFeedItem[]>([]);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [historyFailed, setHistoryFailed] = useState(false);
 
   // Every exercise you've logged, named from the full catalogue — not just the active program.
   const exercisesWithData = options.filter((ex) => loggedIds.includes(ex.id));
@@ -89,14 +83,6 @@ function ProgressContent() {
   }, [userId, activeExercise]);
 
   useEffect(() => {
-    if (tab !== "history" || !userId || historyLoaded) return;
-    getRecentWorkouts(userId)
-      .then(({ sessions, sets }) => setHistoryItems(buildWorkoutFeed(sessions, sets)))
-      .catch((error) => { console.error(error); setHistoryFailed(true); })
-      .finally(() => setHistoryLoaded(true));
-  }, [tab, userId, historyLoaded]);
-
-  useEffect(() => {
     if (status !== "ready") return;
     const el = chartContainerRef.current;
     if (!el) return;
@@ -109,7 +95,7 @@ function ProgressContent() {
   if (status === "error") return <FullScreenMessage message="Couldn't load your progress. Check your connection and try again." />;
 
   return (
-    <div className="h-dvh max-w-lg md:max-w-3xl mx-auto flex flex-col">
+    <div className="main-viewport max-w-lg md:max-w-3xl mx-auto flex flex-col">
       <div className="flex items-center px-4 pt-4 pb-3 border-b border-border">
         <h1 className="font-display font-bold text-xl tracking-wide text-fg">Progress</h1>
       </div>
@@ -132,7 +118,7 @@ function ProgressContent() {
         </div>
       </div>
 
-      <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4">
+      <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-above-raised-tab">
         {tab === "exercise" && (
           <ExerciseTab
             options={exercisesWithData}
@@ -144,7 +130,6 @@ function ProgressContent() {
           />
         )}
         {tab === "volume" && <VolumeTab volume={volume} unit={unit} chartWidth={chartWidth} onLogBodyWeight={logWeightAndRefresh} />}
-        {tab === "history" && <HistoryTab items={historyItems} loaded={historyLoaded} failed={historyFailed} />}
       </div>
     </div>
   );

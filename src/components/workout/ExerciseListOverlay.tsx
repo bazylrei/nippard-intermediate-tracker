@@ -21,7 +21,7 @@ export default function ExerciseListOverlay({ exercises, currentIndex, isDone, o
             </button>
             <h2 className="font-display font-bold text-fg">Exercises</h2>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-2">
             {resolvedExercises.map((ex, i) => {
               const exDone = isDone(i);
               const isCurrent = i === currentIndex;

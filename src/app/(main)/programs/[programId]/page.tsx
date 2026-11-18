@@ -54,7 +54,7 @@ function ProgramPreview() {
   const days = program.days.filter((d) => d.week === shownWeek).sort((a, b) => a.dayIndex - b.dayIndex);
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4 pb-16">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4 pb-16">
       <ProgramSummary program={program} canEdit={canEditProgram(program, userId)} />
 
       {finalWeek === 0 ? (

@@ -80,6 +80,24 @@ describe("VolumeTab", () => {
     expect(container.querySelector(".recharts-tooltip-cursor")).toBeNull(); // …without a highlight band
   });
 
+  it("shows the details of the week tapped in the chart instead of the latest", async () => {
+    const weeks = [week(1, { chest: 1000, core: 50 }), week(2, { chest: 1000, legs: 2000 })];
+    const { container } = render(<VolumeTab volume={{ weeks, missingBodyWeight: false }} unit="kg" chartWidth={360} onLogBodyWeight={vi.fn()} />);
+    expect(screen.getByRole("region", { name: "Week 2 volume by body region" })).toBeInTheDocument();
+
+    // jsdom lays nothing out; give the chart its real size so the tap lands on week 1.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 336, bottom: 260, width: 336, height: 260, toJSON: () => ({}) });
+    const wrapper = container.querySelector(".recharts-wrapper")!;
+    await act(async () => {
+      fireEvent.mouseMove(wrapper, { clientX: 90, clientY: 120 });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    await act(async () => { fireEvent.click(wrapper, { clientX: 90, clientY: 120 }); });
+
+    const legend = screen.getByRole("region", { name: "Week 1 volume by body region" });
+    expect(within(legend).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Chest1,000 kg", "Legs0 kg", "Core50 kg"]);
+  });
+
   it("explains that bodyweight exercises are understated, with a way to log body weight right there", async () => {
     const onLogBodyWeight = vi.fn().mockResolvedValue(undefined);
     render(<VolumeTab volume={{ weeks: [week(1, { chest: 1000 })], missingBodyWeight: true }} unit="kg" chartWidth={0} onLogBodyWeight={onLogBodyWeight} />);

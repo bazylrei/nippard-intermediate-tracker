@@ -13,6 +13,7 @@ import { dayLabel } from "@/lib/day-types";
 import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import WeekDayTile, { type DayStatus } from "@/components/program/WeekDayTile";
 import StartWorkoutSheet from "@/components/program/StartWorkoutSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
@@ -60,7 +61,7 @@ export default function MyProgram() {
   }
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
 
       {/* Header */}
       <div className="flex items-center gap-2 pt-2">
@@ -148,15 +149,17 @@ export default function MyProgram() {
         </div>
       </div>
 
-      {choosing && choosingDay && (
-        <StartWorkoutSheet
-          week={choosing.week}
-          day={choosingDay}
-          unfinished={unfinished ? { label: dayLabel(unfinished.dayType), setCount: unfinished.setCount } : null}
-          onStart={(choice) => start(choosing, choice)}
-          onClose={() => setChoosing(null)}
-        />
-      )}
+      <OverlayPresence>
+        {choosing && choosingDay && (
+          <StartWorkoutSheet
+            week={choosing.week}
+            day={choosingDay}
+            unfinished={unfinished ? { label: dayLabel(unfinished.dayType), setCount: unfinished.setCount } : null}
+            onStart={(choice) => start(choosing, choice)}
+            onClose={() => setChoosing(null)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }

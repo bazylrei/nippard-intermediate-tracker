@@ -9,6 +9,7 @@ import { editProgramHref } from "@/lib/program-routes";
 import type { ProgramRow } from "@/lib/types";
 import ProgramCard from "@/components/programs/ProgramCard";
 import NewProgramSheet from "@/components/programs/NewProgramSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import { LibraryBig, Plus } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
 
@@ -45,7 +46,7 @@ export default function ProgramsPage() {
   const available = (programs ?? []).filter((p) => !canEditProgram(p, userId));
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-6">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-6">
       <div className="flex items-center gap-2 pt-2">
         <BackToProfile />
         <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
@@ -77,9 +78,11 @@ export default function ProgramsPage() {
         <p className="text-center py-16 text-sm text-subtle">No programs yet.</p>
       )}
 
-      {naming && userId && (
-        <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
-      )}
+      <OverlayPresence>
+        {naming && userId && (
+          <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
+        )}
+      </OverlayPresence>
 
       {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} />}
       {available.length > 0 && <ProgramGroup title="Available to me" programs={available} />}

@@ -31,7 +31,7 @@ export default function WorkoutDoneScreen({ week, dayType, exercises, sessionSet
   const totalWorkingSets = sessionSets.filter((s) => s.setIndex >= 0).length;
 
   return (
-      <div className="min-h-screen bg-bg pb-16">
+      <div className="h-full overflow-y-auto overscroll-contain bg-bg pb-16">
         <div className="max-w-lg mx-auto px-4">
           {/* Header */}
           <div className="flex flex-col items-center text-center pt-12 pb-8 gap-4">

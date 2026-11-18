@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { deleteWorkoutSession } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { WorkoutSession, SetLog, ExerciseRecord } from "@/lib/types";
+import type { WorkoutSession, ExerciseRecord } from "@/lib/types";
 import { resolveExercises, loggedWorkingSets, clearWorkoutInProgress, recordFor } from "@/lib/workout-helpers";
 import { beginWorkout, bootstrapWorkout } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
@@ -17,9 +17,9 @@ import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import RestTimerBar from "@/components/RestTimerBar";
 import WarmupSlide from "@/components/workout/WarmupSlide";
-import SetDetailSheet from "@/components/SetDetailSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import ExerciseSwapSheet from "@/components/workout/ExerciseSwapSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import { useExerciseSwap } from "@/hooks/useExerciseSwap";
 import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
 import WorkoutOverview from "@/components/workout/WorkoutOverview";
@@ -41,12 +41,11 @@ function WorkoutContent() {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
   const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
-  const { start: startRestTimer } = useRestTimer();
+  const { start: startRestTimer, stop: stopRestTimer } = useRestTimer();
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
@@ -61,6 +60,11 @@ function WorkoutContent() {
 
   const record = recordFor(recordsByExercise, currentExercise);
   const postWorkout = usePostHistory(done, userId, resolvedExercises);
+
+  // A finished workout has nothing left to rest for, so the tab's countdown stops too.
+  useEffect(() => {
+    if (done) stopRestTimer();
+  }, [done, stopRestTimer]);
 
   useEffect(() => {
     if (!programReady) return;
@@ -112,11 +116,6 @@ function WorkoutContent() {
     }
     clearWorkoutInProgress();
     router.push("/");
-  }
-
-  async function handleEditSet(setId: string, weightKg: number, reps: number, rpe: number | null) {
-    await progress.editSet(setId, weightKg, reps, rpe);
-    setViewingSet((prev) => prev ? { ...prev, weight: weightKg, reps, rpe } : null);
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -192,7 +191,7 @@ function WorkoutContent() {
         onDiscard={handleDiscard}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-4 pb-above-raised-tab space-y-5">
         {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
         {/* Keyed by position so moving to another exercise replays the slide-in. */}
@@ -223,13 +222,14 @@ function WorkoutContent() {
                 onComplete={progress.completeWarmup}
                 prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
                 unit={prefs.unit}
+                weightPerSide={currentExercise.weightPerSide}
               />
             ) : undefined}
             loggedSets={setsForExercise}
             record={record}
             unit={prefs.unit}
             onLog={progress.logSet}
-            onView={setViewingSet}
+            onEdit={progress.editSet}
           />
         </section>
 
@@ -237,26 +237,18 @@ function WorkoutContent() {
         <FinishWorkoutButton setCount={sessionSets.filter((s) => s.setIndex >= 0).length} onFinish={progress.finishWorkout} />
       </div>
 
-      {swapSheet && <ExerciseSwapSheet {...swapSheet} />}
+      <OverlayPresence>{swapSheet && <ExerciseSwapSheet {...swapSheet} />}</OverlayPresence>
 
-      {showNotes && (
-        <ExerciseNotesSheet
-          exercise={currentExercise}
-          existingNote={prefs.exerciseNotes?.[currentExercise.id] ?? ""}
-          onClose={() => setShowNotes(false)}
-          onSave={(note) => saveNote(currentExercise.id, note)}
-        />
-      )}
-
-      {viewingSet && (
-        <SetDetailSheet
-          set={viewingSet}
-          exercise={currentExercise}
-          unit={prefs.unit}
-          onClose={() => setViewingSet(null)}
-          onSave={handleEditSet}
-        />
-      )}
+      <OverlayPresence>
+        {showNotes && (
+          <ExerciseNotesSheet
+            exercise={currentExercise}
+            existingNote={prefs.exerciseNotes?.[currentExercise.id] ?? ""}
+            onClose={() => setShowNotes(false)}
+            onSave={(note) => saveNote(currentExercise.id, note)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }

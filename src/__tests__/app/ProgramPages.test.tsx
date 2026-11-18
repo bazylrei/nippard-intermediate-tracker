@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within, act } from "@testing-library/react";
+import { render, screen, fireEvent, within, act, waitFor } from "@testing-library/react";
 import type { BuilderProgram, ProgramRow } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -135,7 +135,7 @@ describe("My programs — creating a program", () => {
   it("closes without creating anything", async () => {
     await openSheet();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(screen.queryByRole("form", { name: "New program" })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("form", { name: "New program" })).toBeNull()); // after its exit animation
     expect(db.createProgram).not.toHaveBeenCalled();
   });
 

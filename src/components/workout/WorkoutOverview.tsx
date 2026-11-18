@@ -40,7 +40,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBegin, err
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-3">
           <p className="font-display font-semibold text-xs tracking-widest text-muted uppercase">
             {resolvedExercises.length} exercises
           </p>
@@ -63,7 +63,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBegin, err
           </div>
         </div>
 
-        <div className="p-4 space-y-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+        <div className="px-4 pt-4 pb-above-raised-tab space-y-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
           {error}
           <button
             onClick={begin}

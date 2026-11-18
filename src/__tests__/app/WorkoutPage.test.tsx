@@ -237,6 +237,19 @@ describe("WorkoutPage — finishing early", () => {
     expect(localStorage.getItem("workout_cache_active_workout")).toBeNull();
   });
 
+  it("stops a running rest timer once the workout is finished", async () => {
+    bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
+    Object.assign(rest, { isActive: true, remaining: 40, total: 90 });
+    await renderPage();
+    expect(rest.stop).not.toHaveBeenCalled();
+
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    await click(screen.getByRole("button", { name: "Finish" }));
+
+    expect(await screen.findByText("Workout Complete!")).toBeInTheDocument();
+    expect(rest.stop).toHaveBeenCalled();
+  });
+
   it("stays on the workout and says so when finishing fails", async () => {
     db.completeSession.mockRejectedValue(new Error("offline"));
     bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
@@ -393,11 +406,11 @@ describe("WorkoutPage — swapping to an alternate exercise", () => {
     const dbPrev = { ...prevSet, id: "q", exerciseId: "bench-db", weight: 40, reps: 12 };
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet] }, "bench-db": { lastSets: [dbPrev] } } });
     await renderPage();
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
 
     await swapTo(/Bench Press \(DB\)/);
 
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("40kg × 12");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("40kg × 12");
   });
 
   it("saves the swap as the default for future workouts too when asked", async () => {
@@ -486,16 +499,26 @@ describe("WorkoutPage — last time and best", () => {
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: best } } });
     await renderPage();
 
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
     expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
   });
 
-  it("shows only last time when that was the best", async () => {
+  it("shows the best on set 1 when it was lifted on set 2 last time", async () => {
+    const set2 = { ...prevSet, id: "p2", setIndex: 1, weight: 110, reps: 6 };
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet, set2], bestSet: set2 } } });
+    await renderPage();
+
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
+  });
+
+  it("marks last time as the best when it was, instead of repeating it", async () => {
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: prevSet } } });
     await renderPage();
 
-    expect(within(activeSlide()).getByText("Last time")).toBeInTheDocument();
-    expect(within(activeSlide()).queryByText("Best")).toBeNull();
+    const row = within(activeSlide()).getByText("Last time").closest("div")!;
+    expect(row).toHaveTextContent("Best");
+    expect(within(activeSlide()).getAllByText("Best")).toHaveLength(1);
   });
 });
 
@@ -515,18 +538,51 @@ describe("WorkoutPage — set carousel", () => {
     expect(screen.getAllByRole("group", { name: /^Set \d of 2$/ })).toHaveLength(2); // one slide per set
 
     await click(screen.getByRole("button", { name: /Log Set/ }));
-    // A logged set stays reachable from its carousel card, not from a tile.
-    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /View set/ })).toBeInTheDocument();
+    // A logged set stays reachable from its carousel slide, not from a tile.
+    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /Edit set/ })).toBeInTheDocument();
   });
 
-  it("keeps a logged set swipeable and editable after advancing", async () => {
+  it("shows a logged set as a static card, and Edit turns it back into the prefilled set form", async () => {
     await renderPage();
     await click(screen.getByRole("button", { name: /Log Set/ }));
 
     const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
     expect(firstSet).toHaveTextContent("100kg × 8");
-    await click(within(firstSet).getByRole("button", { name: /View set/ }));
-    expect(screen.getByRole("heading", { name: "Set 1" })).toBeInTheDocument(); // SetDetailSheet open
+    expect(within(firstSet).queryByRole("spinbutton")).toBeNull();
+
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
+    const [weight, reps] = within(firstSet).getAllByRole("spinbutton");
+    expect(weight).toHaveValue(100);
+    expect(reps).toHaveValue(8);
+    expect(within(firstSet).getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  });
+
+  it("saves the correction and goes back to the static card with the new numbers", async () => {
+    db.updateSetLog.mockResolvedValue(undefined);
+    await renderPage();
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
+    fireEvent.change(within(firstSet).getAllByRole("spinbutton")[0], { target: { value: "105" } });
+    await click(within(firstSet).getByRole("button", { name: "Save changes" }));
+
+    expect(db.updateSetLog).toHaveBeenCalledWith(expect.any(String), 105, 8, null);
+    expect(within(firstSet).queryByRole("spinbutton")).toBeNull();
+    expect(firstSet).toHaveTextContent("105kg × 8");
+  });
+
+  it("stays in edit mode with the error when the correction can't be saved", async () => {
+    db.updateSetLog.mockRejectedValue(new Error("offline"));
+    await renderPage();
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
+    await click(within(firstSet).getByRole("button", { name: "Save changes" }));
+
+    expect(within(firstSet).getByRole("alert")).toHaveTextContent("Couldn't save your changes");
+    expect(within(firstSet).getAllByRole("spinbutton")).toHaveLength(2);
   });
 
   it("logs the first working set (not a warm-up index) for an exercise with no warm-up", async () => {

@@ -13,7 +13,7 @@ export default function SettingsPage() {
   if (status === "loading") return <FullScreenMessage message="Loading…" />;
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <div className="flex items-center gap-2 pt-2">
         <BackToProfile />
         <h1 className="font-display font-bold text-xl text-fg">Settings</h1>

@@ -137,6 +137,19 @@ describe("useWorkoutProgress — logging sets", () => {
     }));
   });
 
+  it("starts no rest after the set that completes the workout", async () => {
+    const { result, onRest } = setup();
+    act(() => result.current.restore({
+      ...START, exerciseIndex: 1, phase: "sets",
+      sessionSets: [logged("bench", 0), logged("bench", 1), logged("fly", 0)], setIndex: 1,
+    }));
+
+    await act(() => result.current.logSet(100, 8, null, true));
+
+    expect(result.current.done).toBe(true);
+    expect(onRest).not.toHaveBeenCalled();
+  });
+
   it("moves to the next exercise's warm-up after an exercise's last set", async () => {
     const { result } = setup();
     act(() => result.current.restore({ ...START, sessionSets: [logged("bench", 0)], setIndex: 1, phase: "sets" }));

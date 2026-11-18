@@ -26,6 +26,14 @@ function renderDone(unit: "kg" | "lbs") {
 }
 
 describe("WorkoutDoneScreen", () => {
+  it("scrolls itself, since the workout viewport around it doesn't", () => {
+    const { container } = render(
+      <WorkoutDoneScreen week={2} dayType="full-body" exercises={[exercise]} sessionSets={sets}
+        postWorkout={{ history: postHistory, bodyWeightKg: null, logBodyWeight: vi.fn() }} unit="kg" onHome={vi.fn()} onProgress={vi.fn()} />,
+    );
+    expect(container.firstElementChild).toHaveClass("h-full", "overflow-y-auto");
+  });
+
   it("converts the change vs last time to lbs (was kg labelled lbs)", () => {
     renderDone("lbs");
     expect(screen.getByText(/\+11lbs vs last/)).toBeInTheDocument(); // 5kg ≈ 11.02 lbs

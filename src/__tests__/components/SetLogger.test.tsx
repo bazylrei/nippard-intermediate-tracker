@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { Exercise, SetLog } from "@/lib/types";
 
 vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ failureTechniques: {} }) }));
@@ -70,3 +70,43 @@ describe("SetLogger — add-weight tip after maxing the rep range", () => {
   });
 });
 
+
+describe("SetLogger — editing a logged set", () => {
+  const barbellRow = { ...dumbbellPress, id: "row", weightPerSide: false } as Exercise;
+  const logged = { id: "s1", exerciseId: "row", setIndex: 0, weight: 100, reps: 8, rpe: 8.5 } as SetLog;
+  const lastTime = [{ id: "p", exerciseId: "row", setIndex: 0, weight: 80, reps: 12, rpe: null }] as SetLog[];
+
+  function renderEditing(onSave = vi.fn().mockResolvedValue(undefined)) {
+    render(
+      <SetLogger exercise={barbellRow} setIndex={0} isLastSet previousSets={lastTime} unit="kg" onLog={vi.fn()} editing={{ set: logged, onSave }} />,
+    );
+    return onSave;
+  }
+
+  it("starts from the logged set, not last time, and offers no add-weight tip or failure toggle", () => {
+    renderEditing();
+    const [weight, reps] = screen.getAllByRole("spinbutton");
+    expect(weight).toHaveValue(100);
+    expect(reps).toHaveValue(8);
+    expect(screen.getByRole("button", { name: "8.5" })).toBeInTheDocument();
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(screen.queryByText("Reached failure?")).toBeNull();
+  });
+
+  it("saves the edits instead of logging a new set", async () => {
+    const onSave = renderEditing();
+    fireEvent.change(screen.getAllByRole("spinbutton")[1], { target: { value: "9" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(onSave).toHaveBeenCalledWith(100, 9, 8.5);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled());
+  });
+
+  it("keeps the edits and says so when the save fails", async () => {
+    renderEditing(vi.fn().mockRejectedValue(new Error("offline")));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your changes"));
+    expect(screen.getAllByRole("spinbutton")[0]).toHaveValue(100);
+  });
+});
