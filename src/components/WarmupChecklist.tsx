@@ -10,6 +10,8 @@ interface Props {
   onSkip: () => void;
   prevWorkingWeightKg?: number;
   unit: "kg" | "lbs";
+  /** Weights are per hand/side, so suggestions read "2× …" like the working sets. */
+  weightPerSide?: boolean;
 }
 
 function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"): string | null {
@@ -25,7 +27,7 @@ function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"
   return `~${kg} kg`;
 }
 
-export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorkingWeightKg, unit }: Props) {
+export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorkingWeightKg, unit, weightPerSide }: Props) {
   const [checked, setChecked] = useState<boolean[]>(steps.map(() => false));
 
   if (!steps.length) return null;
@@ -72,7 +74,9 @@ export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorking
                   {step}
                 </span>
                 {suggestion && !checked[i] && (
-                  <span className="block text-xs text-primary/80 mt-0.5 font-display font-semibold">{suggestion}</span>
+                  <span className="block text-xs text-primary/80 mt-0.5 font-display font-semibold">
+                    {weightPerSide && "2× "}{suggestion}
+                  </span>
                 )}
               </div>
             </button>
