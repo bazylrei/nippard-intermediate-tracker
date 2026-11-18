@@ -41,7 +41,7 @@ function WorkoutContent() {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
   const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
-  const { start: startRestTimer } = useRestTimer();
+  const { start: startRestTimer, stop: stopRestTimer } = useRestTimer();
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
@@ -61,6 +61,11 @@ function WorkoutContent() {
 
   const record = recordFor(recordsByExercise, currentExercise);
   const postWorkout = usePostHistory(done, userId, resolvedExercises);
+
+  // A finished workout has nothing left to rest for, so the tab's countdown stops too.
+  useEffect(() => {
+    if (done) stopRestTimer();
+  }, [done, stopRestTimer]);
 
   useEffect(() => {
     if (!programReady) return;

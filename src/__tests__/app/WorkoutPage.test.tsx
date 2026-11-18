@@ -237,6 +237,19 @@ describe("WorkoutPage — finishing early", () => {
     expect(localStorage.getItem("workout_cache_active_workout")).toBeNull();
   });
 
+  it("stops a running rest timer once the workout is finished", async () => {
+    bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
+    Object.assign(rest, { isActive: true, remaining: 40, total: 90 });
+    await renderPage();
+    expect(rest.stop).not.toHaveBeenCalled();
+
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    await click(screen.getByRole("button", { name: "Finish" }));
+
+    expect(await screen.findByText("Workout Complete!")).toBeInTheDocument();
+    expect(rest.stop).toHaveBeenCalled();
+  });
+
   it("stays on the workout and says so when finishing fails", async () => {
     db.completeSession.mockRejectedValue(new Error("offline"));
     bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
