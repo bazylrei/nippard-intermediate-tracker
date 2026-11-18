@@ -54,7 +54,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }, [previousSets, setIndex, unit]);
 
   const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
-  const tip = overloadTip(prevSet, exercise.repRange, unit);
+  const tip = overloadTip(prevSet, exercise.repRange, unit, previousSets);
   const { weightPerSide, isBodyweight } = exercise;
   const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;

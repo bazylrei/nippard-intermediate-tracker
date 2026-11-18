@@ -25,4 +25,15 @@ describe("overloadTip", () => {
     // 80kg shows as 176.25lbs (rounded to 0.25)
     expect(overloadTip(last(80, 10), [6, 10], "lbs")).toEqual({ reps: 10, suggestedWeight: 181.25 });
   });
+
+  it("stays quiet when a later set last time was already heavier than the suggestion", () => {
+    // Set 1 topped out at 80kg, but set 2 was done at 85kg: 82.5kg would be a step down.
+    const session = [last(80, 10), last(85, 8)];
+    expect(overloadTip(session[0], [6, 10], "kg", session)).toBeNull();
+  });
+
+  it("still fires for the heaviest set of last time", () => {
+    const session = [last(80, 10), last(85, 10)];
+    expect(overloadTip(session[1], [6, 10], "kg", session)).toEqual({ reps: 10, suggestedWeight: 87.5 });
+  });
 });
