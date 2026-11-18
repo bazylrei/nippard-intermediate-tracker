@@ -17,7 +17,7 @@ import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import RestTimerBar from "@/components/RestTimerBar";
 import WarmupSlide from "@/components/workout/WarmupSlide";
-import SetDetailSheet from "@/components/SetDetailSheet";
+import SetEditSheet from "@/components/SetEditSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import ExerciseSwapSheet from "@/components/workout/ExerciseSwapSheet";
 import { useExerciseSwap } from "@/hooks/useExerciseSwap";
@@ -46,7 +46,7 @@ function WorkoutContent() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [viewingSet, setViewingSet] = useState<SetLog | null>(null);
+  const [editingSet, setEditingSet] = useState<SetLog | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
@@ -117,11 +117,6 @@ function WorkoutContent() {
     }
     clearWorkoutInProgress();
     router.push("/");
-  }
-
-  async function handleEditSet(setId: string, weightKg: number, reps: number, rpe: number | null) {
-    await progress.editSet(setId, weightKg, reps, rpe);
-    setViewingSet((prev) => prev ? { ...prev, weight: weightKg, reps, rpe } : null);
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
@@ -234,7 +229,7 @@ function WorkoutContent() {
             record={record}
             unit={prefs.unit}
             onLog={progress.logSet}
-            onView={setViewingSet}
+            onEdit={setEditingSet}
           />
         </section>
 
@@ -253,13 +248,13 @@ function WorkoutContent() {
         />
       )}
 
-      {viewingSet && (
-        <SetDetailSheet
-          set={viewingSet}
+      {editingSet && (
+        <SetEditSheet
+          set={editingSet}
           exercise={currentExercise}
           unit={prefs.unit}
-          onClose={() => setViewingSet(null)}
-          onSave={handleEditSet}
+          onClose={() => setEditingSet(null)}
+          onSave={progress.editSet}
         />
       )}
     </div>
