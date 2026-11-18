@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { deleteWorkoutSession } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
-import type { WorkoutSession, SetLog, ExerciseRecord } from "@/lib/types";
+import type { WorkoutSession, ExerciseRecord } from "@/lib/types";
 import { resolveExercises, loggedWorkingSets, clearWorkoutInProgress, recordFor } from "@/lib/workout-helpers";
 import { beginWorkout, bootstrapWorkout } from "@/lib/workout-init";
 import FullScreenMessage from "@/components/FullScreenMessage";
@@ -17,7 +17,6 @@ import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useRestTimer } from "@/context/RestTimerContext";
 import RestTimerBar from "@/components/RestTimerBar";
 import WarmupSlide from "@/components/workout/WarmupSlide";
-import SetEditSheet from "@/components/SetEditSheet";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import ExerciseSwapSheet from "@/components/workout/ExerciseSwapSheet";
 import { useExerciseSwap } from "@/hooks/useExerciseSwap";
@@ -46,7 +45,6 @@ function WorkoutContent() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [editingSet, setEditingSet] = useState<SetLog | null>(null);
   const [showNotes, setShowNotes] = useState(false);
   const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
@@ -230,7 +228,7 @@ function WorkoutContent() {
             record={record}
             unit={prefs.unit}
             onLog={progress.logSet}
-            onEdit={setEditingSet}
+            onEdit={progress.editSet}
           />
         </section>
 
@@ -246,16 +244,6 @@ function WorkoutContent() {
           existingNote={prefs.exerciseNotes?.[currentExercise.id] ?? ""}
           onClose={() => setShowNotes(false)}
           onSave={(note) => saveNote(currentExercise.id, note)}
-        />
-      )}
-
-      {editingSet && (
-        <SetEditSheet
-          set={editingSet}
-          exercise={currentExercise}
-          unit={prefs.unit}
-          onClose={() => setEditingSet(null)}
-          onSave={progress.editSet}
         />
       )}
     </div>

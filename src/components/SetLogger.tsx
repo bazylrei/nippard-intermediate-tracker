@@ -19,6 +19,11 @@ interface Props {
   bestSet?: SetLog;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
+  /**
+   * Correcting a set already logged: the form starts from it and saves changes
+   * (weight in kg) instead of logging a new set. Rejects if the save fails.
+   */
+  editing?: { set: SetLog; onSave: (weightKg: number, reps: number, rpe: number | null) => Promise<void> };
 }
 
 const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
@@ -33,11 +38,18 @@ function formReducer(state: FormState, action: FormAction): FormState {
   return { ...state, [action.field]: action.value };
 }
 
-export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, bestSet, unit, onLog }: Props) {
-  const [form, dispatch] = useReducer(formReducer, { weight: "", reps: "", rpe: "" });
+export default function SetLogger({ exercise, setIndex, isLastSet, previousSets, bestSet, unit, onLog, editing }: Props) {
+  const [form, dispatch] = useReducer(formReducer, editing
+    ? { weight: String(kgToDisplay(editing.set.weight, unit)), reps: String(editing.set.reps), rpe: editing.set.rpe ? String(editing.set.rpe) : "" }
+    : { weight: "", reps: "", rpe: "" });
   const [failureHit, setFailureHit] = useState<boolean | null>(null);
   const [showTechniqueInfo, setShowTechniqueInfo] = useState(false);
-  const populated = useRef(false);
+  const [saving, setSaving] = useState(false);
+  // The form as last saved: while it's still the current form, the button reads "Saved".
+  const [savedForm, setSavedForm] = useState<FormState | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
+  // An edit starts from the logged set, so last time must not overwrite it.
+  const populated = useRef(!!editing);
 
   useEffect(() => {
     if (populated.current || previousSets.length === 0) return;
@@ -54,17 +66,31 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   }, [previousSets, setIndex, unit]);
 
   const prevSet = previousSets[setIndex] ?? previousSets[previousSets.length - 1];
-  const tip = overloadTip(prevSet, exercise.repRange, unit);
+  const tip = editing ? null : overloadTip(prevSet, exercise.repRange, unit);
   const { weightPerSide, isBodyweight } = exercise;
   const { failureTechniques } = useProgramContext();
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
   const techniqueInfo = isLastSet ? failureTechniques[exercise.lastSetTarget] : null;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const w = parseFloat(form.weight);
     const r = parseInt(form.reps, 10);
     if (isNaN(w) || isNaN(r) || w < 0 || r <= 0) return;
+    if (editing) {
+      setSaving(true);
+      setSaveFailed(false);
+      try {
+        await editing.onSave(displayToKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null);
+        setSavedForm(form);
+      } catch (err) {
+        console.error(err);
+        setSaveFailed(true);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     onLog(displayToKg(w, unit), r, form.rpe ? parseFloat(form.rpe) : null, isLastSet ? failureHit : null);
   }
 
@@ -213,7 +239,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         </div>
 
         {/* Failure toggle */}
-        {isLastSet && (
+        {isLastSet && !editing && (
           <div>
             <label className="block text-xs text-muted mb-1.5">Reached failure?</label>
             <div className="grid grid-cols-2 gap-2">
@@ -252,11 +278,13 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
         <button
           type="submit"
+          disabled={saving}
           className="btn-primary gloss w-full flex items-center justify-center gap-2 font-display font-bold text-lg py-4 rounded-2xl"
         >
           <CheckCircle size={20} />
-          Log Set
+          {editing ? (saving ? "Saving…" : savedForm === form ? "Saved" : "Save changes") : "Log Set"}
         </button>
+        {saveFailed && <p role="alert" className="text-sm text-danger text-center">Couldn&apos;t save your changes. Try again.</p>}
       </form>
 
       {showTechniqueInfo && (
