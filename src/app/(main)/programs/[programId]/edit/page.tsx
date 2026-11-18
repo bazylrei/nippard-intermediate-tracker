@@ -16,6 +16,7 @@ import DayTypeModal from "@/components/builder/DayTypeModal";
 import AddExerciseModal from "@/components/builder/AddExerciseModal";
 import ExerciseEditModal from "@/components/builder/ExerciseEditModal";
 import ProgramEditModal from "@/components/builder/ProgramEditModal";
+import OverlayPresence from "@/components/OverlayPresence";
 import type { ExerciseInfo } from "@/components/builder/constants";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
@@ -300,42 +301,43 @@ function ProgramEditorPage() {
       </div>
 
       {/* ── Modals ── */}
-
-      {editingExercise && (
-        <ExerciseEditModal
-          exercise={editingExercise}
-          allExercises={allExercises}
-          onSave={(fields) => handleSaveExercise(editingExercise.pdeId, fields)}
-          onClose={() => setEditingExercise(null)}
-        />
-      )}
-
-      {addingExerciseToDayId && (
-        <AddExerciseModal
-          allExercises={allExercises}
-          onAdd={(exerciseId) => handleAddExerciseToDay(addingExerciseToDayId, exerciseId)}
-          onClose={() => setAddingExerciseToDayId(null)}
-        />
-      )}
-
-      {addingDayToWeek !== null && (
-        <DayTypeModal
-          onSelect={(dayType) => handleAddDay(addingDayToWeek, dayType)}
-          onClose={() => setAddingDayToWeek(null)}
-        />
-      )}
-
-      {editingProgram && (
-        <ProgramEditModal
-          program={program}
-          onSave={async (fields) => {
-            const ok = await attempt(() => updateProgram(program.id, fields), "Couldn't save the program details. Try again.");
-            setEditingProgram(false);
-            if (ok) setProgram((p) => p ? { ...p, ...fields } : p);
-          }}
-          onClose={() => setEditingProgram(false)}
-        />
-      )}
+      <OverlayPresence>
+        {editingExercise && (
+          <ExerciseEditModal
+            exercise={editingExercise}
+            allExercises={allExercises}
+            onSave={(fields) => handleSaveExercise(editingExercise.pdeId, fields)}
+            onClose={() => setEditingExercise(null)}
+          />
+        )}
+      </OverlayPresence>
+      <OverlayPresence>
+        {addingExerciseToDayId && (
+          <AddExerciseModal
+            allExercises={allExercises}
+            onAdd={(exerciseId) => handleAddExerciseToDay(addingExerciseToDayId, exerciseId)}
+            onClose={() => setAddingExerciseToDayId(null)}
+          />
+        )}
+      </OverlayPresence>
+      <OverlayPresence>
+        {addingDayToWeek !== null && (
+          <DayTypeModal onSelect={(dayType) => handleAddDay(addingDayToWeek, dayType)} onClose={() => setAddingDayToWeek(null)} />
+        )}
+      </OverlayPresence>
+      <OverlayPresence>
+        {editingProgram && (
+          <ProgramEditModal
+            program={program}
+            onSave={async (fields) => {
+              const ok = await attempt(() => updateProgram(program.id, fields), "Couldn't save the program details. Try again.");
+              setEditingProgram(false);
+              if (ok) setProgram((p) => p ? { ...p, ...fields } : p);
+            }}
+            onClose={() => setEditingProgram(false)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }

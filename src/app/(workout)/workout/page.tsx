@@ -19,6 +19,7 @@ import RestTimerBar from "@/components/RestTimerBar";
 import WarmupSlide from "@/components/workout/WarmupSlide";
 import ExerciseNotesSheet from "@/components/ExerciseNotesSheet";
 import ExerciseSwapSheet from "@/components/workout/ExerciseSwapSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import { useExerciseSwap } from "@/hooks/useExerciseSwap";
 import WorkoutDoneScreen from "@/components/workout/WorkoutDoneScreen";
 import WorkoutOverview from "@/components/workout/WorkoutOverview";
@@ -236,16 +237,18 @@ function WorkoutContent() {
         <FinishWorkoutButton setCount={sessionSets.filter((s) => s.setIndex >= 0).length} onFinish={progress.finishWorkout} />
       </div>
 
-      {swapSheet && <ExerciseSwapSheet {...swapSheet} />}
+      <OverlayPresence>{swapSheet && <ExerciseSwapSheet {...swapSheet} />}</OverlayPresence>
 
-      {showNotes && (
-        <ExerciseNotesSheet
-          exercise={currentExercise}
-          existingNote={prefs.exerciseNotes?.[currentExercise.id] ?? ""}
-          onClose={() => setShowNotes(false)}
-          onSave={(note) => saveNote(currentExercise.id, note)}
-        />
-      )}
+      <OverlayPresence>
+        {showNotes && (
+          <ExerciseNotesSheet
+            exercise={currentExercise}
+            existingNote={prefs.exerciseNotes?.[currentExercise.id] ?? ""}
+            onClose={() => setShowNotes(false)}
+            onSave={(note) => saveNote(currentExercise.id, note)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }

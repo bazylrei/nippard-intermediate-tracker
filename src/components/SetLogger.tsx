@@ -5,6 +5,7 @@ import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
+import OverlayPresence from "./OverlayPresence";
 import PreviousPerformance from "./workout/PreviousPerformance";
 import OverloadTip from "./workout/OverloadTip";
 import { overloadTip } from "@/lib/progression";
@@ -285,12 +286,14 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         {saveFailed && <p role="alert" className="text-sm text-danger text-center">Couldn&apos;t save your changes. Try again.</p>}
       </form>
 
-      {showTechniqueInfo && (
-        <FailureTechniqueModal
-          technique={exercise.lastSetTarget}
-          onClose={() => setShowTechniqueInfo(false)}
-        />
-      )}
+      <OverlayPresence>
+        {showTechniqueInfo && (
+          <FailureTechniqueModal
+            technique={exercise.lastSetTarget}
+            onClose={() => setShowTechniqueInfo(false)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }
