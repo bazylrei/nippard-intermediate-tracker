@@ -45,12 +45,12 @@ export default function SetEditSheet({ set, exercise, unit, onClose, onSave }: P
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: "color-mix(in srgb, var(--bg) 60%, transparent)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-lg glass-strong gloss rounded-t-3xl p-6 space-y-5"
+        className="overlay-sheet w-full max-w-lg glass-strong gloss rounded-t-3xl p-6 space-y-5"
         style={{ boxShadow: "0 -4px 40px color-mix(in srgb, var(--bg) 50%, transparent), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent)" }}
       >
         {/* Header */}

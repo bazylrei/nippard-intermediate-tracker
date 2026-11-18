@@ -9,8 +9,8 @@ export default function DayTypeModal({ onSelect, onClose }: { onSelect: (type: s
   const [showCustom, setShowCustom] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border border-border rounded-2xl w-full max-w-sm p-5 space-y-4">
+    <div className="overlay-backdrop fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
+      <div className="overlay-card bg-surface border border-border rounded-2xl w-full max-w-sm p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-fg text-sm">Choose day type</h2>
           <button onClick={onClose} className="text-subtle hover:text-fg"><X size={18} /></button>
