@@ -8,7 +8,6 @@ const css = readFileSync("src/app/globals.css", "utf8");
 
 /** Every overlay in the app, with the panel class its animation hangs on. */
 const OVERLAYS: [file: string, panelClass: string][] = [
-  ["src/components/SetEditSheet.tsx", "overlay-sheet"],
   ["src/components/ExerciseNotesSheet.tsx", "overlay-sheet"],
   ["src/components/programs/NewProgramSheet.tsx", "overlay-sheet"],
   ["src/components/program/StartWorkoutSheet.tsx", "overlay-sheet"],

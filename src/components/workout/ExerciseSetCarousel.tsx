@@ -5,7 +5,7 @@ import type { Exercise, ExerciseRecord, SetLog } from "@/lib/types";
 import { totalSetsForExercise } from "@/lib/workout-helpers";
 import SetLogger from "@/components/SetLogger";
 import SetCarousel from "./SetCarousel";
-import { LoggedSetCard, UpcomingSetCard } from "./SetCards";
+import { UpcomingSetCard } from "./SetCards";
 
 interface Props {
   exercise: Exercise;
@@ -17,12 +17,13 @@ interface Props {
   record: ExerciseRecord;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
-  onEdit: (set: SetLog) => void;
+  /** Saves a correction to a logged set (weight in kg); rejects if it can't be saved. */
+  onEdit: (setId: string, weightKg: number, reps: number, rpe: number | null) => Promise<void>;
 }
 
 /**
  * An exercise as carousel slides: an optional warm-up, then each working set —
- * logged, being logged now, or still to come.
+ * logged (the same form, to correct it), being logged now, or still to come.
  */
 export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, record, unit, onLog, onEdit }: Props) {
   const totalSets = totalSetsForExercise(exercise);
@@ -31,19 +32,8 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup,
 
   function renderSetSlide(index: number) {
     const logged = loggedSets[index];
-    if (logged) {
-      return (
-        <LoggedSetCard
-          set={logged}
-          setNumber={index + 1}
-          unit={unit}
-          weightPerSide={exercise.weightPerSide}
-          onEdit={() => onEdit(logged)}
-        />
-      );
-    }
     const isLastSet = index === totalSets - 1;
-    if (index === currentSetIndex) {
+    if (logged || index === currentSetIndex) {
       return (
         <SetLogger
           exercise={exercise}
@@ -53,6 +43,7 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup,
           bestSet={record.bestSet}
           unit={unit}
           onLog={onLog}
+          editing={logged && { set: logged, onSave: (weightKg, reps, rpe) => onEdit(logged.id, weightKg, reps, rpe) }}
         />
       );
     }
