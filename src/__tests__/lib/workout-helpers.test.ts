@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   resolveExercises, totalSetsForExercise, loggedWorkingSets, isExerciseComplete, planAfterSet,
-  resumeSetIndex, phaseAt, bestSetToShow, recordFor, saveWorkoutInProgress, clearWorkoutInProgress,
+  resumeSetIndex, phaseAt, recordFor, saveWorkoutInProgress, clearWorkoutInProgress,
 } from "@/lib/workout-helpers";
 import { readActiveWorkout } from "@/lib/active-workout";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
@@ -101,29 +101,5 @@ describe("phaseAt", () => {
     expect(phaseAt(-1)).toBe("warmup");
     expect(phaseAt(0)).toBe("sets");
     expect(phaseAt(2)).toBe("sets");
-  });
-});
-
-describe("bestSetToShow", () => {
-  const lifted = (id: string, weight: number) => ({ id, weight, reps: 8 }) as SetLog;
-
-  it("shows the best on a set whose own last time was lighter, even though last session's other set was the best", () => {
-    // Last session: set 1 at 80kg, set 2 at 90kg (the best). On set 1, 90kg must still show.
-    const best = lifted("s2", 90);
-    expect(bestSetToShow(best, lifted("s1", 80))).toBe(best);
-  });
-
-  it("hides the best when it is the set Last time already shows", () => {
-    const best = lifted("s2", 90);
-    expect(bestSetToShow(best, best)).toBeUndefined();
-  });
-
-  it("hides it when there is no best yet", () => {
-    expect(bestSetToShow(undefined, lifted("s1", 80))).toBeUndefined();
-  });
-
-  it("shows the best when there is no last time to compare with", () => {
-    const best = lifted("s2", 60);
-    expect(bestSetToShow(best, undefined)).toBe(best);
   });
 });

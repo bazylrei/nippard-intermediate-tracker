@@ -79,15 +79,6 @@ export function clearWorkoutInProgress(): void {
   clearActiveWorkout();
 }
 
-/**
- * The all-time best set, shown on every set so you always know your top lift for the exercise —
- * except when it's the very set "Last time" already shows.
- */
-export function bestSetToShow(bestSet: SetLog | undefined, lastSet: SetLog | undefined): SetLog | undefined {
-  if (!bestSet || bestSet.id === lastSet?.id) return undefined;
-  return bestSet;
-}
-
 const NO_RECORD: ExerciseRecord = { lastSets: [] };
 
 /** The exercise's record, or an empty one (a stable reference) when it has no history. */

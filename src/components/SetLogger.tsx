@@ -8,7 +8,6 @@ import FailureTechniqueModal from "./FailureTechniqueModal";
 import PreviousPerformance from "./workout/PreviousPerformance";
 import OverloadTip from "./workout/OverloadTip";
 import { overloadTip } from "@/lib/progression";
-import { bestSetToShow } from "@/lib/workout-helpers";
 import { kgToDisplay, displayToKg } from "@/lib/units";
 
 interface Props {
@@ -97,7 +96,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
         )}
       </div>
 
-      <PreviousPerformance lastSet={prevSet} bestSet={bestSetToShow(bestSet, prevSet)} unit={unit} weightPerSide={weightPerSide} />
+      <PreviousPerformance lastSet={prevSet} bestSet={bestSet} unit={unit} weightPerSide={weightPerSide} />
       {tip && (
         <OverloadTip
           tip={tip}

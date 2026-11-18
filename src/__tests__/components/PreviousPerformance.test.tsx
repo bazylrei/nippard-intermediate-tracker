@@ -9,8 +9,15 @@ const best = { id: "b", weight: 110, reps: 5, rpe: null } as SetLog;
 describe("PreviousPerformance", () => {
   it("shows last time and the best, each with its own figures", () => {
     render(<PreviousPerformance lastSet={last} bestSet={best} unit="kg" weightPerSide={false} />);
-    expect(screen.getByText("Last time").parentElement).toHaveTextContent("100kg × 8 @ RPE 8");
+    expect(screen.getByText("Last time").closest("div")).toHaveTextContent("100kg × 8 @ RPE 8");
     expect(screen.getByText("Best").parentElement).toHaveTextContent("110kg × 5");
+  });
+
+  it("marks last time as the best, in one row, when it is the best set", () => {
+    render(<PreviousPerformance lastSet={best} bestSet={best} unit="kg" weightPerSide={false} />);
+    expect(screen.getAllByText("Best")).toHaveLength(1);
+    expect(screen.getByText("Last time").closest("div")).toHaveTextContent("Best");
+    expect(screen.getByText("Last time").closest("div")).toHaveTextContent("110kg × 5");
   });
 
   it("converts to lbs and marks per-side weights", () => {
