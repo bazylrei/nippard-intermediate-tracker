@@ -26,7 +26,7 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 - `/(main)/settings` — Preferences (weight unit, theme, week start, body weight, height), loaded and saved by `useSettings`
 - `/(main)/community` — Placeholder for the upcoming social features
 - `/(main)/history/[sessionId]` — One completed workout, read-only with an Edit mode
-- `/(main)/progress` — 3 tabs: exercise progression, weekly volume, history list
+- `/(main)/progress` — 2 tabs: exercise progression, weekly volume
 - `/(main)/programs` — My programs: "Created by me" and "Available to me" (public today, subscribed later); each opens its preview. "New program" (`createProgram`, idempotent on a client-made id) starts a private one-week program and opens it in the editor
 - `/(main)/programs/[programId]` — Read-only program preview (week switcher, day cards). Shows Edit only when `canEditProgram()` (`lib/program-access.ts`)
 - `/(main)/programs/[programId]/edit` — Full CRUD program editor; anyone who can't edit is sent to the preview. URLs come from `lib/program-routes.ts`; the old `/builder` addresses redirect (next.config.ts)

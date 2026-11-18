@@ -206,12 +206,17 @@ body {
     .workout-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
   }
 
-  /* A (main) page that scrolls inside itself: exactly the room the layout leaves, so the document never scrolls too. */
-  .main-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-clear)); }
+  /* A (main) page that scrolls inside itself, down to the tab bar, so content never ends in a bare gap above it.
+     The negative margin cancels the layout's clearance padding, so the document still never scrolls too; the page
+     pads its scroll area's bottom by --app-nav-raise + 1rem to keep the last item clear of the raised Workout tab. */
+  .main-viewport {
+    height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h));
+    margin-bottom: calc(-1 * (var(--app-nav-raise) + 1rem));
+  }
   /* A (main) page that fills the screen but may grow past it, so only the document scrolls. */
   .main-min-viewport { min-height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-clear)); }
   @media (min-width: 48rem) {
-    .main-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
+    .main-viewport { height: calc(100dvh - env(safe-area-inset-top)); margin-bottom: 0; }
     .main-min-viewport { min-height: calc(100dvh - env(safe-area-inset-top)); }
   }
 }
