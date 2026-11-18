@@ -223,6 +223,7 @@ function WorkoutContent() {
                 onComplete={progress.completeWarmup}
                 prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
                 unit={prefs.unit}
+                weightPerSide={currentExercise.weightPerSide}
               />
             ) : undefined}
             loggedSets={setsForExercise}
