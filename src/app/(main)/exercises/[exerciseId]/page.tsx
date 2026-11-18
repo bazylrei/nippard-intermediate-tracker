@@ -13,6 +13,7 @@ import { WARMUP_PROTOCOLS } from "@/components/builder/constants";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
 import { BackLink } from "@/components/BackToProfile";
+import VideoLink from "@/components/VideoLink";
 import type { CatalogExercise } from "@/lib/types";
 
 const IN_USE = "This exercise is used in a program or in logged sets, so it can't be deleted.";
@@ -74,9 +75,9 @@ function ExerciseDetail() {
       )}
 
       {exercise.youtubeUrl && (
-        <a href={exercise.youtubeUrl} target="_blank" rel="noopener noreferrer" className="glass gloss rounded-2xl p-4 flex items-center gap-2 text-sm font-medium text-primary">
+        <VideoLink url={exercise.youtubeUrl} className="glass gloss rounded-2xl p-4 flex items-center gap-2 text-sm font-medium text-primary">
           <ExternalLink size={16} /> Watch the demo
-        </a>
+        </VideoLink>
       )}
 
       {isOwn && (confirming ? (
