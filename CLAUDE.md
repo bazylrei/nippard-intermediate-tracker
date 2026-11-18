@@ -64,6 +64,7 @@ Home/Program suggest the next (or unfinished) day, or the user picks any day not
 | `src/lib/db/body-weight.ts` | Body weight is a dated history (`body_weight_logs`, one entry per day, `source` for future health-app sync); the latest entry is the current weight |
 | `src/lib/weigh-in.ts` | When the weekly weigh-in prompt is due (from `weekStartsOn` in preferences) |
 | `src/lib/onboarding.ts` | `checkOnboarded` (a yes is cached per user on the device) / `finishOnboarding`; `ONBOARDING_PATH` |
+| `src/lib/youtube.ts` | `openInYouTubeApp`: tries the YouTube app on a phone (iOS scheme with a timed browser fallback, Android intent with its own fallback); every demo-video link goes through `components/VideoLink` |
 | `src/lib/theme.ts` | Light / dark / system theme, saved per device; `THEME_INIT_SCRIPT` in the root layout's `<head>` applies it before first paint (`html.light` / `html.dark` in globals.css override the device setting) |
 | `src/lib/workout-history.ts` | Route helpers (`startWorkoutHref`, `workoutDetailHref`) and set grouping |
 | `scripts/program-data-static.ts` | Hardcoded program structure used by the seed script |
