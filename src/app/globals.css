@@ -200,19 +200,26 @@ body {
     .exercise-enter-forward, .exercise-enter-back { animation-name: fade-in; }
   }
 
-  /* The screen below the safe area and above the mobile tab bar (BottomNav), clear of its raised Workout tab. */
-  .workout-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h) - var(--app-nav-raise)); }
+  /* The screen below the safe area and down to the mobile tab bar (BottomNav), so content never ends in a bare gap
+     above it. Whatever sits at the bottom pads itself with .pb-above-raised-tab to clear the raised Workout tab. */
+  .workout-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h)); }
   @media (min-width: 48rem) {
     .workout-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
   }
 
   /* A (main) page that scrolls inside itself, down to the tab bar, so content never ends in a bare gap above it.
      The negative margin cancels the layout's clearance padding, so the document still never scrolls too; the page
-     pads its scroll area's bottom by --app-nav-raise + 1rem to keep the last item clear of the raised Workout tab. */
+     pads its scroll area's bottom with .pb-above-raised-tab to keep the last item clear of the raised Workout tab. */
   .main-viewport {
     height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h));
     margin-bottom: calc(-1 * (var(--app-nav-raise) + 1rem));
   }
+  /* Bottom padding that keeps the last item clear of the tab bar's raised Workout tab (mobile only). */
+  .pb-above-raised-tab { padding-bottom: calc(var(--app-nav-raise) + 1rem); }
+  @media (min-width: 48rem) {
+    .pb-above-raised-tab { padding-bottom: 1rem; }
+  }
+
   /* A (main) page that fills the screen but may grow past it, so only the document scrolls. */
   .main-min-viewport { min-height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-clear)); }
   @media (min-width: 48rem) {

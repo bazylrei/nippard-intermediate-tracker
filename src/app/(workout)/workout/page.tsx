@@ -192,7 +192,7 @@ function WorkoutContent() {
         onDiscard={handleDiscard}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-above-raised-tab space-y-5">
         {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
         {/* Keyed by position so moving to another exercise replays the slide-in. */}
