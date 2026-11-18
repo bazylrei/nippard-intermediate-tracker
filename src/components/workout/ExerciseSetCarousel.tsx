@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { Exercise, ExerciseRecord, SetLog } from "@/lib/types";
-import { bestSetToShow, totalSetsForExercise } from "@/lib/workout-helpers";
+import { totalSetsForExercise } from "@/lib/workout-helpers";
 import SetLogger from "@/components/SetLogger";
 import SetCarousel from "./SetCarousel";
 import { LoggedSetCard, UpcomingSetCard } from "./SetCards";
@@ -50,7 +50,7 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup,
           setIndex={index}
           isLastSet={isLastSet}
           previousSets={record.lastSets}
-          bestSet={bestSetToShow(record)}
+          bestSet={record.bestSet}
           unit={unit}
           onLog={onLog}
         />

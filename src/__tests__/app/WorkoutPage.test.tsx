@@ -406,11 +406,11 @@ describe("WorkoutPage — swapping to an alternate exercise", () => {
     const dbPrev = { ...prevSet, id: "q", exerciseId: "bench-db", weight: 40, reps: 12 };
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet] }, "bench-db": { lastSets: [dbPrev] } } });
     await renderPage();
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
 
     await swapTo(/Bench Press \(DB\)/);
 
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("40kg × 12");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("40kg × 12");
   });
 
   it("saves the swap as the default for future workouts too when asked", async () => {
@@ -499,16 +499,26 @@ describe("WorkoutPage — last time and best", () => {
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: best } } });
     await renderPage();
 
-    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
     expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
   });
 
-  it("shows only last time when that was the best", async () => {
+  it("shows the best on set 1 when it was lifted on set 2 last time", async () => {
+    const set2 = { ...prevSet, id: "p2", setIndex: 1, weight: 110, reps: 6 };
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet, set2], bestSet: set2 } } });
+    await renderPage();
+
+    expect(within(activeSlide()).getByText("Last time").closest("div")).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
+  });
+
+  it("marks last time as the best when it was, instead of repeating it", async () => {
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: prevSet } } });
     await renderPage();
 
-    expect(within(activeSlide()).getByText("Last time")).toBeInTheDocument();
-    expect(within(activeSlide()).queryByText("Best")).toBeNull();
+    const row = within(activeSlide()).getByText("Last time").closest("div")!;
+    expect(row).toHaveTextContent("Best");
+    expect(within(activeSlide()).getAllByText("Best")).toHaveLength(1);
   });
 });
 
