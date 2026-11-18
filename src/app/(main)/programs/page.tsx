@@ -9,6 +9,7 @@ import { editProgramHref } from "@/lib/program-routes";
 import type { ProgramRow } from "@/lib/types";
 import ProgramCard from "@/components/programs/ProgramCard";
 import NewProgramSheet from "@/components/programs/NewProgramSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import { LibraryBig, Plus } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
 
@@ -77,9 +78,11 @@ export default function ProgramsPage() {
         <p className="text-center py-16 text-sm text-subtle">No programs yet.</p>
       )}
 
-      {naming && userId && (
-        <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
-      )}
+      <OverlayPresence>
+        {naming && userId && (
+          <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
+        )}
+      </OverlayPresence>
 
       {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} />}
       {available.length > 0 && <ProgramGroup title="Available to me" programs={available} />}

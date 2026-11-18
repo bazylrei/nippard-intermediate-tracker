@@ -13,6 +13,7 @@ import { dayLabel } from "@/lib/day-types";
 import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
 import WeekDayTile, { type DayStatus } from "@/components/program/WeekDayTile";
 import StartWorkoutSheet from "@/components/program/StartWorkoutSheet";
+import OverlayPresence from "@/components/OverlayPresence";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import BackToProfile from "@/components/BackToProfile";
@@ -148,15 +149,17 @@ export default function MyProgram() {
         </div>
       </div>
 
-      {choosing && choosingDay && (
-        <StartWorkoutSheet
-          week={choosing.week}
-          day={choosingDay}
-          unfinished={unfinished ? { label: dayLabel(unfinished.dayType), setCount: unfinished.setCount } : null}
-          onStart={(choice) => start(choosing, choice)}
-          onClose={() => setChoosing(null)}
-        />
-      )}
+      <OverlayPresence>
+        {choosing && choosingDay && (
+          <StartWorkoutSheet
+            week={choosing.week}
+            day={choosingDay}
+            unfinished={unfinished ? { label: dayLabel(unfinished.dayType), setCount: unfinished.setCount } : null}
+            onStart={(choice) => start(choosing, choice)}
+            onClose={() => setChoosing(null)}
+          />
+        )}
+      </OverlayPresence>
     </div>
   );
 }

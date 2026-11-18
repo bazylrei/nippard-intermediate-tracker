@@ -29,6 +29,14 @@ describe("overlay animation", () => {
     for (const cls of [".overlay-sheet", ".overlay-pop", ".overlay-card"]) expect(reduced).toContain(cls);
   });
 
+  it.each(["fade-out", "overlay-sheet-exit", "overlay-pop-exit"])("defines the %s exit keyframes", (name) => {
+    expect(css).toContain(`@keyframes ${name}`);
+  });
+
+  it.each([".overlay-backdrop", ".overlay-sheet", ".overlay-card", ".overlay-pop"])("animates %s out while closing", (cls) => {
+    expect(css).toContain(`[data-closing] ${cls}`);
+  });
+
   it.each(OVERLAYS)("%s animates its backdrop and panel (%s)", (file, panelClass) => {
     const src = readFileSync(file, "utf8");
     expect(src).toContain("overlay-backdrop");
