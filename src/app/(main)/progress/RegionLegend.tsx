@@ -3,7 +3,7 @@ import type { MuscleRegion } from "@/lib/muscle-regions";
 import type { WeekVolume } from "@/lib/volume";
 
 interface Props {
-  /** The week whose numbers are listed (the latest). */
+  /** The week whose numbers are listed (the one picked in the chart, else the latest). */
   week: WeekVolume;
   /** Regions shown in the chart, in their fixed order. */
   regions: { id: MuscleRegion; label: string }[];
