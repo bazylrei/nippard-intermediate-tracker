@@ -118,7 +118,7 @@ function ProgressContent() {
         </div>
       </div>
 
-      <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 pb-[calc(var(--app-nav-raise)+1rem)] md:pb-4">
+      <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-above-raised-tab">
         {tab === "exercise" && (
           <ExerciseTab
             options={exercisesWithData}

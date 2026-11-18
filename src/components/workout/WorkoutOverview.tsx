@@ -63,7 +63,7 @@ export default function WorkoutOverview({ week, dayType, exercises, onBegin, err
           </div>
         </div>
 
-        <div className="p-4 space-y-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
+        <div className="px-4 pt-4 pb-above-raised-tab space-y-2" style={{ borderTop: "1px solid color-mix(in srgb, var(--fg) 8%, transparent)" }}>
           {error}
           <button
             onClick={begin}
