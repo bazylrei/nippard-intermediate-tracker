@@ -15,7 +15,7 @@ interface Props {
   setIndex: number;
   isLastSet: boolean;
   previousSets: SetLog[];
-  /** All-time best, shown beside "Last time" when given. */
+  /** All-time best for the exercise, shown beside "Last time" when given. */
   bestSet?: SetLog;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;

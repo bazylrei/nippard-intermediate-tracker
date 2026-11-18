@@ -11,9 +11,19 @@ interface Props {
   weightPerSide: boolean;
 }
 
-/** "Last time" for this set, plus the all-time best when one is given. */
+/**
+ * "Last time" for this set, plus the all-time best. When last time's set is itself the best,
+ * it's one row marked as the best rather than a repeat of the same figures.
+ */
 export default function PreviousPerformance({ lastSet, bestSet, unit, weightPerSide }: Props) {
   if (!lastSet && !bestSet) return null;
+  const lastIsBest = !!lastSet && lastSet.id === bestSet?.id;
+
+  const bestLabel = (
+    <span className="flex items-center gap-1 text-xs text-primary">
+      <Trophy size={12} /> Best
+    </span>
+  );
 
   function figures(set: SetLog) {
     return (
@@ -31,15 +41,16 @@ export default function PreviousPerformance({ lastSet, bestSet, unit, weightPerS
     >
       {lastSet && (
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted">Last time</span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-muted">Last time</span>
+            {lastIsBest && bestLabel}
+          </span>
           {figures(lastSet)}
         </div>
       )}
-      {bestSet && (
+      {bestSet && !lastIsBest && (
         <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1 text-xs text-primary">
-            <Trophy size={12} /> Best
-          </span>
+          {bestLabel}
           {figures(bestSet)}
         </div>
       )}
