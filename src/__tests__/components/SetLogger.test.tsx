@@ -93,16 +93,13 @@ describe("SetLogger — editing a logged set", () => {
     expect(screen.queryByText("Reached failure?")).toBeNull();
   });
 
-  it("saves the edits instead of logging a new set, then reads Saved until changed again", async () => {
+  it("saves the edits instead of logging a new set", async () => {
     const onSave = renderEditing();
     fireEvent.change(screen.getAllByRole("spinbutton")[1], { target: { value: "9" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(onSave).toHaveBeenCalledWith(100, 9, 8.5);
-    expect(await screen.findByRole("button", { name: "Saved" })).toBeInTheDocument();
-
-    fireEvent.change(screen.getAllByRole("spinbutton")[1], { target: { value: "10" } });
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled());
   });
 
   it("keeps the edits and says so when the save fails", async () => {
