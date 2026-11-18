@@ -80,13 +80,12 @@ export function clearWorkoutInProgress(): void {
 }
 
 /**
- * The all-time best set, but only when it's heavier than everything in the
- * last session — otherwise "Last time" already shows it.
+ * The all-time best set, shown on every set so you always know your top lift for the exercise —
+ * except when it's the very set "Last time" already shows.
  */
-export function bestSetToShow({ lastSets, bestSet }: ExerciseRecord): SetLog | undefined {
-  if (!bestSet) return undefined;
-  const lastTop = Math.max(0, ...lastSets.map((s) => s.weight));
-  return bestSet.weight > lastTop ? bestSet : undefined;
+export function bestSetToShow(bestSet: SetLog | undefined, lastSet: SetLog | undefined): SetLog | undefined {
+  if (!bestSet || bestSet.id === lastSet?.id) return undefined;
+  return bestSet;
 }
 
 const NO_RECORD: ExerciseRecord = { lastSets: [] };

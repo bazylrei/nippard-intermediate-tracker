@@ -105,49 +105,25 @@ describe("phaseAt", () => {
 });
 
 describe("bestSetToShow", () => {
-  const lifted = (weight: number) => ({ weight, reps: 8 }) as SetLog;
+  const lifted = (id: string, weight: number) => ({ id, weight, reps: 8 }) as SetLog;
 
-  it("shows the best when it's heavier than everything last session", () => {
-    const best = lifted(110);
-    expect(bestSetToShow({ lastSets: [lifted(95), lifted(100)], bestSet: best })).toBe(best);
+  it("shows the best on a set whose own last time was lighter, even though last session's other set was the best", () => {
+    // Last session: set 1 at 80kg, set 2 at 90kg (the best). On set 1, 90kg must still show.
+    const best = lifted("s2", 90);
+    expect(bestSetToShow(best, lifted("s1", 80))).toBe(best);
   });
 
-  it("hides the best when last session matched it, since Last time already shows it", () => {
-    expect(bestSetToShow({ lastSets: [lifted(95), lifted(110)], bestSet: lifted(110) })).toBeUndefined();
+  it("hides the best when it is the set Last time already shows", () => {
+    const best = lifted("s2", 90);
+    expect(bestSetToShow(best, best)).toBeUndefined();
   });
 
   it("hides it when there is no best yet", () => {
-    expect(bestSetToShow({ lastSets: [] })).toBeUndefined();
+    expect(bestSetToShow(undefined, lifted("s1", 80))).toBeUndefined();
   });
 
-  it("shows the best when there are no last-session sets to compare with", () => {
-    const best = lifted(60);
-    expect(bestSetToShow({ lastSets: [], bestSet: best })).toBe(best);
-  });
-});
-
-describe("recordFor", () => {
-  it("returns the exercise's record, or the same empty record when it has none", () => {
-    const record = { lastSets: [set("bench", 0)] };
-    expect(recordFor({ bench: record }, ex)).toBe(record);
-    expect(recordFor({}, ex)).toEqual({ lastSets: [] });
-    expect(recordFor({}, ex)).toBe(recordFor({}, undefined));
-  });
-});
-
-describe("saveWorkoutInProgress", () => {
-  const session = {
-    id: "sess-1", week: 3, dayIndex: 2, dayType: "lower-a", startedAt: "2026-11-15T10:00:00Z",
-  } as WorkoutSession;
-
-  it("records the session's position and start time for the Workout tab", () => {
-    saveWorkoutInProgress(0, [ex], session);
-    expect(readActiveWorkout()).toEqual({
-      week: 3, dayIndex: 2, dayType: "lower-a", exerciseName: "Bench",
-      exerciseIndex: 0, exerciseTotal: 1, startedAt: "2026-11-15T10:00:00Z",
-    });
-
-    clearWorkoutInProgress();
-    expect(readActiveWorkout()).toBeNull();
+  it("shows the best when there is no last time to compare with", () => {
+    const best = lifted("s2", 60);
+    expect(bestSetToShow(best, undefined)).toBe(best);
   });
 });

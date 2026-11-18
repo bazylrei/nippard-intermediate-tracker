@@ -503,6 +503,15 @@ describe("WorkoutPage — last time and best", () => {
     expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
   });
 
+  it("shows the best on set 1 when it was lifted on set 2 last time", async () => {
+    const set2 = { ...prevSet, id: "p2", setIndex: 1, weight: 110, reps: 6 };
+    bootWith({ recordsByExercise: { bench: { lastSets: [prevSet, set2], bestSet: set2 } } });
+    await renderPage();
+
+    expect(within(activeSlide()).getByText("Last time").parentElement).toHaveTextContent("100kg × 8");
+    expect(within(activeSlide()).getByText("Best").parentElement).toHaveTextContent("110kg × 6");
+  });
+
   it("shows only last time when that was the best", async () => {
     bootWith({ recordsByExercise: { bench: { lastSets: [prevSet], bestSet: prevSet } } });
     await renderPage();
