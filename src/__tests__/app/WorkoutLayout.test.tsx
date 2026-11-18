@@ -34,6 +34,15 @@ describe("WorkoutLayout", () => {
   });
 });
 
+describe("single scroll pane", () => {
+  it("never scrolls the workout viewport itself, so pages own their scrolling", () => {
+    const { container } = render(<WorkoutLayout><p>workout</p></WorkoutLayout>);
+    const viewport = container.querySelector(".workout-viewport");
+    expect(viewport).toHaveClass("overflow-hidden");
+    expect(viewport).not.toHaveClass("overflow-y-auto");
+  });
+});
+
 describe("rest bar placement", () => {
   it("overlays the rest bar on the other tabs", () => {
     const { container } = render(<MainLayout><p>home</p></MainLayout>);
