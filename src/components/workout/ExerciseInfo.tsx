@@ -2,6 +2,7 @@
 
 import type { Exercise } from "@/lib/types";
 import { Repeat2, ExternalLink, Info } from "lucide-react";
+import VideoLink from "@/components/VideoLink";
 
 interface Props {
   /** The exercise being done: the slot's own, or the alternate chosen for it. */
@@ -62,15 +63,10 @@ export default function ExerciseInfo({ exercise, originalExercise, canSwap, note
       )}
 
       {exercise.youtubeUrl && (
-        <a
-          href={exercise.youtubeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-subtle hover:text-danger transition-colors"
-        >
+        <VideoLink url={exercise.youtubeUrl} className="inline-flex items-center gap-1.5 text-xs text-subtle hover:text-danger transition-colors">
           <ExternalLink size={13} />
           Watch tutorial
-        </a>
+        </VideoLink>
       )}
     </>
   );
