@@ -17,14 +17,14 @@ interface Props {
   record: ExerciseRecord;
   unit: "kg" | "lbs";
   onLog: (weight: number, reps: number, rpe: number | null, failureHit: boolean | null) => void;
-  onView: (set: SetLog) => void;
+  onEdit: (set: SetLog) => void;
 }
 
 /**
  * An exercise as carousel slides: an optional warm-up, then each working set —
  * logged, being logged now, or still to come.
  */
-export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, record, unit, onLog, onView }: Props) {
+export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup, loggedSets, record, unit, onLog, onEdit }: Props) {
   const totalSets = totalSetsForExercise(exercise);
   const offset = warmup ? 1 : 0;
   const activeIndex = currentSetIndex === null ? 0 : currentSetIndex + offset;
@@ -38,7 +38,7 @@ export default function ExerciseSetCarousel({ exercise, currentSetIndex, warmup,
           setNumber={index + 1}
           unit={unit}
           weightPerSide={exercise.weightPerSide}
-          onView={() => onView(logged)}
+          onEdit={() => onEdit(logged)}
         />
       );
     }
