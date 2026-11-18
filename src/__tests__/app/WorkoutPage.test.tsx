@@ -147,7 +147,7 @@ describe("WorkoutPage save failures are visible, never silent", () => {
     db.deleteWorkoutSession.mockRejectedValue(new Error("offline"));
     await renderPage();
 
-    await click(screen.getByTitle("Discard workout"));
+    await click(screen.getByRole("button", { name: "Finish workout" }));
     await click(screen.getByRole("button", { name: "Discard" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't discard the workout");
@@ -220,16 +220,28 @@ describe("WorkoutPage — finishing early", () => {
     workoutDay = { dayType: "upper-a", exercises: [exercise("bench", "Bench Press"), exercise("fly", "Cable Fly")] };
   });
 
-  it("can't finish before anything is logged", async () => {
+  it("can only be discarded, not finished, before anything is logged", async () => {
     await renderPage();
-    expect(screen.queryByRole("button", { name: "Finish workout" })).toBeNull();
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    expect(screen.queryByRole("button", { name: "Finish" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeInTheDocument();
+  });
+
+  it("discards the workout and goes home", async () => {
+    await renderPage();
+    await click(screen.getByRole("button", { name: "Finish workout" }));
+    await click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(db.deleteWorkoutSession).toHaveBeenCalledWith("sess-1");
+    expect(router.push).toHaveBeenCalledWith("/");
+    expect(localStorage.getItem("workout_cache_active_workout")).toBeNull();
   });
 
   it("finishes with only some exercises done, showing the done screen", async () => {
     bootWith({ sessionSets: [{ id: "w1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null }] });
     await renderPage();
     await click(screen.getByRole("button", { name: "Finish workout" }));
-    expect(screen.getByText("Finish now with 1 set logged?")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Finish workout" })).toHaveTextContent("You've logged 1 set");
     await click(screen.getByRole("button", { name: "Finish" }));
 
     expect(await screen.findByText("Workout Complete!")).toBeInTheDocument();
@@ -466,10 +478,12 @@ describe("WorkoutPage — swapping to an alternate exercise", () => {
 // ─── Leaving the workout ─────────────────────────────────────────────────────
 
 describe("WorkoutPage — no back button (the tab bar leaves the workout)", () => {
-  it("has no go-home button in the workout header, only Discard", async () => {
+  it("has no go-home or discard button in the workout header; leaving is through Finish workout", async () => {
     await renderPage();
     expect(screen.queryByTitle("Go home")).toBeNull();
-    expect(screen.getByTitle("Discard workout")).toBeInTheDocument();
+    expect(screen.queryByTitle("Discard workout")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard" })).toBeNull(); // only inside the dialog
+    expect(screen.getByRole("button", { name: "Finish workout" })).toBeInTheDocument();
   });
 
   it("has no back button on the overview, only Begin Workout", async () => {
