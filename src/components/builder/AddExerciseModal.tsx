@@ -33,8 +33,8 @@ export default function AddExerciseModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
-      <div className="bg-surface border border-border rounded-2xl w-full max-w-sm p-5 space-y-3 max-h-[80vh] flex flex-col">
+    <div className="overlay-backdrop fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 p-4">
+      <div className="overlay-card bg-surface border border-border rounded-2xl w-full max-w-sm p-5 space-y-3 max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between shrink-0">
           <h2 className="font-semibold text-fg text-sm">Add Exercise</h2>
           <button onClick={onClose} className="text-subtle hover:text-fg"><X size={18} /></button>

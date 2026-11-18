@@ -40,14 +40,14 @@ export default function NewProgramSheet({ onCreate, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="overlay-backdrop fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: "color-mix(in srgb, var(--bg) 60%, transparent)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
       onClick={(e) => { if (e.target === e.currentTarget && !creating) onClose(); }}
     >
       <form
         onSubmit={create}
         aria-label="New program"
-        className="w-full max-w-lg glass-strong gloss rounded-t-3xl p-6 space-y-4"
+        className="overlay-sheet w-full max-w-lg glass-strong gloss rounded-t-3xl p-6 space-y-4"
         style={{ boxShadow: "0 -4px 40px color-mix(in srgb, var(--bg) 50%, transparent), 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent)" }}
       >
         <div className="flex items-start justify-between gap-3">
