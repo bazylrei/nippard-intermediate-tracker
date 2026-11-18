@@ -25,6 +25,23 @@ describe("SocialButtons", () => {
     expect(screen.getByRole("separator", { name: "or" })).toBeInTheDocument();
   });
 
+  it("offers Apple beside Google, each starting its own sign-in", async () => {
+    auth.getEnabledSocialProviders.mockResolvedValue(["google", "apple"]);
+    const onChoose = await renderButtons();
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Continue with Google", "Continue with Apple"]);
+
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Continue with Apple/ })); });
+    expect(onChoose).toHaveBeenCalledWith("apple");
+  });
+
+  it("offers only Apple when Google is off", async () => {
+    auth.getEnabledSocialProviders.mockResolvedValue(["apple"]);
+    await renderButtons();
+    expect(screen.queryByRole("button", { name: /Google/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Continue with Apple/ })).toBeInTheDocument();
+  });
+
   it("shows nothing at all while no provider is switched on, so no button can lead to an error page", async () => {
     auth.getEnabledSocialProviders.mockResolvedValue([]);
     await renderButtons();

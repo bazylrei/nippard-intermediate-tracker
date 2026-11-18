@@ -120,6 +120,12 @@ describe("signInWithProvider", () => {
     expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "google", options: { redirectTo: `${window.location.origin}/auth/callback` } });
   });
 
+  it("does the same for Apple", async () => {
+    signInWithOAuth.mockResolvedValue({ error: null });
+    await signInWithProvider("apple");
+    expect(signInWithOAuth).toHaveBeenCalledWith({ provider: "apple", options: { redirectTo: `${window.location.origin}/auth/callback` } });
+  });
+
   it("throws the Auth error when it can't start", async () => {
     signInWithOAuth.mockResolvedValue({ error: new Error("provider is not enabled") });
     await expect(signInWithProvider("google")).rejects.toThrow("provider is not enabled");
@@ -131,17 +137,22 @@ describe("getEnabledSocialProviders", () => {
     vi.fn().mockResolvedValue({ ok, json: async () => ({ external }) });
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-  it("lists the providers switched on in Supabase that the app has a button for", async () => {
+  it("lists the providers switched on in Supabase, in the order the app shows them", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
     const fetchMock = settings({ email: true, google: true, apple: true });
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await getEnabledSocialProviders()).toEqual(["google"]); // Apple is on, but the app has no button yet
+    expect(await getEnabledSocialProviders()).toEqual(["google", "apple"]);
     expect(fetchMock).toHaveBeenCalledWith("https://example.supabase.co/auth/v1/settings", { headers: { apikey: "anon-key" } });
   });
 
-  it("lists none while Google is off, so no button leads to an error page", async () => {
+  it("lists only the providers that are on, so no button leads to an error page", async () => {
+    vi.stubGlobal("fetch", settings({ email: true, google: false, apple: true }));
+    expect(await getEnabledSocialProviders()).toEqual(["apple"]);
+  });
+
+  it("lists none while every provider is off", async () => {
     vi.stubGlobal("fetch", settings({ email: true, google: false }));
     expect(await getEnabledSocialProviders()).toEqual([]);
   });

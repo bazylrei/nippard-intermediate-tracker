@@ -21,11 +21,11 @@ export async function signIn(email: string, password: string): Promise<void> {
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 
 /**
- * The providers the app has a button for. Adding one (Apple, later) is a line
- * here, its icon, and switching it on in Supabase.
+ * The providers the app has a button for. Adding one is a line here, its icon,
+ * and switching it on in Supabase.
  */
-export type SocialProvider = "google";
-export const SOCIAL_PROVIDERS: SocialProvider[] = ["google"];
+export type SocialProvider = "google" | "apple";
+export const SOCIAL_PROVIDERS: SocialProvider[] = ["google", "apple"];
 
 export const RESET_PASSWORD_PATH = "/auth/reset";
 
