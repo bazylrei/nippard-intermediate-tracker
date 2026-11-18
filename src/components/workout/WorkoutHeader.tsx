@@ -1,7 +1,7 @@
 "use client";
 
 import { dayLabel } from "@/lib/day-types";
-import { List, X } from "lucide-react";
+import { List } from "lucide-react";
 import WorkoutTimer from "./WorkoutTimer";
 
 interface Props {
@@ -11,16 +11,11 @@ interface Props {
   exerciseIndex: number;
   exerciseCount: number;
   isDone: (index: number) => boolean;
-  confirmDiscard: boolean;
   onOpenList: () => void;
-  onAskDiscard: () => void;
-  onCancelDiscard: () => void;
-  onDiscard: () => void;
 }
 
 export default function WorkoutHeader({
-  week, dayType, startedAt, exerciseIndex, exerciseCount, isDone, confirmDiscard,
-  onOpenList, onAskDiscard, onCancelDiscard, onDiscard,
+  week, dayType, startedAt, exerciseIndex, exerciseCount, isDone, onOpenList,
 }: Props) {
   const exercises = Array.from({ length: exerciseCount });
   return (
@@ -60,28 +55,6 @@ export default function WorkoutHeader({
             Exercise {exerciseIndex + 1} of {exerciseCount}
           </p>
         </div>
-        {/* Back / discard */}
-        {confirmDiscard ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={onDiscard}
-              className="text-xs font-display font-semibold text-danger cursor-pointer"
-            >
-              Discard
-            </button>
-            <button onClick={() => onCancelDiscard()} className="text-muted hover:text-fg cursor-pointer">
-              <X size={16} />
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => onAskDiscard()}
-            className="text-xs text-subtle hover:text-danger transition-colors cursor-pointer font-display shrink-0"
-            title="Discard workout"
-          >
-            Discard
-          </button>
-        )}
       </div>
   );
 }

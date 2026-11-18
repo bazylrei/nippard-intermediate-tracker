@@ -45,7 +45,6 @@ function WorkoutContent() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [showExerciseList, setShowExerciseList] = useState(false);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [recordsByExercise, setRecordsByExercise] = useState<Record<string, ExerciseRecord>>({});
   const saveError = useSaveError();
@@ -110,10 +109,7 @@ function WorkoutContent() {
   }
 
   async function handleDiscard() {
-    if (session && !(await saveError.attempt(() => deleteWorkoutSession(session.id), "Couldn't discard the workout. Try again."))) {
-      setConfirmDiscard(false);
-      return;
-    }
+    if (session && !(await saveError.attempt(() => deleteWorkoutSession(session.id), "Couldn't discard the workout. Try again."))) return;
     clearWorkoutInProgress();
     router.push("/");
   }
@@ -184,11 +180,7 @@ function WorkoutContent() {
         exerciseIndex={exerciseIndex}
         exerciseCount={resolvedExercises.length}
         isDone={progress.isExerciseDone}
-        confirmDiscard={confirmDiscard}
         onOpenList={() => setShowExerciseList(true)}
-        onAskDiscard={() => setConfirmDiscard(true)}
-        onCancelDiscard={() => setConfirmDiscard(false)}
-        onDiscard={handleDiscard}
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-4 pb-above-raised-tab space-y-5">
@@ -234,7 +226,7 @@ function WorkoutContent() {
         </section>
 
         <SkipExerciseButton onSkip={progress.skipExercise} />
-        <FinishWorkoutButton setCount={sessionSets.filter((s) => s.setIndex >= 0).length} onFinish={progress.finishWorkout} />
+        <FinishWorkoutButton setCount={sessionSets.filter((s) => s.setIndex >= 0).length} onFinish={progress.finishWorkout} onDiscard={handleDiscard} />
       </div>
 
       <OverlayPresence>{swapSheet && <ExerciseSwapSheet {...swapSheet} />}</OverlayPresence>
