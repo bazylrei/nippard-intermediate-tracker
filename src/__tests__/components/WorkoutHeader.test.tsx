@@ -13,11 +13,7 @@ function renderHeader() {
       exerciseIndex={1}
       exerciseCount={7}
       isDone={() => false}
-      confirmDiscard={false}
       onOpenList={() => {}}
-      onAskDiscard={() => {}}
-      onCancelDiscard={() => {}}
-      onDiscard={() => {}}
     />
   );
 }
