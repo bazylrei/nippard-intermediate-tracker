@@ -6,6 +6,8 @@
   --app-nav-h:  calc(4rem + env(safe-area-inset-bottom));
   /* How far the centre Workout tab rises above the tab bar. */
   --app-nav-raise: 2rem;
+  /* Bottom padding of the (main) layout: clears the tab bar and its raised Workout tab. */
+  --app-nav-clear: calc(var(--app-nav-h) + var(--app-nav-raise) + 1rem);
   --bg:         #F0EFE9;
   --surface:    #FAFAF8;
   --elevated:   #E8E7E0;
@@ -202,6 +204,15 @@ body {
   .workout-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-h) - var(--app-nav-raise)); }
   @media (min-width: 48rem) {
     .workout-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
+  }
+
+  /* A (main) page that scrolls inside itself: exactly the room the layout leaves, so the document never scrolls too. */
+  .main-viewport { height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-clear)); }
+  /* A (main) page that fills the screen but may grow past it, so only the document scrolls. */
+  .main-min-viewport { min-height: calc(100dvh - env(safe-area-inset-top) - var(--app-nav-clear)); }
+  @media (min-width: 48rem) {
+    .main-viewport { height: calc(100dvh - env(safe-area-inset-top)); }
+    .main-min-viewport { min-height: calc(100dvh - env(safe-area-inset-top)); }
   }
 }
 

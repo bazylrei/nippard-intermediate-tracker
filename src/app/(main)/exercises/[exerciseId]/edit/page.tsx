@@ -28,7 +28,7 @@ function EditExercise() {
   }
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <header className="flex items-center gap-2 pt-2">
         <BackLink href={exerciseHref(id)} label="Back to exercise" />
         <h1 className="font-display font-bold text-xl text-fg">Edit exercise</h1>

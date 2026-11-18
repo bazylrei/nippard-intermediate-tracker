@@ -30,7 +30,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
       <header className="flex items-center gap-3 pt-2">
         <div className="w-12 h-12 glass gloss rounded-full flex items-center justify-center">
           <UserRound className="text-primary" size={24} />
