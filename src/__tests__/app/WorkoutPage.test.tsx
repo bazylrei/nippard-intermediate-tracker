@@ -529,7 +529,7 @@ describe("WorkoutPage — set carousel", () => {
 
     await click(screen.getByRole("button", { name: /Log Set/ }));
     // A logged set stays reachable from its carousel card, not from a tile.
-    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /View set/ })).toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /Edit set/ })).toBeInTheDocument();
   });
 
   it("keeps a logged set swipeable and editable after advancing", async () => {
@@ -538,8 +538,24 @@ describe("WorkoutPage — set carousel", () => {
 
     const firstSet = screen.getByRole("group", { name: "Set 1 of 2" });
     expect(firstSet).toHaveTextContent("100kg × 8");
-    await click(within(firstSet).getByRole("button", { name: /View set/ }));
-    expect(screen.getByRole("heading", { name: "Set 1" })).toBeInTheDocument(); // SetDetailSheet open
+    await click(within(firstSet).getByRole("button", { name: /Edit set/ }));
+    expect(screen.getByRole("heading", { name: "Set 1" })).toBeInTheDocument(); // SetEditSheet open…
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument(); // …straight in edit mode, no read-only step
+  });
+
+  it("edits a logged set in place: the sheet closes and the card shows the new numbers", async () => {
+    db.updateSetLog.mockResolvedValue(undefined);
+    await renderPage();
+    await click(screen.getByRole("button", { name: /Log Set/ }));
+
+    await click(within(screen.getByRole("group", { name: "Set 1 of 2" })).getByRole("button", { name: /Edit set/ }));
+    const inputs = screen.getAllByRole("spinbutton"); // the sheet is last: [weight, reps]
+    fireEvent.change(inputs[inputs.length - 2], { target: { value: "105" } });
+    await click(screen.getByRole("button", { name: /Save/ }));
+
+    expect(db.updateSetLog).toHaveBeenCalledWith(expect.any(String), 105, 8, null);
+    expect(screen.queryByRole("heading", { name: "Set 1" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Set 1 of 2" })).toHaveTextContent("105kg × 8");
   });
 
   it("logs the first working set (not a warm-up index) for an exercise with no warm-up", async () => {
