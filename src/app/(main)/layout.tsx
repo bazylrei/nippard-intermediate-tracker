@@ -11,7 +11,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <AppNav />
       </Suspense>
       {/* Bottom padding keeps content clear of the tab bar and its raised Workout tab. */}
-      <div className="md:pl-56 pb-[calc(var(--app-nav-h)+var(--app-nav-raise)+1rem)] md:pb-0">
+      <div className="md:pl-56 pb-[var(--app-nav-clear)] md:pb-0">
         <OnboardingGate>{children}</OnboardingGate>
       </div>
     </>

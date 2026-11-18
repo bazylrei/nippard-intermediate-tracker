@@ -45,7 +45,7 @@ export default function ProgramsPage() {
   const available = (programs ?? []).filter((p) => !canEditProgram(p, userId));
 
   return (
-    <div className="min-h-screen max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-6">
+    <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-6">
       <div className="flex items-center gap-2 pt-2">
         <BackToProfile />
         <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">

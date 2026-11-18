@@ -109,7 +109,7 @@ function ProgressContent() {
   if (status === "error") return <FullScreenMessage message="Couldn't load your progress. Check your connection and try again." />;
 
   return (
-    <div className="h-dvh max-w-lg md:max-w-3xl mx-auto flex flex-col">
+    <div className="main-viewport max-w-lg md:max-w-3xl mx-auto flex flex-col">
       <div className="flex items-center px-4 pt-4 pb-3 border-b border-border">
         <h1 className="font-display font-bold text-xl tracking-wide text-fg">Progress</h1>
       </div>
