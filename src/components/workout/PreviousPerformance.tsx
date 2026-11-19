@@ -12,12 +12,13 @@ interface Props {
 }
 
 /**
- * "Last time" for this set, plus the all-time best. When last time's set is itself the best,
- * it's one row marked as the best rather than a repeat of the same figures.
+ * "Last time" for this set, plus the all-time best. When last time matches the best (the same
+ * set, or another set with the same weight and reps), it's one row marked as the best rather
+ * than a repeat of the same figures.
  */
 export default function PreviousPerformance({ lastSet, bestSet, unit, weightPerSide }: Props) {
   if (!lastSet && !bestSet) return null;
-  const lastIsBest = !!lastSet && lastSet.id === bestSet?.id;
+  const lastIsBest = !!lastSet && !!bestSet && (lastSet.id === bestSet.id || (lastSet.weight === bestSet.weight && lastSet.reps === bestSet.reps));
 
   const bestLabel = (
     <span className="flex items-center gap-1 text-xs text-primary">
