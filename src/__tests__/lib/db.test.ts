@@ -29,7 +29,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
-  getPreferences, saveExerciseNote, getRecentWorkouts,
+  getPreferences, upsertPreferences, getRecentWorkouts,
 } from "@/lib/db";
 
 beforeEach(() => {
@@ -92,47 +92,16 @@ describe("getPreferences", () => {
   });
 });
 
-// ─── saveExerciseNote ──────────────────────────────────────────────────────────
+// ─── upsertPreferences: notes ──────────────────────────────────────────────────
 
-describe("saveExerciseNote", () => {
-  it("calls upsert with current notes merged with the new note", async () => {
-    const current = { "ex-existing": "old note" };
-    await saveExerciseNote("user-1", "ex-new", "my note", current);
+describe("upsertPreferences — exercise notes", () => {
+  it("writes the whole notes map under exercise_notes (what the client merged), touching nothing else", async () => {
+    await upsertPreferences("user-1", { exerciseNotes: { "ex-1": "note 1", "ex-2": "note 2" } });
 
     expect(mockUpsert).toHaveBeenCalledWith(
-      {
-        user_id: "user-1",
-        exercise_notes: { "ex-existing": "old note", "ex-new": "my note" },
-      },
+      { user_id: "user-1", exercise_notes: { "ex-1": "note 1", "ex-2": "note 2" } },
       { onConflict: "user_id" }
     );
-  });
-
-  it("preserves existing notes while adding a new one", async () => {
-    const current = { "ex-1": "note 1", "ex-2": "note 2" };
-    await saveExerciseNote("user-1", "ex-3", "note 3", current);
-
-    const upsertArg = mockUpsert.mock.calls[0][0] as { exercise_notes: Record<string, string> };
-    expect(upsertArg.exercise_notes).toEqual({
-      "ex-1": "note 1",
-      "ex-2": "note 2",
-      "ex-3": "note 3",
-    });
-  });
-
-  it("overwrites an existing note for the same exerciseId", async () => {
-    const current = { "ex-1": "old note" };
-    await saveExerciseNote("user-1", "ex-1", "updated note", current);
-
-    const upsertArg = mockUpsert.mock.calls[0][0] as { exercise_notes: Record<string, string> };
-    expect(upsertArg.exercise_notes).toEqual({ "ex-1": "updated note" });
-  });
-
-  it("works with an empty current object", async () => {
-    await saveExerciseNote("user-1", "ex-1", "first note", {});
-
-    const upsertArg = mockUpsert.mock.calls[0][0] as { exercise_notes: Record<string, string> };
-    expect(upsertArg.exercise_notes).toEqual({ "ex-1": "first note" });
   });
 });
 

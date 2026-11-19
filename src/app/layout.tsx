@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Barlow } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { PreferencesProvider } from "@/context/PreferencesContext";
 import { ProgramProvider } from "@/context/ProgramContext";
 import { RestTimerProvider } from "@/context/RestTimerContext";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
@@ -53,9 +54,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-bg text-fg safe-top">
         <AuthProvider>
-          <RestTimerProvider>
-            <ProgramProvider>{children}</ProgramProvider>
-          </RestTimerProvider>
+          <PreferencesProvider>
+            <RestTimerProvider>
+              <ProgramProvider>{children}</ProgramProvider>
+            </RestTimerProvider>
+          </PreferencesProvider>
         </AuthProvider>
       </body>
     </html>

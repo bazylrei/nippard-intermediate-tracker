@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@/test-utils/render";
+import { renderHook, waitFor } from "@/test-utils/render-with-prefs";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
 const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));

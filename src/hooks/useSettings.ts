@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRequireUser } from "@/context/AuthContext";
-import { getLatestBodyWeight, getPreferences, logBodyWeight, upsertPreferences } from "@/lib/db";
+import { getLatestBodyWeight, logBodyWeight } from "@/lib/db";
+import { usePreferences } from "@/context/PreferencesContext";
 import { localYmd } from "@/lib/dates";
-import { cachePrefs, DEFAULT_PREFS, readCachedPrefs } from "@/lib/prefs-cache";
 import type { BodyWeightLog, UserPreferences } from "@/lib/types";
 import { useSaveError } from "./useSaveError";
 
@@ -20,39 +20,21 @@ export function useSettings() {
   const userId = user?.id ?? null;
   const saveError = useSaveError();
   const { attempt } = saveError;
-  const [status, setStatus] = useState<SettingsStatus>("loading");
-  const [prefs, setPrefs] = useState<UserPreferences>(() => readCachedPrefs() ?? DEFAULT_PREFS);
+  const { prefs, ready, failed, save } = usePreferences();
+  const [weightStatus, setWeightStatus] = useState<"loading" | "ready" | "error">("loading");
   const [bodyWeight, setBodyWeight] = useState<BodyWeightLog | null>(null);
+  const status: SettingsStatus = failed || weightStatus === "error" ? "error" : ready && weightStatus === "ready" ? "ready" : "loading";
 
   useEffect(() => {
     if (!userId) return;
-    async function load(id: string) {
-      try {
-        const [loadedPrefs, latestWeight] = await Promise.all([getPreferences(id), getLatestBodyWeight(id)]);
-        setPrefs(loadedPrefs);
-        setBodyWeight(latestWeight);
-        cachePrefs(loadedPrefs);
-        setStatus("ready");
-      } catch (error) {
-        console.error(error);
-        setStatus("error");
-      }
-    }
-    void load(userId);
+    getLatestBodyWeight(userId)
+      .then((latest) => { setBodyWeight(latest); setWeightStatus("ready"); })
+      .catch((error) => { console.error(error); setWeightStatus("error"); });
   }, [userId]);
 
-  function applyPrefs(next: UserPreferences) {
-    setPrefs(next);
-    cachePrefs(next);
-  }
-
-  /** Optimistic: shows the change at once, reverts it and says so if the save fails. */
+  /** Optimistic (the provider shows the change at once and reverts it if saving fails); the failure is reported here. */
   async function savePrefs(patch: Partial<UserPreferences>, failureMessage: string) {
-    if (!userId) return;
-    const previous = prefs;
-    applyPrefs({ ...prefs, ...patch });
-    const ok = await attempt(() => upsertPreferences(userId, patch), failureMessage);
-    if (!ok) applyPrefs(previous);
+    await attempt(() => save(patch), failureMessage);
   }
 
   const changeUnit = (unit: UserPreferences["unit"]) =>

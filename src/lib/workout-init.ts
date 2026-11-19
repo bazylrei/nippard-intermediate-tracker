@@ -1,14 +1,12 @@
 import {
-  createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
+  createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises,
 } from "./db";
-import { cachePrefs } from "./prefs-cache";
-import { exerciseOptions, mergeChoices } from "./alternates";
+import { exerciseOptions, mergeChoices, type ExerciseChoices } from "./alternates";
 import { phaseAt, resolveExercises, saveWorkoutInProgress, type WorkoutPhase } from "./workout-helpers";
-import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession } from "./types";
+import type { Exercise, ExerciseRecord, SetLog, WorkoutSession } from "./types";
 
 
 export interface WorkoutBootstrap {
-  prefs: UserPreferences;
   /** The unfinished session being resumed; null for a new workout, which gets one only once it's begun. */
   session: WorkoutSession | null;
   sessionSets: SetLog[];
@@ -21,25 +19,25 @@ export interface WorkoutBootstrap {
 
 interface Params {
   userId: string;
+  /** The user's saved default alternates, to name today's exercise on the Workout tab. */
+  alternateSelections: ExerciseChoices;
   week: number;
   dayIndex: number;
   /** The scheduled day being trained — callers must not start a workout for a day that doesn't exist. */
   workoutDay: { dayType: string; exercises: Exercise[] };
 }
 
-export async function bootstrapWorkout({ userId, week, dayIndex, workoutDay }: Params): Promise<WorkoutBootstrap> {
+export async function bootstrapWorkout({ userId, alternateSelections, week, dayIndex, workoutDay }: Params): Promise<WorkoutBootstrap> {
   const { exercises } = workoutDay;
   // Everything the page needs, in one parallel round trip.
   // A slot can be done as its own exercise or either alternate, and swapped before the first set,
   // so load last-time and best for all of them in the same round trip.
   const exerciseIds = [...new Set(exercises.flatMap((ex) => exerciseOptions(ex).map((option) => option.id)))];
-  const [prefs, existing, lastSets, bestSets] = await Promise.all([
-    getPreferences(userId),
+  const [existing, lastSets, bestSets] = await Promise.all([
     getIncompleteSessionWithSets(userId),
     getLastSetsForExercises(exerciseIds),
     getBestSetsForExercises(exerciseIds),
   ]);
-  cachePrefs(prefs);
 
   const resumable = !!existing && existing.session.week === week && existing.session.dayIndex === dayIndex
     && existing.session.currentExerciseIndex < exercises.length;
@@ -47,13 +45,13 @@ export async function bootstrapWorkout({ userId, week, dayIndex, workoutDay }: P
   const recordsByExercise = mergeRecords(lastSets, bestSets);
   if (!resumable) {
     // Opening a day only shows it: the session (and its timer) starts when the workout is begun.
-    return { prefs, session: null, sessionSets: [], recordsByExercise, exerciseIndex: 0, setIndex: 0, phase: "overview" };
+    return { session: null, sessionSets: [], recordsByExercise, exerciseIndex: 0, setIndex: 0, phase: "overview" };
   }
 
   const session = existing.session;
-  saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, mergeChoices(prefs.alternateSelections, session.exerciseSwaps)), session);
+  saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, mergeChoices(alternateSelections, session.exerciseSwaps)), session);
   return {
-    prefs, session, sessionSets: existing.sets, recordsByExercise,
+    session, sessionSets: existing.sets, recordsByExercise,
     exerciseIndex: session.currentExerciseIndex, setIndex: session.currentSetIndex, phase: phaseAt(session.currentSetIndex),
   };
 }
