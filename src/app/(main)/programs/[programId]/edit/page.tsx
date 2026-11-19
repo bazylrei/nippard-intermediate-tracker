@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import {
   getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic,
   getAllExercises, addProgramWeek, addProgramDay, addExerciseToDay, duplicateProgramWeek,
@@ -43,7 +43,7 @@ function PageSkeleton() {
 function ProgramEditorPage() {
   const { programId } = useParams<{ programId: string }>();
   const router = useRouter();
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useRequireUser()?.id ?? null;
   const [program, setProgram] = useState<BuilderProgram | null>(null);
   const [allExercises, setAllExercises] = useState<ExerciseInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,22 +63,21 @@ function ProgramEditorPage() {
   const saveError = useSaveError();
   const { attempt } = saveError;
 
-  const load = useCallback(async () => {
-    const user = await requireSignedInUser(router);
-    if (!user) return;
-    setUserId(user.id);
-    try {
-      const [data, exercises] = await Promise.all([getBuilderProgram(programId), getAllExercises()]);
-      setProgram(data);
-      setAllExercises(exercises);
-    } catch (error) {
-      console.error(error);
-      setLoadFailed(true);
+  useEffect(() => {
+    if (!userId) return;
+    async function load() {
+      try {
+        const [data, exercises] = await Promise.all([getBuilderProgram(programId), getAllExercises()]);
+        setProgram(data);
+        setAllExercises(exercises);
+      } catch (error) {
+        console.error(error);
+        setLoadFailed(true);
+      }
+      setLoading(false);
     }
-    setLoading(false);
-  }, [programId, router]);
-
-  useEffect(() => { async function run() { await load(); } void run(); }, [load]);
+    void load();
+  }, [programId, userId]);
 
   const isOwner = !!program && canEditProgram(program, userId);
 

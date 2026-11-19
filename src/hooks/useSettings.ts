@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { getLatestBodyWeight, getPreferences, logBodyWeight, upsertPreferences } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import { cachePrefs, DEFAULT_PREFS, readCachedPrefs } from "@/lib/prefs-cache";
@@ -17,21 +16,19 @@ export type SettingsStatus = "loading" | "ready" | "error";
  * if it can't be saved.
  */
 export function useSettings() {
-  const router = useRouter();
+  const user = useRequireUser();
+  const userId = user?.id ?? null;
   const saveError = useSaveError();
   const { attempt } = saveError;
   const [status, setStatus] = useState<SettingsStatus>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<UserPreferences>(() => readCachedPrefs() ?? DEFAULT_PREFS);
   const [bodyWeight, setBodyWeight] = useState<BodyWeightLog | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
-      setUserId(user.id);
+    if (!userId) return;
+    async function load(id: string) {
       try {
-        const [loadedPrefs, latestWeight] = await Promise.all([getPreferences(user.id), getLatestBodyWeight(user.id)]);
+        const [loadedPrefs, latestWeight] = await Promise.all([getPreferences(id), getLatestBodyWeight(id)]);
         setPrefs(loadedPrefs);
         setBodyWeight(latestWeight);
         cachePrefs(loadedPrefs);
@@ -41,8 +38,8 @@ export function useSettings() {
         setStatus("error");
       }
     }
-    void load();
-  }, [router]);
+    void load(userId);
+  }, [userId]);
 
   function applyPrefs(next: UserPreferences) {
     setPrefs(next);

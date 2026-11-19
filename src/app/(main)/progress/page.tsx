@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, logBodyWeight } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
@@ -37,7 +37,7 @@ function ProgressContent() {
   const tabParam = searchParams.get("tab");
   const tab: Tab = isTab(tabParam) ? tabParam : "exercise";
   const setTab = (t: Tab) => router.replace(t === "exercise" ? "/progress" : `/progress?tab=${t}`, { scroll: false });
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useRequireUser()?.id ?? null;
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loggedIds, setLoggedIds] = useState<string[]>([]);
   const [volume, setVolume] = useState<WeeklyVolume>({ weeks: [], missingBodyWeight: false });
@@ -51,12 +51,10 @@ function ProgressContent() {
   const activeExercise = selectedExercise || exercisesWithData[0]?.id || "";
 
   useEffect(() => {
-    async function init() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
-      setUserId(user.id);
+    if (!userId) return;
+    async function init(id: string) {
       try {
-        const [ids, weekly] = await Promise.all([getLoggedExerciseIds(), getWeeklyVolume(user.id)]);
+        const [ids, weekly] = await Promise.all([getLoggedExerciseIds(), getWeeklyVolume(id)]);
         setLoggedIds(ids);
         setVolume(weekly);
         setStatus("ready");
@@ -65,8 +63,8 @@ function ProgressContent() {
         setStatus("error");
       }
     }
-    void init();
-  }, [router]);
+    void init(userId);
+  }, [userId]);
 
   /** From the volume tab's call to action: rejects on failure so the form can show it. */
   async function logWeightAndRefresh(weightKg: number) {

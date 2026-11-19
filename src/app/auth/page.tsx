@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getSignedInUser, resendConfirmation, sendPasswordReset, signIn, signInWithProvider, signUp } from "@/lib/auth";
+import { resendConfirmation, sendPasswordReset, signIn, signInWithProvider, signUp } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
 import AuthWelcome from "@/components/auth/AuthWelcome";
 import CredentialsForm from "@/components/auth/CredentialsForm";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
@@ -26,9 +27,10 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
 
   // Someone already signed in has nothing to do here.
+  const signedIn = useAuth().status === "signedIn";
   useEffect(() => {
-    getSignedInUser().then((user) => { if (user) router.replace(HOME); }).catch((error) => console.error(error));
-  }, [router]);
+    if (signedIn) router.replace(HOME);
+  }, [signedIn, router]);
 
   function enterApp() {
     router.push(HOME);

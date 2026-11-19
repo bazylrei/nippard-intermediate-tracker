@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@/test-utils/render";
 import type { WeekSchedule, WorkoutDay } from "@/lib/types";
 
 // Stable like Next's real router — a new object per render would re-run the load effect forever.
@@ -11,7 +11,7 @@ const db = vi.hoisted(() => ({
   getRecentWorkouts: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
-vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+vi.mock("@/lib/auth", () => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 
 const day = {} as WorkoutDay;
 let program: WeekSchedule[] = [];

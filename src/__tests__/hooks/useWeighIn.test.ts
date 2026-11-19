@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@/test-utils/render";
 
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 const db = vi.hoisted(() => ({ getPreferences: vi.fn(), getLatestBodyWeight: vi.fn(), logBodyWeight: vi.fn() }));
 vi.mock("@/lib/db", () => db);

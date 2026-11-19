@@ -1,4 +1,3 @@
-import { getSignedInUser } from "./auth";
 import {
   createSession, getBestSetsForExercises, getIncompleteSessionWithSets, getLastSetsForExercises, getPreferences,
 } from "./db";
@@ -9,7 +8,6 @@ import type { Exercise, ExerciseRecord, SetLog, UserPreferences, WorkoutSession 
 
 
 export interface WorkoutBootstrap {
-  userId: string;
   prefs: UserPreferences;
   /** The unfinished session being resumed; null for a new workout, which gets one only once it's begun. */
   session: WorkoutSession | null;
@@ -22,24 +20,22 @@ export interface WorkoutBootstrap {
 }
 
 interface Params {
+  userId: string;
   week: number;
   dayIndex: number;
   /** The scheduled day being trained — callers must not start a workout for a day that doesn't exist. */
   workoutDay: { dayType: string; exercises: Exercise[] };
 }
 
-export async function bootstrapWorkout({ week, dayIndex, workoutDay }: Params): Promise<WorkoutBootstrap | null> {
-  const user = await getSignedInUser();
-  if (!user) return null;
-
+export async function bootstrapWorkout({ userId, week, dayIndex, workoutDay }: Params): Promise<WorkoutBootstrap> {
   const { exercises } = workoutDay;
   // Everything the page needs, in one parallel round trip.
   // A slot can be done as its own exercise or either alternate, and swapped before the first set,
   // so load last-time and best for all of them in the same round trip.
   const exerciseIds = [...new Set(exercises.flatMap((ex) => exerciseOptions(ex).map((option) => option.id)))];
   const [prefs, existing, lastSets, bestSets] = await Promise.all([
-    getPreferences(user.id),
-    getIncompleteSessionWithSets(user.id),
+    getPreferences(userId),
+    getIncompleteSessionWithSets(userId),
     getLastSetsForExercises(exerciseIds),
     getBestSetsForExercises(exerciseIds),
   ]);
@@ -51,13 +47,13 @@ export async function bootstrapWorkout({ week, dayIndex, workoutDay }: Params): 
   const recordsByExercise = mergeRecords(lastSets, bestSets);
   if (!resumable) {
     // Opening a day only shows it: the session (and its timer) starts when the workout is begun.
-    return { userId: user.id, prefs, session: null, sessionSets: [], recordsByExercise, exerciseIndex: 0, setIndex: 0, phase: "overview" };
+    return { prefs, session: null, sessionSets: [], recordsByExercise, exerciseIndex: 0, setIndex: 0, phase: "overview" };
   }
 
   const session = existing.session;
   saveWorkoutInProgress(session.currentExerciseIndex ?? 0, resolveExercises(exercises, mergeChoices(prefs.alternateSelections, session.exerciseSwaps)), session);
   return {
-    userId: user.id, prefs, session, sessionSets: existing.sets, recordsByExercise,
+    prefs, session, sessionSets: existing.sets, recordsByExercise,
     exerciseIndex: session.currentExerciseIndex, setIndex: session.currentSetIndex, phase: phaseAt(session.currentSetIndex),
   };
 }

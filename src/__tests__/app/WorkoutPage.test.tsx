@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@/test-utils/render";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -24,6 +24,8 @@ const db = vi.hoisted(() => ({
   getLatestBodyWeight: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("@/lib/db", () => db);
+
+vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }), onAuthUserChange: () => () => {} }));
 
 const boot = vi.hoisted(() => ({ bootstrapWorkout: vi.fn(), beginWorkout: vi.fn() }));
 vi.mock("@/lib/workout-init", () => boot);
@@ -62,7 +64,6 @@ const prevSet = { id: "p", exerciseId: "bench", setIndex: 0, weight: 100, reps: 
 
 function bootWith(overrides: Record<string, unknown> = {}) {
   boot.bootstrapWorkout.mockResolvedValue({
-    userId: "user-1",
     prefs: { unit: "kg", alternateSelections: {}, exerciseNotes: {} },
     session, sessionSets: [], recordsByExercise: { bench: { lastSets: [prevSet] } },
     exerciseIndex: 0, setIndex: 0, phase: "sets",

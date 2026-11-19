@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { getWorkoutOverview, type CompletedSlot } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import type { WorkoutPosition } from "@/lib/types";
@@ -27,14 +26,13 @@ export interface ProgramOverview {
  * server. `failed` is true only when loading failed and nothing is cached.
  */
 export function useProgramOverview(): { overview: ProgramOverview | null; failed: boolean } {
-  const router = useRouter();
+  const user = useRequireUser();
   const [overview, setOverview] = useState<ProgramOverview | null>(() => cacheGet<ProgramOverview>(CACHE_KEY));
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
       const { unfinished: found, completed } = await getWorkoutOverview();
       const unfinished = found && {
         sessionId: found.sessionId,
@@ -47,7 +45,7 @@ export function useProgramOverview(): { overview: ProgramOverview | null; failed
       cacheSet(CACHE_KEY, fresh);
     }
     load().catch((error) => { console.error(error); setLoadFailed(true); });
-  }, [router]);
+  }, [user]);
 
   return { overview, failed: loadFailed && !overview };
 }

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@/test-utils/render";
 import type { CatalogExercise } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 let params: Record<string, string> = {};
 vi.mock("next/navigation", () => ({ useRouter: () => router, useParams: () => params }));
-vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+vi.mock("@/lib/auth", () => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 
 const db = vi.hoisted(() => ({
   getCatalog: vi.fn(), getCatalogExercise: vi.fn(), createExercise: vi.fn(), updateExercise: vi.fn(),

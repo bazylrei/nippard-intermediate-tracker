@@ -95,6 +95,12 @@ export function onSignedInChange(callback: (signedIn: boolean) => void): () => v
   return () => data.subscription.unsubscribe();
 }
 
+/** Calls back with the user whenever signing in or out (or a token refresh) happens. Returns how to stop listening. */
+export function onAuthUserChange(callback: (user: User | null) => void): () => void {
+  const { data } = createClient().auth.onAuthStateChange((_event, session) => callback(session?.user ?? null));
+  return () => data.subscription.unsubscribe();
+}
+
 export async function signOut(): Promise<void> {
   const { error } = await createClient().auth.signOut();
   if (error) throw error;

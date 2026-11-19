@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useParams } from "next/navigation";
+import { useRequireUser } from "@/context/AuthContext";
 import { getBuilderProgram } from "@/lib/db";
 import { canEditProgram } from "@/lib/program-access";
 import { lastWeek } from "@/lib/program-structure";
@@ -12,7 +12,6 @@ import DayPreviewCard from "@/components/programs/DayPreviewCard";
 import FullScreenMessage from "@/components/FullScreenMessage";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-type Loaded = { program: BuilderProgram | null; userId: string };
 
 /** useParams needs a Suspense boundary to prerender. */
 export default function ProgramPreviewPage() {
@@ -25,28 +24,27 @@ export default function ProgramPreviewPage() {
 
 function ProgramPreview() {
   const { programId } = useParams<{ programId: string }>();
-  const router = useRouter();
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const userId = useRequireUser()?.id ?? null;
+  const [loaded, setLoaded] = useState<{ program: BuilderProgram | null } | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [week, setWeek] = useState(1);
 
   useEffect(() => {
+    if (!userId) return;
     async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
       try {
-        setLoaded({ program: await getBuilderProgram(programId), userId: user.id });
+        setLoaded({ program: await getBuilderProgram(programId) });
       } catch (error) {
         console.error(error);
         setLoadFailed(true);
       }
     }
     void load();
-  }, [programId, router]);
+  }, [programId, userId]);
 
   if (loadFailed) return <FullScreenMessage message="Couldn't load this program. Check your connection and try again." />;
   if (!loaded) return <FullScreenMessage message="Loading…" />;
-  const { program, userId } = loaded;
+  const { program } = loaded;
   if (!program) return <FullScreenMessage message="Program not found." />;
 
   const finalWeek = lastWeek(program);

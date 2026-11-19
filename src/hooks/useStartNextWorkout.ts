@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useAuth } from "@/context/AuthContext";
+import { SIGN_IN_PATH } from "@/lib/auth-paths";
 import { findNextWorkout } from "@/lib/next-workout";
 import { startWorkoutHref } from "@/lib/workout-history";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -14,11 +15,12 @@ const HOME = "/";
  */
 export function useStartNextWorkout(): () => Promise<void> {
   const router = useRouter();
+  const { status, user } = useAuth();
   const { program } = useProgramContext();
 
   return useCallback(async () => {
-    const user = await requireSignedInUser(router);
-    if (!user) return;
+    if (status === "signedOut") router.replace(SIGN_IN_PATH);
+    if (!user) return; // signed out, or the stored session is still being read
     let next = null;
     try {
       next = await findNextWorkout(program);
@@ -26,5 +28,5 @@ export function useStartNextWorkout(): () => Promise<void> {
       console.error(error);
     }
     router.push(next ? startWorkoutHref(next) : HOME);
-  }, [router, program]);
+  }, [router, status, user, program]);
 }

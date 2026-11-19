@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { createProgram, getPrograms, type NewProgramFields } from "@/lib/db";
 import { canEditProgram } from "@/lib/program-access";
 import { editProgramHref } from "@/lib/program-routes";
@@ -16,24 +16,22 @@ import BackToProfile from "@/components/BackToProfile";
 export default function ProgramsPage() {
   const router = useRouter();
   const [programs, setPrograms] = useState<ProgramRow[] | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useRequireUser()?.id ?? null;
   const [loadFailed, setLoadFailed] = useState(false);
   const [naming, setNaming] = useState(false);
 
   useEffect(() => {
-    async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
-      setUserId(user.id);
+    if (!userId) return;
+    async function load(id: string) {
       try {
-        setPrograms(await getPrograms(user.id));
+        setPrograms(await getPrograms(id));
       } catch (error) {
         console.error(error);
         setLoadFailed(true);
       }
     }
-    void load();
-  }, [router]);
+    void load(userId);
+  }, [userId]);
 
   /** Creates the program, then opens it in the editor to build. Rejects (the sheet stays open) if saving fails. */
   async function handleCreate(owner: string, id: string, fields: NewProgramFields) {

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@/test-utils/render";
 import type { BuilderProgram } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, useParams: () => ({ programId: "prog-1" }) }));
-vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+vi.mock("@/lib/auth", () => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 
 const db = vi.hoisted(() => ({
   toggleProgramPublic: vi.fn(), getBuilderProgram: vi.fn(), getAllExercises: vi.fn(),

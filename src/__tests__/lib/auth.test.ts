@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase", () => ({
   createClient: () => ({ auth: { getSession, getUser, signInWithPassword, signUp: signUpFn, signOut: signOutFn, resend, resetPasswordForEmail, updateUser, onAuthStateChange, signInWithOAuth } }),
 }));
 
-import { getSignedInUser, signIn, signUp, signOut, resendConfirmation, sendPasswordReset, updatePassword, onSignedInChange, signInWithProvider, getEnabledSocialProviders } from "@/lib/auth";
+import { getSignedInUser, signIn, signUp, signOut, resendConfirmation, sendPasswordReset, updatePassword, onSignedInChange, onAuthUserChange, signInWithProvider, getEnabledSocialProviders } from "@/lib/auth";
 
 describe("getSignedInUser", () => {
   it("returns the user from the local session without calling the Auth server", async () => {
@@ -164,5 +164,19 @@ describe("getEnabledSocialProviders", () => {
 
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     expect(await getEnabledSocialProviders()).toEqual([]);
+  });
+});
+
+describe("onAuthUserChange", () => {
+  it("reports the user (or null) on every auth event and returns how to stop", () => {
+    let handler: (event: string, session: { user: { id: string } } | null) => void = () => {};
+    onAuthStateChange.mockImplementation((cb) => { handler = cb; return { data: { subscription: { unsubscribe } } }; });
+    const seen: unknown[] = [];
+    const stop = onAuthUserChange((user) => seen.push(user));
+    handler("SIGNED_IN", { user: { id: "u1" } });
+    handler("SIGNED_OUT", null);
+    expect(seen).toEqual([{ id: "u1" }, null]);
+    stop();
+    expect(unsubscribe).toHaveBeenCalled();
   });
 });

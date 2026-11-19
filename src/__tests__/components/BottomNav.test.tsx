@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act, within, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, act, within, waitFor } from "@/test-utils/render";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 let pathname = "/";
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => pathname }));
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 const next = vi.hoisted(() => ({ findNextWorkout: vi.fn() }));
 vi.mock("@/lib/next-workout", () => next);
@@ -54,6 +54,7 @@ describe("AppNav", () => {
 
   it("starts the next workout from the middle button when none is in progress", async () => {
     render(<AppNav />);
+    await act(async () => {}); // the signed-in user has been read
     fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/workout?week=3&day=2"));
     expect(next.findNextWorkout).toHaveBeenCalledWith(expect.any(Array));
@@ -63,13 +64,23 @@ describe("AppNav", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     next.findNextWorkout.mockRejectedValue(new Error("offline"));
     render(<AppNav />);
+    await act(async () => {});
     fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/"));
+  });
+
+  it("does nothing yet (no redirect, no lookup) while the signed-in user is still being read", () => {
+    auth.getSignedInUser.mockReturnValue(new Promise(() => {}));
+    render(<AppNav />);
+    fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(next.findNextWorkout).not.toHaveBeenCalled();
   });
 
   it("sends a signed-out visitor to sign in instead of starting a workout", async () => {
     auth.getSignedInUser.mockResolvedValue(null);
     render(<AppNav />);
+    await act(async () => {});
     fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/auth"));
     expect(router.push).not.toHaveBeenCalled();

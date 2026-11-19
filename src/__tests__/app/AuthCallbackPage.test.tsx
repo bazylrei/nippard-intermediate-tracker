@@ -1,20 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act } from "@/test-utils/render";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn(), onSignedInChange: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: vi.fn(), getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 import AuthCallbackPage from "@/app/auth/callback/page";
 
-let signedInListener: (signedIn: boolean) => void = () => {};
+let authListener: (user: { id: string } | null) => void = () => {};
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  auth.onSignedInChange.mockImplementation((cb) => { signedInListener = cb; return vi.fn(); });
+  auth.onAuthUserChange.mockImplementation((cb) => { authListener = cb; return vi.fn(); });
   auth.getSignedInUser.mockResolvedValue(null);
 });
 afterEach(() => {
@@ -37,7 +37,7 @@ describe("Auth callback page", () => {
 
   it("goes Home once the return has signed them in, leaving onboarding to the gate", async () => {
     await openAt("/auth/callback?code=abc");
-    await act(async () => { signedInListener(true); });
+    await act(async () => { authListener({ id: "user-1" }); });
     expect(router.replace).toHaveBeenCalledWith("/");
   });
 

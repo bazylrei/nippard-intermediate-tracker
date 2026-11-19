@@ -55,7 +55,7 @@ Home/Program suggest the next (or unfinished) day, or the user picks any day not
 | `src/lib/supabase.ts` | Browser-safe Supabase client factory, typed with `Database` |
 | `src/lib/database.types.ts` | Generated schema types — regenerate after every migration, never hand-edit |
 | `src/lib/auth.ts` | `getSignedInUser()` (local session, no Auth-server round trip), `signIn` / `signUp` / `signOut` |
-| `src/lib/require-user.ts` | `requireSignedInUser(router)` — redirects to sign-in when signed out; use it in every page/hook load |
+| `src/context/AuthContext.tsx` | `AuthProvider` (root layout) reads the stored session once and follows sign-in/out; `useAuth()` gives `{ status, user }`, `useRequireUser()` gives the user and redirects a signed-out visitor to `SIGN_IN_PATH` (`lib/auth-paths.ts`). Use it in every page/hook; tests wrap in `@/test-utils/render` (real provider, drive it by mocking `@/lib/auth`) |
 | `supabase/migrations/` | Source of truth for the schema; `supabase-schema.sql` is the original bootstrap only |
 | `src/lib/program-data.ts` | Schedule navigation: `programRun` (days done, next workout), session numbering, totals |
 | `src/lib/day-types.ts` | The one day-type table; always display via `dayLabel()` |
