@@ -66,6 +66,7 @@ Home/Program suggest the next (or unfinished) day, or the user picks any day not
 | `src/lib/onboarding.ts` | `checkOnboarded` (a yes is cached per user on the device) / `finishOnboarding`; `ONBOARDING_PATH` |
 | `src/lib/youtube.ts` | `openInYouTubeApp`: tries the YouTube app on a phone (iOS scheme with a timed browser fallback, Android intent with its own fallback); every demo-video link goes through `components/widgets/VideoLink` |
 | `src/lib/theme.ts` | Light / dark / system theme, saved per device; `THEME_INIT_SCRIPT` in the root layout's `<head>` applies it before first paint (`html.light` / `html.dark` in globals.css override the device setting) |
+| `src/lib/animation/` + `components/exercise-animation/` | 3D exercise demos (three.js, lazy-loaded). Motions are anatomy, not animation: joint angles per keyframe in `library.ts` (validated at load; minimum-jerk timing), drawn on one figure (`figure.ts`) whose feet stay flat and planted on their own. One camera for all demos (`framing.ts`); a test fails if any motion leaves the frame. Built-ins only, via `ExerciseDemo` |
 | `src/lib/workout-history.ts` | Route helpers (`startWorkoutHref`, `workoutDetailHref`) and set grouping |
 | `scripts/program-data-static.ts` | Hardcoded program structure used by the seed script |
 | `src/lib/program-db.ts` | Loads program from DB into context |

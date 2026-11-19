@@ -16,6 +16,7 @@ import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
 import BackLink from "@/components/widgets/BackLink";
 import VideoLink from "@/components/widgets/VideoLink";
+import ExerciseDemo from "@/components/exercise-animation/ExerciseDemo";
 
 const IN_USE = "This exercise is used in a program or in logged sets, so it can't be deleted.";
 
@@ -62,6 +63,8 @@ function ExerciseDetail() {
       </header>
 
       {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
+
+      <ExerciseDemo exercise={exercise} />
 
       <ExerciseFacts exercise={exercise} />
 
