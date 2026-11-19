@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Rectangle, type BarShapeProps, type TooltipContentProps } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, type BarShapeProps } from "recharts";
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
 import type { WeeklyVolume } from "@/lib/volume";
-import { MUSCLE_REGIONS, type MuscleRegion } from "@/lib/muscle-regions";
-import BodyWeightCta from "@/components/BodyWeightCta";
-import { CHART_TOOLTIP_STYLE } from "./chart-style";
-import EmptyState from "./EmptyState";
+import { MUSCLE_REGIONS } from "@/lib/muscle-regions";
+import BodyWeightCta from "@/components/widgets/BodyWeightCta";
+import EmptyState from "@/components/widgets/EmptyState";
 import RegionLegend, { regionColor } from "./RegionLegend";
+import StackSegment from "./StackSegment";
+import WeekTooltip from "./WeekTooltip";
+import { weekOf, type VolumeRow } from "./volume-chart";
 
 interface Props {
   /** Volume in kg × reps per program week and body region, per-side and bodyweight loads applied. */
@@ -17,23 +19,13 @@ interface Props {
   onLogBodyWeight: (weightKg: number) => Promise<void>;
 }
 
-type Row = { week: number; top: MuscleRegion | undefined } & Partial<Record<MuscleRegion, number>>;
-
-/** Rounds only the top segment of each week's stack, the bar's data end. */
-function StackSegment({ region, selectedWeek, ...props }: BarShapeProps & { region: MuscleRegion; selectedWeek: number | null }) {
-  const row = props.payload as Row;
-  // Once a week is picked, the others recede so the highlighted bar matches the details below.
-  const dimmed = selectedWeek !== null && row.week !== selectedWeek;
-  return <Rectangle {...props} fillOpacity={dimmed ? 0.4 : 1} radius={row.top === region ? [4, 4, 0, 0] : 0} />;
-}
-
 export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }: Props) {
   // The week the user tapped; until then the details show the latest week.
   const [pickedWeek, setPickedWeek] = useState<number | null>(null);
   // Regions trained in any week. Each keeps its own colour whichever others appear.
   const regions = MUSCLE_REGIONS.filter(({ id }) => volume.weeks.some((w) => w.byRegion[id] > 0));
-  const data: Row[] = volume.weeks.map((w) => {
-    const row: Row = { week: w.week, top: [...regions].reverse().find(({ id }) => w.byRegion[id] > 0)?.id };
+  const data: VolumeRow[] = volume.weeks.map((w) => {
+    const row: VolumeRow = { week: w.week, top: [...regions].reverse().find(({ id }) => w.byRegion[id] > 0)?.id };
     for (const { id } of regions) row[id] = Math.round(kgToDisplay(w.byRegion[id], unit));
     return row;
   });
@@ -77,32 +69,6 @@ export default function VolumeTab({ volume, unit, chartWidth, onLogBodyWeight }:
           <RegionLegend week={shown} regions={regions} unit={unit} />
         </>
       )}
-    </div>
-  );
-}
-
-/** The week under a chart click, or null when it landed outside the bars. */
-function weekOf(label: string | number | undefined): number | null {
-  const week = Number(label);
-  return label === undefined || Number.isNaN(week) ? null : week;
-}
-
-/** One week's readout: every region trained that week, values first, top of the stack first. */
-function WeekTooltip({ active, payload, label, regions, unit }: TooltipContentProps & { regions: { id: MuscleRegion; label: string }[]; unit: WeightUnit }) {
-  if (!active || !payload?.length) return null;
-  const row = payload[0].payload as Row;
-  const trained = regions.filter(({ id }) => (row[id] ?? 0) > 0).reverse();
-  const total = trained.reduce((sum, { id }) => sum + (row[id] ?? 0), 0);
-  return (
-    <div style={CHART_TOOLTIP_STYLE} className="px-3 py-2 text-xs space-y-1">
-      <p className="font-display font-semibold">Week {label} · {total.toLocaleString()} {unit}</p>
-      {trained.map(({ id, label: name }) => (
-        <p key={id} className="flex items-center gap-2">
-          <span aria-hidden className="w-3 h-0.5 rounded-full" style={{ background: regionColor(id) }} />
-          <span className="font-semibold tabular-nums">{(row[id] ?? 0).toLocaleString()}</span>
-          <span className="text-muted">{name}</span>
-        </p>
-      ))}
     </div>
   );
 }

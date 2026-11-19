@@ -7,7 +7,7 @@ import { LineChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianG
 import { kgToDisplay } from "@/lib/units";
 import { setLoadKg } from "@/lib/volume";
 import type { PostWorkoutData } from "@/hooks/useWorkoutHistory";
-import BodyWeightCta from "@/components/BodyWeightCta";
+import BodyWeightCta from "@/components/widgets/BodyWeightCta";
 import { formatCalendarDate } from "@/lib/dates";
 
 /** Recessive axis text: muted ink, small, tabular figures. */

@@ -5,7 +5,7 @@ import { CheckCircle, Info } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
-import OverlayPresence from "./OverlayPresence";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
 import PreviousPerformance from "./workout/PreviousPerformance";
 import OverloadTip from "./workout/OverloadTip";
 import { overloadTip } from "@/lib/progression";

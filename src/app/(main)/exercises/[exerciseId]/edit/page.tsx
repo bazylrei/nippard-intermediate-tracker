@@ -7,8 +7,8 @@ import { updateExercise } from "@/lib/db";
 import { draftFrom } from "@/lib/exercise-form";
 import { exerciseHref } from "@/lib/exercise-routes";
 import ExerciseForm from "@/components/exercises/ExerciseForm";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import { BackLink } from "@/components/BackToProfile";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import BackLink from "@/components/widgets/BackLink";
 import type { ExerciseInput } from "@/lib/types";
 
 function EditExercise() {

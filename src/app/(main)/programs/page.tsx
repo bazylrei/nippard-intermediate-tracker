@@ -7,11 +7,10 @@ import { createProgram, getPrograms, type NewProgramFields } from "@/lib/db";
 import { canEditProgram } from "@/lib/program-access";
 import { editProgramHref } from "@/lib/program-routes";
 import type { ProgramRow } from "@/lib/types";
-import ProgramCard from "@/components/programs/ProgramCard";
 import NewProgramSheet from "@/components/programs/NewProgramSheet";
-import OverlayPresence from "@/components/OverlayPresence";
-import { LibraryBig, Plus } from "lucide-react";
-import BackToProfile from "@/components/BackToProfile";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
+import ProgramGroup from "@/components/programs/ProgramGroup";
+import ProgramsPageHeader from "@/components/programs/ProgramsPageHeader";
 
 export default function ProgramsPage() {
   const router = useRouter();
@@ -47,22 +46,7 @@ export default function ProgramsPage() {
 
   return (
     <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-6">
-      <div className="flex items-center gap-2 pt-2">
-        <BackToProfile />
-        <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
-          <LibraryBig className="text-primary" size={20} />
-        </div>
-        <h1 className="flex-1 font-display font-bold text-xl text-fg">My programs</h1>
-        {userId && (
-          <button
-            onClick={() => setNaming(true)}
-            className="btn-primary gloss flex items-center gap-1.5 font-display font-bold text-sm px-4 py-2 rounded-xl cursor-pointer"
-          >
-            <Plus size={14} />
-            New program
-          </button>
-        )}
-      </div>
+      <ProgramsPageHeader canCreate={!!userId} onNew={() => setNaming(true)} />
 
       {loadFailed && (
         <p className="text-center py-16 text-sm text-subtle">Couldn&apos;t load programs. Check your connection and try again.</p>
@@ -87,16 +71,5 @@ export default function ProgramsPage() {
       {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} />}
       {available.length > 0 && <ProgramGroup title="Available to me" programs={available} />}
     </div>
-  );
-}
-
-function ProgramGroup({ title, programs }: { title: string; programs: ProgramRow[] }) {
-  return (
-    <section className="space-y-2">
-      <h2 className="font-display font-bold text-xs uppercase tracking-widest text-muted px-1">{title}</h2>
-      <div className="space-y-2.5">
-        {programs.map((p) => <ProgramCard key={p.id} program={p} />)}
-      </div>
-    </section>
   );
 }

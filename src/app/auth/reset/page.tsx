@@ -9,7 +9,7 @@ import { SIGN_IN_PATH } from "@/lib/require-user";
 import PasswordField from "@/components/auth/PasswordField";
 import { MIN_PASSWORD_LENGTH } from "@/components/auth/CredentialsForm";
 import { useLinkSession } from "@/hooks/useLinkSession";
-import FullScreenMessage from "@/components/FullScreenMessage";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 
 export default function ResetPasswordPage() {
   const router = useRouter();

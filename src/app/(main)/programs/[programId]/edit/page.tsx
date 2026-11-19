@@ -9,16 +9,17 @@ import {
   deleteProgramDayExercise, deleteProgramDay, deleteProgramWeek,
 } from "@/lib/db";
 import type { BuilderProgram, BuilderExercise } from "@/lib/types";
-import { Plus } from "lucide-react";
 import WeekCard from "@/components/builder/WeekCard";
 import ProgramEditorHeader from "@/components/builder/ProgramEditorHeader";
 import DayTypeModal from "@/components/builder/DayTypeModal";
 import AddExerciseModal from "@/components/builder/AddExerciseModal";
 import ExerciseEditModal from "@/components/builder/ExerciseEditModal";
 import ProgramEditModal from "@/components/builder/ProgramEditModal";
-import OverlayPresence from "@/components/OverlayPresence";
+import EditorSkeleton from "@/components/builder/EditorSkeleton";
+import AddWeekButton from "@/components/builder/AddWeekButton";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
 import type { ExerciseInfo } from "@/components/builder/constants";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
+import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { lastWeek, nextDayIndex } from "@/lib/program-structure";
 import { canEditProgram } from "@/lib/program-access";
@@ -26,17 +27,9 @@ import { programHref } from "@/lib/program-routes";
 
 export default function ProgramEditorPageWrapper() {
   return (
-    <Suspense fallback={<PageSkeleton />}>
+    <Suspense fallback={<EditorSkeleton />}>
       <ProgramEditorPage />
     </Suspense>
-  );
-}
-
-function PageSkeleton() {
-  return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-3">
-      {[1, 2, 3].map((i) => <div key={i} className="h-14 bg-elevated rounded-2xl animate-pulse" />)}
-    </div>
   );
 }
 
@@ -234,7 +227,7 @@ function ProgramEditorPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  if (loading) return <PageSkeleton />;
+  if (loading) return <EditorSkeleton />;
 
   if (loadFailed) {
     return <div className="max-w-2xl mx-auto p-4 md:p-8 text-center text-subtle py-16">Couldn&apos;t load this program. Check your connection and try again.</div>;
@@ -244,7 +237,7 @@ function ProgramEditorPage() {
     return <div className="max-w-2xl mx-auto p-4 md:p-8 text-center text-subtle py-16">Program not found.</div>;
   }
 
-  if (!isOwner) return <PageSkeleton />; // on its way to the preview
+  if (!isOwner) return <EditorSkeleton />; // on its way to the preview
 
   const maxWeek = lastWeek(program);
   const weeks = maxWeek > 0 ? Array.from({ length: maxWeek }, (_, i) => i + 1) : [];
@@ -290,14 +283,7 @@ function ProgramEditorPage() {
 
 
         {/* Add week */}
-        {isOwner && (
-          <button
-            onClick={handleAddWeek}
-            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-subtle hover:text-primary transition-colors border border-dashed border-border hover:border-primary/40 rounded-2xl"
-          >
-            <Plus size={14} /> Add week
-          </button>
-        )}
+        {isOwner && <AddWeekButton onAdd={handleAddWeek} />}
       </div>
 
       {/* ── Modals ── */}

@@ -2,9 +2,9 @@
 
 import { useSettings } from "@/hooks/useSettings";
 import SettingsPanel from "@/components/program/SettingsPanel";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import BackToProfile from "@/components/BackToProfile";
+import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import BackToProfile from "@/components/widgets/BackToProfile";
 
 export default function SettingsPage() {
   const { status, prefs, bodyWeightKg, saveError, actions } = useSettings();

@@ -7,19 +7,12 @@ import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, logBodyWeigh
 import { localYmd } from "@/lib/dates";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import ExerciseTab from "./ExerciseTab";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import ExerciseTab from "@/components/progress/ExerciseTab";
 import type { ExerciseHistoryPoint } from "@/lib/types";
-import VolumeTab from "./VolumeTab";
+import VolumeTab from "@/components/progress/VolumeTab";
+import ProgressTabBar, { isProgressTab, type ProgressTab } from "@/components/progress/ProgressTabBar";
 import type { WeeklyVolume } from "@/lib/volume";
-import { TrendingUp, BarChart3 } from "lucide-react";
-
-type Tab = "exercise" | "volume";
-const TABS = [
-  { key: "exercise", label: "Exercise", icon: TrendingUp },
-  { key: "volume",   label: "Volume",   icon: BarChart3  },
-] as const satisfies readonly { key: Tab; label: string; icon: unknown }[];
-const isTab = (v: string | null): v is Tab => TABS.some((t) => t.key === v);
 
 export default function ProgressPage() {
   return (
@@ -36,8 +29,8 @@ function ProgressContent() {
   const unit = useWeightUnit();
   // The tab lives in the URL so a reload or Back keeps it.
   const tabParam = searchParams.get("tab");
-  const tab: Tab = isTab(tabParam) ? tabParam : "exercise";
-  const setTab = (t: Tab) => router.replace(t === "exercise" ? "/progress" : `/progress?tab=${t}`, { scroll: false });
+  const tab: ProgressTab = isProgressTab(tabParam) ? tabParam : "exercise";
+  const setTab = (t: ProgressTab) => router.replace(t === "exercise" ? "/progress" : `/progress?tab=${t}`, { scroll: false });
   const [userId, setUserId] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loggedIds, setLoggedIds] = useState<string[]>([]);
@@ -101,23 +94,7 @@ function ProgressContent() {
         <h1 className="font-display font-bold text-xl tracking-wide text-fg">Progress</h1>
       </div>
 
-      {/* Segment control tabs */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex bg-elevated rounded-xl p-1 gap-1">
-          {TABS.map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-display font-semibold transition-all cursor-pointer ${
-                tab === key ? "bg-primary text-primary-fg shadow-sm" : "text-muted hover:text-fg"
-              }`}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ProgressTabBar tab={tab} onSelect={setTab} />
 
       <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-above-raised-tab">
         {tab === "exercise" && (

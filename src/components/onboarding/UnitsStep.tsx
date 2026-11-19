@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import UnitSetting from "@/components/program/UnitSetting";
-import ThemeSetting from "@/components/program/ThemeSetting";
+import UnitSetting from "@/components/widgets/UnitSetting";
+import ThemeSetting from "@/components/widgets/ThemeSetting";
 import { WEEKDAYS } from "@/lib/dates";
 import type { WeightUnit } from "@/lib/units";
 

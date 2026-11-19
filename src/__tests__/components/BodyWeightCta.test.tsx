@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import BodyWeightCta from "@/components/BodyWeightCta";
+import BodyWeightCta from "@/components/widgets/BodyWeightCta";
 
 const MESSAGE = "Bodyweight exercises count only their added weight until you log your body weight.";
 

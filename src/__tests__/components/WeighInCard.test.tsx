@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import WeighInCard from "@/components/WeighInCard";
+import WeighInCard from "@/components/widgets/WeighInCard";
 
 function renderCard(onSave = vi.fn().mockResolvedValue(undefined), onSkip = vi.fn()) {
   render(<WeighInCard unit="kg" onSave={onSave} onDismiss={onSkip} />);

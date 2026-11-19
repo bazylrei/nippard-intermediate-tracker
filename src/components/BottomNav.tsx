@@ -4,7 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { Dumbbell, House, TrendingUp, UserRound, UsersRound, type LucideIcon } from "lucide-react";
 import { useActiveWorkout } from "@/hooks/useActiveWorkout";
 import { useStartNextWorkout } from "@/hooks/useStartNextWorkout";
-import { CenterWorkoutTab, SidebarWorkoutTab } from "./WorkoutTab";
+import CenterWorkoutTab from "./workout-tab/CenterWorkoutTab";
+import SidebarWorkoutTab from "./workout-tab/SidebarWorkoutTab";
 import { startWorkoutHref } from "@/lib/workout-history";
 
 /** Two tabs either side of the Workout button, which always sits in the middle. */

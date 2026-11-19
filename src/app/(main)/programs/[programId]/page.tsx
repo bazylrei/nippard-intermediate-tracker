@@ -9,8 +9,8 @@ import { lastWeek } from "@/lib/program-structure";
 import type { BuilderProgram } from "@/lib/types";
 import ProgramSummary from "@/components/programs/ProgramSummary";
 import DayPreviewCard from "@/components/programs/DayPreviewCard";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import WeekSwitcher from "@/components/widgets/WeekSwitcher";
 
 type Loaded = { program: BuilderProgram | null; userId: string };
 
@@ -61,27 +61,13 @@ function ProgramPreview() {
         <p className="text-center py-12 text-sm text-subtle">This program has no workouts yet.</p>
       ) : (
         <>
-          <div className="flex items-center justify-between px-1">
-            <button
-              onClick={() => setWeek(shownWeek - 1)}
-              disabled={shownWeek <= 1}
-              aria-label="Previous week"
-              className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <h2 className="font-display font-bold text-xs uppercase tracking-widest text-muted">
-              Week {shownWeek} of {finalWeek}
-            </h2>
-            <button
-              onClick={() => setWeek(shownWeek + 1)}
-              disabled={shownWeek >= finalWeek}
-              aria-label="Next week"
-              className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
+          <WeekSwitcher
+            label={`Week ${shownWeek} of ${finalWeek}`}
+            canGoBack={shownWeek > 1}
+            canGoForward={shownWeek < finalWeek}
+            onBack={() => setWeek(shownWeek - 1)}
+            onForward={() => setWeek(shownWeek + 1)}
+          />
 
           {days.length === 0 ? (
             <p className="text-center py-8 text-sm text-subtle">No workouts in this week.</p>

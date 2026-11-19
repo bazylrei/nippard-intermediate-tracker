@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import type { RegionVolumes } from "@/lib/muscle-regions";
 import { vi } from "vitest";
-import ExerciseTab from "@/app/(main)/progress/ExerciseTab";
-import VolumeTab from "@/app/(main)/progress/VolumeTab";
+import ExerciseTab from "@/components/progress/ExerciseTab";
+import VolumeTab from "@/components/progress/VolumeTab";
 
 const history = [
   { date: "2026-11-01", weight: 100, reps: 8, dayType: "pull" },

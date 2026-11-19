@@ -10,13 +10,14 @@ import type { WorkoutPosition } from "@/lib/types";
 import { latestSessionBySlot, startWorkoutHref, workoutDetailHref } from "@/lib/workout-history";
 import { settleUnfinishedWorkout, type UnfinishedChoice } from "@/lib/unfinished-workout";
 import { dayLabel } from "@/lib/day-types";
-import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
+import NextWorkoutCard from "@/components/widgets/NextWorkoutCard";
 import WeekDayTile, { type DayStatus } from "@/components/program/WeekDayTile";
 import StartWorkoutSheet from "@/components/program/StartWorkoutSheet";
-import OverlayPresence from "@/components/OverlayPresence";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
-import BackToProfile from "@/components/BackToProfile";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import WeekSwitcher from "@/components/widgets/WeekSwitcher";
+import ProgramPageHeader from "@/components/program/ProgramPageHeader";
+import ProgramProgressCard from "@/components/program/ProgramProgressCard";
 
 const samePosition = (a: WorkoutPosition | null | undefined, b: WorkoutPosition) =>
   !!a && a.week === b.week && a.dayIndex === b.dayIndex;
@@ -41,7 +42,6 @@ export default function MyProgram() {
   const dayAt = (p: WorkoutPosition) => program.find((w) => w.week === p.week)?.days[p.dayIndex];
   const nextDay = nextSession ? dayAt(nextSession) : null;
   const totalSessions = getTotalSessions(program);
-  const progressPct = totalSessions ? Math.round((run.doneCount / totalSessions) * 100) : 0;
 
   const weekNumbers = program.map((w) => w.week).sort((a, b) => a - b);
   const shownWeek = pickedWeek ?? nextSession?.week ?? weekNumbers[0] ?? 1;
@@ -63,35 +63,14 @@ export default function MyProgram() {
   return (
     <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
 
-      {/* Header */}
-      <div className="flex items-center gap-2 pt-2">
-        <BackToProfile />
-        <div className="w-9 h-9 glass gloss rounded-xl flex items-center justify-center">
-          <Dumbbell className="text-primary" size={20} />
-        </div>
-        <h1 className="font-display font-bold text-base tracking-wide text-fg leading-tight">{ACTIVE_PROGRAM_NAME}</h1>
-      </div>
+      <ProgramPageHeader name={ACTIVE_PROGRAM_NAME} />
 
-      {/* Program progress */}
-      <div className="glass gloss rounded-2xl p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="font-display font-semibold text-xs uppercase tracking-widest text-muted">Program Progress</span>
-          <span className="font-display font-bold text-sm text-fg">
-            {run.doneCount}<span className="text-muted font-normal"> / {totalSessions}</span>
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "color-mix(in srgb, var(--fg) 10%, transparent)" }}>
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-500"
-            style={{ width: `${progressPct}%`, boxShadow: "0 0 8px var(--primary)" }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-subtle">
-          <span>Week {weekNumbers[0] ?? 1}</span>
-          <span className="text-muted font-display font-semibold">{progressPct}% complete</span>
-          <span>Week {weekNumbers.at(-1) ?? totalWeeks}</span>
-        </div>
-      </div>
+      <ProgramProgressCard
+        doneCount={run.doneCount}
+        totalSessions={totalSessions}
+        firstWeek={weekNumbers[0] ?? 1}
+        lastWeek={weekNumbers.at(-1) ?? totalWeeks}
+      />
 
       {nextSession && nextDay && (
         <NextWorkoutCard
@@ -106,27 +85,14 @@ export default function MyProgram() {
 
       {/* Week overview — any day not done can be chosen */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <button
-            onClick={() => setPickedWeek(weekNumbers[weekPos - 1])}
-            disabled={weekPos <= 0}
-            aria-label="Previous week"
-            className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted">
-            Week {shownWeek} Overview
-          </h3>
-          <button
-            onClick={() => setPickedWeek(weekNumbers[weekPos + 1])}
-            disabled={weekPos < 0 || weekPos >= weekNumbers.length - 1}
-            aria-label="Next week"
-            className="p-1 text-muted hover:text-fg disabled:opacity-30 disabled:cursor-default cursor-pointer"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
+        <WeekSwitcher
+          label={`Week ${shownWeek} Overview`}
+          headingAs="h3"
+          canGoBack={weekPos > 0}
+          canGoForward={weekPos >= 0 && weekPos < weekNumbers.length - 1}
+          onBack={() => setPickedWeek(weekNumbers[weekPos - 1])}
+          onForward={() => setPickedWeek(weekNumbers[weekPos + 1])}
+        />
         <div className="grid grid-cols-2 gap-2.5">
           {weekDays.map((day, i) => {
             if (!day) return null;

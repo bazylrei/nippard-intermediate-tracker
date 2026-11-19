@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import OverlayPresence, { OVERLAY_EXIT_MS } from "@/components/OverlayPresence";
+import OverlayPresence, { OVERLAY_EXIT_MS } from "@/components/widgets/OverlayPresence";
 
 function Sheet({ label = "sheet" }: { label?: string }) {
   const [typed] = useState(() => Math.random());
