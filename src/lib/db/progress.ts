@@ -1,8 +1,9 @@
 import { createClient } from "../supabase";
+import { localTimeZone } from "../dates";
 import { unwrap } from "./result";
 import { getBodyWeightLogs } from "./body-weight";
 import type { ExerciseHistoryPoint } from "../types";
-import { weeklyVolume, type VolumeExercise, type VolumeSet, type WeeklyVolume } from "../volume";
+import { weeklyVolume, type VolumeExercise, type VolumeGroup, type WeeklyVolume } from "../volume";
 
 /** The last working set of each session for several exercises, oldest first, in one round trip. */
 export async function getExerciseHistories(
@@ -45,17 +46,15 @@ async function getVolumeExercises(): Promise<Record<string, VolumeExercise>> {
   ]));
 }
 
-/** Working sets from completed sessions, with each one's program week and time. */
-async function getCompletedWorkingSets(userId: string): Promise<VolumeSet[]> {
+/**
+ * Working sets of completed sessions, summed per program week, exercise and day
+ * (in the device's time zone) by the database, so history size doesn't matter.
+ */
+async function getVolumeGroups(): Promise<VolumeGroup[]> {
   const sb = createClient();
-  const rows = unwrap("getWeeklyVolume", await sb
-    .from("set_logs")
-    .select("weight_kg, reps, exercise_id, logged_at, workout_sessions!inner(week, completed_at)")
-    .eq("user_id", userId)
-    .gte("set_index", 0)
-    .not("workout_sessions.completed_at", "is", null));
-  return (rows ?? []).map((s) => ({
-    week: s.workout_sessions.week, exerciseId: s.exercise_id, weightKg: s.weight_kg, reps: s.reps, loggedAt: s.logged_at,
+  const rows = unwrap("getWeeklyVolume", await sb.rpc("weekly_volume_groups", { p_tz: localTimeZone() }));
+  return (rows ?? []).map((r) => ({
+    week: r.week, exerciseId: r.exercise_id, loggedOn: r.logged_on, weightRepsKg: r.weight_reps, reps: r.reps,
   }));
 }
 
@@ -65,21 +64,16 @@ async function getCompletedWorkingSets(userId: string): Promise<VolumeSet[]> {
  * Sets, exercises and weigh-ins load in one parallel round trip.
  */
 export async function getWeeklyVolume(userId: string): Promise<WeeklyVolume> {
-  const [sets, exercises, logs] = await Promise.all([
-    getCompletedWorkingSets(userId),
+  const [groups, exercises, logs] = await Promise.all([
+    getVolumeGroups(),
     getVolumeExercises(),
     getBodyWeightLogs(userId),
   ]);
-  return weeklyVolume(sets, exercises, logs);
+  return weeklyVolume(groups, exercises, logs);
 }
 
 /** Ids of every exercise the user has logged a working set for. */
-export async function getLoggedExerciseIds(userId: string): Promise<string[]> {
+export async function getLoggedExerciseIds(): Promise<string[]> {
   const sb = createClient();
-  const data = unwrap("getLoggedExerciseIds", await sb
-    .from("set_logs")
-    .select("exercise_id")
-    .eq("user_id", userId)
-    .gte("set_index", 0));
-  return Array.from(new Set((data ?? []).map((r) => r.exercise_id)));
+  return unwrap("getLoggedExerciseIds", await sb.rpc("logged_exercise_ids")) ?? [];
 }

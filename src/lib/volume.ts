@@ -1,5 +1,4 @@
 import type { BodyWeightLog } from "./types";
-import { localYmd } from "./dates";
 import { MUSCLE_REGIONS, regionOf, type RegionVolumes } from "./muscle-regions";
 
 /** What decides how much weight a set really moves. */
@@ -30,12 +29,19 @@ export function bodyWeightOn(logs: BodyWeightLog[], ymd: string): number | null 
   return found;
 }
 
-export interface VolumeSet {
+/**
+ * Working sets summed per program week, exercise and day (the database does the adding).
+ * The day matters because bodyweight exercises add the body weight logged by then.
+ */
+export interface VolumeGroup {
   week: number;
   exerciseId: string;
-  weightKg: number;
+  /** Local calendar day, YYYY-MM-DD. */
+  loggedOn: string;
+  /** Σ logged weight (kg) × reps over the group's sets. */
+  weightRepsKg: number;
+  /** Σ reps over the group's sets. */
   reps: number;
-  loggedAt: string;
 }
 
 /** What weekly volume needs to know about an exercise: how to load its sets and which muscle group it trains. */
@@ -65,16 +71,18 @@ function emptyRegions(): RegionVolumes {
 }
 
 /** Volume per program week and body region, with per-side and bodyweight loads applied. */
-export function weeklyVolume(sets: VolumeSet[], exercisesById: Record<string, VolumeExercise>, logs: BodyWeightLog[]): WeeklyVolume {
+export function weeklyVolume(groups: VolumeGroup[], exercisesById: Record<string, VolumeExercise>, logs: BodyWeightLog[]): WeeklyVolume {
   const byWeek = new Map<number, RegionVolumes>();
   let missingBodyWeight = false;
-  for (const set of sets) {
-    const exercise = exercisesById[set.exerciseId] ?? UNKNOWN_EXERCISE;
-    const bodyWeight = exercise.isBodyweight ? bodyWeightOn(logs, localYmd(new Date(set.loggedAt))) : null;
+  for (const group of groups) {
+    const exercise = exercisesById[group.exerciseId] ?? UNKNOWN_EXERCISE;
+    const bodyWeight = exercise.isBodyweight ? bodyWeightOn(logs, group.loggedOn) : null;
     if (exercise.isBodyweight && bodyWeight === null) missingBodyWeight = true;
-    const regions = byWeek.get(set.week) ?? emptyRegions();
-    regions[regionOf(exercise.muscleGroup)] += setLoadKg(set.weightKg, exercise, bodyWeight) * set.reps;
-    byWeek.set(set.week, regions);
+    const regions = byWeek.get(group.week) ?? emptyRegions();
+    // Same as summing setLoadKg(weight) × reps over the sets: the load is linear in weight.
+    regions[regionOf(exercise.muscleGroup)] +=
+      group.weightRepsKg * (exercise.weightPerSide ? 2 : 1) + (bodyWeight ?? 0) * group.reps;
+    byWeek.set(group.week, regions);
   }
   const weeks = Array.from(byWeek, ([week, raw]) => {
     const byRegion = Object.fromEntries(Object.entries(raw).map(([id, v]) => [id, Math.round(v)])) as RegionVolumes;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getCompletedSlots, getIncompleteSession, getRecentWorkouts } from "@/lib/db";
+import { getRecentWorkouts, getWorkoutOverview } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { programRun } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -38,13 +38,12 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
       const user = await requireSignedInUser(router);
       if (!user) return;
 
-      const [incomplete, completed, recent] = await Promise.all([
-        getIncompleteSession(user.id),
-        getCompletedSlots(user.id),
+      const [{ unfinished, completed }, recent] = await Promise.all([
+        getWorkoutOverview(),
         getRecentWorkouts(user.id, FEED_LIMIT),
       ]);
       const fresh: FeedData = {
-        resume: incomplete ? { week: incomplete.week, dayIndex: incomplete.dayIndex } : null,
+        resume: unfinished ? { week: unfinished.week, dayIndex: unfinished.dayIndex } : null,
         completed: completed.map(({ week, dayIndex }) => ({ week, dayIndex })),
         items: buildWorkoutFeed(recent.sessions, recent.sets),
       };

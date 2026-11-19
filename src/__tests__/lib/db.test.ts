@@ -29,7 +29,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
-  getPreferences, saveExerciseNote, getIncompleteSession, getRecentWorkouts,
+  getPreferences, saveExerciseNote, getRecentWorkouts,
 } from "@/lib/db";
 
 beforeEach(() => {
@@ -133,68 +133,6 @@ describe("saveExerciseNote", () => {
 
     const upsertArg = mockUpsert.mock.calls[0][0] as { exercise_notes: Record<string, string> };
     expect(upsertArg.exercise_notes).toEqual({ "ex-1": "first note" });
-  });
-});
-
-// ─── getIncompleteSession ──────────────────────────────────────────────────────
-
-describe("getIncompleteSession", () => {
-  it("returns null when data is null", async () => {
-    mockSingle.mockResolvedValue({ data: null, error: null });
-    const result = await getIncompleteSession("user-1");
-    expect(result).toBeNull();
-  });
-
-  it("maps a DB row to a WorkoutSession with camelCase fields", async () => {
-    const mockRow = {
-      id: "sess-1",
-      user_id: "user-1",
-      program_id: null,
-      week: 2,
-      day_index: 1,
-      day_type: "upper-a",
-      started_at: "2024-01-01T10:00:00Z",
-      completed_at: null,
-      current_exercise_index: 3,
-      current_set_index: 2,
-      exercise_swaps: { bench: "db-bench" },
-    };
-    mockSingle.mockResolvedValue({ data: mockRow, error: null });
-
-    const result = await getIncompleteSession("user-1");
-    expect(result).toEqual({
-      id: "sess-1",
-      userId: "user-1",
-      programId: null,
-      week: 2,
-      dayIndex: 1,
-      dayType: "upper-a",
-      startedAt: "2024-01-01T10:00:00Z",
-      completedAt: null,
-      currentExerciseIndex: 3,
-      currentSetIndex: 2,
-      exerciseSwaps: { bench: "db-bench" },
-    });
-  });
-
-  it("maps programId correctly when present", async () => {
-    const mockRow = {
-      id: "sess-2",
-      user_id: "user-2",
-      program_id: "prog-abc",
-      week: 5,
-      day_index: 2,
-      day_type: "lower-a",
-      started_at: "2024-02-15T08:00:00Z",
-      completed_at: null,
-      current_exercise_index: 0,
-      current_set_index: 0,
-    };
-    mockSingle.mockResolvedValue({ data: mockRow, error: null });
-
-    const result = await getIncompleteSession("user-2");
-    expect(result?.programId).toBe("prog-abc");
-    expect(result?.dayType).toBe("lower-a");
   });
 });
 

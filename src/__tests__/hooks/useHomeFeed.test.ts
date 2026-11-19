@@ -7,8 +7,7 @@ const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const db = vi.hoisted(() => ({
-  getIncompleteSession: vi.fn(),
-  getCompletedSlots: vi.fn(),
+  getWorkoutOverview: vi.fn(),
   getRecentWorkouts: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
@@ -26,12 +25,14 @@ const weeks = (n: number, days: number): WeekSchedule[] =>
 const completedThrough = (through: number, days: number) =>
   Array.from({ length: through * days }, (_, i) => ({ sessionId: `s${i}`, week: Math.floor(i / days) + 1, dayIndex: i % days })).reverse();
 
+const overview = (unfinished: { week: number; dayIndex: number } | null, completed: ReturnType<typeof completedThrough>) =>
+  db.getWorkoutOverview.mockResolvedValue({ unfinished, completed });
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   program = weeks(13, 5);
-  db.getIncompleteSession.mockResolvedValue(null);
-  db.getCompletedSlots.mockResolvedValue(completedThrough(12, 5));
+  overview(null, completedThrough(12, 5));
   db.getRecentWorkouts.mockResolvedValue({ sessions: [], sets: [] });
 });
 
@@ -44,14 +45,14 @@ describe("useHomeFeed", () => {
   });
 
   it("suggests a skipped day before later ones", async () => {
-    db.getCompletedSlots.mockResolvedValue(completedThrough(12, 5).filter((s) => !(s.week === 3 && s.dayIndex === 1)));
+    overview(null, completedThrough(12, 5).filter((s) => !(s.week === 3 && s.dayIndex === 1)));
     const { result } = renderHook(() => useHomeFeed());
     await waitFor(() => expect(result.current.feed).not.toBeNull());
     expect(result.current.feed?.nextSession).toEqual({ week: 3, dayIndex: 1 });
   });
 
   it("prefers resuming an unfinished workout", async () => {
-    db.getIncompleteSession.mockResolvedValue({ week: 4, dayIndex: 2 });
+    overview({ week: 4, dayIndex: 2 }, completedThrough(12, 5));
     const { result } = renderHook(() => useHomeFeed());
     await waitFor(() => expect(result.current.feed?.hasResume).toBe(true));
     expect(result.current.feed?.nextSession).toEqual({ week: 4, dayIndex: 2 });

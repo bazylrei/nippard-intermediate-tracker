@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { BodyWeightLog } from "@/lib/types";
-import { bodyWeightOn, setLoadKg, weeklyVolume, type VolumeSet, type WeeklyVolume } from "@/lib/volume";
+import { bodyWeightOn, setLoadKg, weeklyVolume, type VolumeGroup, type WeeklyVolume } from "@/lib/volume";
 
 const plain = { weightPerSide: false, isBodyweight: false };
 const perSide = { weightPerSide: true, isBodyweight: false };
@@ -44,8 +44,9 @@ describe("bodyWeightOn", () => {
 });
 
 describe("weeklyVolume", () => {
-  const set = (exerciseId: string, weightKg: number, reps: number, week: number, loggedAt = "2026-10-20T10:00:00Z"): VolumeSet =>
-    ({ exerciseId, weightKg, reps, week, loggedAt });
+  /** One set as a group of its own (the database sums sets of the same week, exercise and day). */
+  const set = (exerciseId: string, weightKg: number, reps: number, week: number, loggedOn = "2026-10-20"): VolumeGroup =>
+    ({ exerciseId, weightRepsKg: weightKg * reps, reps, week, loggedOn });
   const exercises = {
     bench: { ...plain, muscleGroup: "chest" },
     "db-row": { ...perSide, muscleGroup: "back" },
@@ -83,11 +84,23 @@ describe("weeklyVolume", () => {
   it("uses the body weight of the day each set was done", () => {
     const logs = [log("2026-10-01", 80), log("2026-11-01", 85)];
     const result = weeklyVolume(
-      [set("pull-up", 0, 10, 1, "2026-10-20T10:00:00Z"), set("pull-up", 0, 10, 5, "2026-11-10T10:00:00Z")],
+      [set("pull-up", 0, 10, 1, "2026-10-20"), set("pull-up", 0, 10, 5, "2026-11-10")],
       exercises,
       logs,
     );
     expect(totals(result)).toEqual([{ week: 1, volume: 800 }, { week: 5, volume: 850 }]);
+  });
+
+  it("gives the same volume whether sets arrive one by one or already summed", () => {
+    const logs = [log("2026-10-01", 80)];
+    const single = weeklyVolume([set("pull-up", 10, 8, 1), set("pull-up", 5, 6, 1), set("db-row", 30, 10, 1), set("db-row", 25, 8, 1)], exercises, logs);
+    const summed = weeklyVolume([
+      { exerciseId: "pull-up", week: 1, loggedOn: "2026-10-20", weightRepsKg: 10 * 8 + 5 * 6, reps: 14 },
+      { exerciseId: "db-row", week: 1, loggedOn: "2026-10-20", weightRepsKg: 30 * 10 + 25 * 8, reps: 18 },
+    ], exercises, logs);
+    expect(summed).toEqual(single);
+    // pull-ups: 80 + 30 + 80 × 14 = 1230; rows: 2 × 500 = 1000
+    expect(summed.weeks[0].volume).toBe(2230);
   });
 
   it("flags bodyweight sets counted without a body weight", () => {

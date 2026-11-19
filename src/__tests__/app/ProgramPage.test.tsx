@@ -8,8 +8,7 @@ const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({
-  getIncompleteSessionWithSets: vi.fn(),
-  getCompletedSlots: vi.fn(),
+  getWorkoutOverview: vi.fn(),
   completeSession: vi.fn(),
   deleteWorkoutSession: vi.fn(),
   getPreferences: vi.fn(),
@@ -32,13 +31,15 @@ beforeEach(() => {
   localStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   auth.getSignedInUser.mockResolvedValue({ id: "user-1", email: "me@example.com" });
-  db.getIncompleteSessionWithSets.mockResolvedValue(null);
   db.completeSession.mockResolvedValue(undefined);
   db.deleteWorkoutSession.mockResolvedValue(undefined);
-  db.getCompletedSlots.mockResolvedValue([
-    { sessionId: "s2", week: 1, dayIndex: 1 },
-    { sessionId: "s1", week: 1, dayIndex: 0 },
-  ]);
+  db.getWorkoutOverview.mockResolvedValue({
+    unfinished: null,
+    completed: [
+      { sessionId: "s2", week: 1, dayIndex: 1 },
+      { sessionId: "s1", week: 1, dayIndex: 0 },
+    ],
+  });
 });
 
 async function renderPage() {
@@ -47,10 +48,8 @@ async function renderPage() {
 }
 
 const tile = (name: RegExp) => screen.getByRole("button", { name });
-const unfinishedUpper = {
-  session: { id: "u1", week: 1, dayIndex: 0, dayType: "upper-a" },
-  sets: [{ setIndex: -1 }, { setIndex: 0 }, { setIndex: 1 }],
-};
+/** Two working sets logged (the warm-up isn't counted by the database). */
+const unfinishedUpper = { sessionId: "u1", week: 1, dayIndex: 0, dayType: "upper-a", setCount: 2 };
 
 describe("Program page — week overview", () => {
   it("links each completed day to its workout and leaves the rest plain", async () => {
@@ -60,7 +59,7 @@ describe("Program page — week overview", () => {
   });
 
   it("ticks only the days actually done, and suggests a skipped one", async () => {
-    db.getCompletedSlots.mockResolvedValue([{ sessionId: "s3", week: 1, dayIndex: 2 }, { sessionId: "s1", week: 1, dayIndex: 0 }]);
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: null, completed: [{ sessionId: "s3", week: 1, dayIndex: 2 }, { sessionId: "s1", week: 1, dayIndex: 0 }] });
     await renderPage();
     const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href")).filter((href) => href !== "/profile");
     expect(hrefs).toEqual(["/history/s1", "/history/s3"]);
@@ -96,8 +95,7 @@ describe("Program page — choosing a workout", () => {
   });
 
   it("saves the unfinished workout as it is, then starts the chosen one", async () => {
-    db.getCompletedSlots.mockResolvedValue([]);
-    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: unfinishedUpper, completed: [] });
     await renderPage();
     fireEvent.click(tile(/Push/));
     expect(screen.getByText(/unfinished, with 2 sets logged/)).toBeInTheDocument(); // warm-up not counted
@@ -109,8 +107,7 @@ describe("Program page — choosing a workout", () => {
   });
 
   it("can discard the unfinished workout instead", async () => {
-    db.getCompletedSlots.mockResolvedValue([]);
-    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: unfinishedUpper, completed: [] });
     await renderPage();
     fireEvent.click(tile(/Push/));
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Discard it & start" })); });
@@ -119,8 +116,7 @@ describe("Program page — choosing a workout", () => {
   });
 
   it("doesn't start the new workout if settling the unfinished one fails", async () => {
-    db.getCompletedSlots.mockResolvedValue([]);
-    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: unfinishedUpper, completed: [] });
     db.completeSession.mockRejectedValue(new Error("offline"));
     await renderPage();
     fireEvent.click(tile(/Push/));
@@ -130,8 +126,7 @@ describe("Program page — choosing a workout", () => {
   });
 
   it("resumes the unfinished day straight away", async () => {
-    db.getCompletedSlots.mockResolvedValue([]);
-    db.getIncompleteSessionWithSets.mockResolvedValue(unfinishedUpper);
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: unfinishedUpper, completed: [] });
     await renderPage();
     fireEvent.click(tile(/In progress/));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -160,7 +155,7 @@ describe("Program page — header", () => {
 
 describe("Program page — loading", () => {
   it("explains instead of loading forever when the first load fails", async () => {
-    db.getCompletedSlots.mockRejectedValue(new Error("offline"));
+    db.getWorkoutOverview.mockRejectedValue(new Error("offline"));
     render(<MyProgram />);
     expect(await screen.findByText(/Couldn't load your program/)).toBeInTheDocument();
   });

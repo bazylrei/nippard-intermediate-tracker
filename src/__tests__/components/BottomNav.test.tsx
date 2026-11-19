@@ -56,7 +56,7 @@ describe("AppNav", () => {
     render(<AppNav />);
     fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/workout?week=3&day=2"));
-    expect(next.findNextWorkout).toHaveBeenCalledWith("user-1", expect.any(Array));
+    expect(next.findNextWorkout).toHaveBeenCalledWith(expect.any(Array));
   });
 
   it("goes Home when the next workout can't be worked out", async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getCompletedSlots, getIncompleteSessionWithSets, type CompletedSlot } from "@/lib/db";
+import { getWorkoutOverview, type CompletedSlot } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/cache";
 import type { WorkoutPosition } from "@/lib/types";
 
@@ -35,15 +35,12 @@ export function useProgramOverview(): { overview: ProgramOverview | null; failed
     async function load() {
       const user = await requireSignedInUser(router);
       if (!user) return;
-      const [incomplete, completed] = await Promise.all([
-        getIncompleteSessionWithSets(user.id),
-        getCompletedSlots(user.id),
-      ]);
-      const unfinished = incomplete && {
-        sessionId: incomplete.session.id,
-        position: { week: incomplete.session.week, dayIndex: incomplete.session.dayIndex },
-        dayType: incomplete.session.dayType,
-        setCount: incomplete.sets.filter((s) => s.setIndex >= 0).length,
+      const { unfinished: found, completed } = await getWorkoutOverview();
+      const unfinished = found && {
+        sessionId: found.sessionId,
+        position: { week: found.week, dayIndex: found.dayIndex },
+        dayType: found.dayType,
+        setCount: found.setCount,
       };
       const fresh = { unfinished, completed };
       setOverview(fresh);

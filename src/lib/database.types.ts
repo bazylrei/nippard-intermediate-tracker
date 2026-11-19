@@ -521,6 +521,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      logged_exercise_ids: { Args: never; Returns: string[] }
       program_user_counts: {
         Args: { p_program_ids: string[] }
         Returns: {
@@ -528,6 +529,17 @@ export type Database = {
           user_count: number
         }[]
       }
+      weekly_volume_groups: {
+        Args: { p_tz: string }
+        Returns: {
+          exercise_id: string
+          logged_on: string
+          reps: number
+          week: number
+          weight_reps: number
+        }[]
+      }
+      workout_overview: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never

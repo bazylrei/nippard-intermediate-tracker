@@ -44,3 +44,8 @@ export function startOfWeek(date: Date, weekStartsOn: number): string {
   const back = (date.getDay() - weekStartsOn + 7) % 7;
   return localYmd(new Date(date.getFullYear(), date.getMonth(), date.getDate() - back));
 }
+
+/** The device's IANA time zone, e.g. "Europe/London": decides which calendar day a logged time falls on. */
+export function localTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
