@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { getSignedInUser, resendConfirmation, sendPasswordReset, signIn, signInWithProvider, signUp } from "@/lib/auth";
 import AuthWelcome from "@/components/auth/AuthWelcome";
 import CredentialsForm from "@/components/auth/CredentialsForm";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 import EmailSentNotice from "@/components/auth/EmailSentNotice";
-import ThemeToggle from "@/components/ThemeToggle";
+import AuthHeader from "@/components/auth/AuthHeader";
 
 type View =
   | { name: "welcome" }
@@ -62,14 +61,7 @@ export default function AuthPage() {
 
   return (
     <div className="w-full min-h-screen max-w-sm mx-auto flex flex-col p-4 gap-4">
-      <div className="flex items-center justify-between h-10 pt-2">
-        {showBack ? (
-          <button onClick={goBack} aria-label="Back" className="p-2 -ml-2 text-muted hover:text-fg transition-colors rounded-xl cursor-pointer">
-            <ArrowLeft size={20} />
-          </button>
-        ) : <span className="w-9" />}
-        <ThemeToggle />
-      </div>
+      <AuthHeader onBack={showBack ? goBack : undefined} />
 
       {view.name === "welcome" && <AuthWelcome onCreate={() => setView({ name: "signup" })} onSignIn={() => setView({ name: "signin" })} />}
       {(view.name === "signup" || view.name === "signin") && (

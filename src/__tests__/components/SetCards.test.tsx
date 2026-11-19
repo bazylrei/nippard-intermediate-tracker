@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { SetLog } from "@/lib/types";
-import { LoggedSetCard, UpcomingSetCard } from "@/components/workout/SetCards";
+import LoggedSetCard from "@/components/workout/LoggedSetCard";
+import UpcomingSetCard from "@/components/workout/UpcomingSetCard";
 
 const set = { id: "s1", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: 8.5 } as SetLog;
 

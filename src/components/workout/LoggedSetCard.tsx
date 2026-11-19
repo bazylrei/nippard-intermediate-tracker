@@ -4,7 +4,7 @@ import { CheckCircle, Pencil } from "lucide-react";
 import type { SetLog } from "@/lib/types";
 import { kgToDisplay } from "@/lib/units";
 
-interface LoggedProps {
+interface Props {
   set: SetLog;
   setNumber: number;
   unit: "kg" | "lbs";
@@ -13,7 +13,7 @@ interface LoggedProps {
 }
 
 /** Carousel slide for a set already logged this session. */
-export function LoggedSetCard({ set, setNumber, unit, weightPerSide, onEdit }: LoggedProps) {
+export default function LoggedSetCard({ set, setNumber, unit, weightPerSide, onEdit }: Props) {
   return (
     <div className="glass rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -34,24 +34,6 @@ export function LoggedSetCard({ set, setNumber, unit, weightPerSide, onEdit }: L
       >
         <Pencil size={14} /> Edit set
       </button>
-    </div>
-  );
-}
-
-interface UpcomingProps {
-  setNumber: number;
-  repRange: [number, number];
-  targetRpe?: [number, number];
-}
-
-/** Carousel slide previewing a set that comes after the current one. */
-export function UpcomingSetCard({ setNumber, repRange, targetRpe }: UpcomingProps) {
-  return (
-    <div className="glass rounded-2xl p-4 space-y-2 opacity-60">
-      <span className="font-display font-bold text-base uppercase tracking-wide text-subtle">Set {setNumber}</span>
-      <p className="text-sm text-muted">
-        {repRange[0]}–{repRange[1]} reps{targetRpe && ` · RPE ${targetRpe[0]}–${targetRpe[1]}`}
-      </p>
     </div>
   );
 }

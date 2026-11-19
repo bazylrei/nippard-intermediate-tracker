@@ -5,7 +5,8 @@ import type { Exercise, ExerciseRecord, SetLog } from "@/lib/types";
 import { totalSetsForExercise } from "@/lib/workout-helpers";
 import SetLogger from "@/components/SetLogger";
 import SetCarousel from "./SetCarousel";
-import { LoggedSetCard, UpcomingSetCard } from "./SetCards";
+import LoggedSetCard from "./LoggedSetCard";
+import UpcomingSetCard from "./UpcomingSetCard";
 
 interface Props {
   exercise: Exercise;

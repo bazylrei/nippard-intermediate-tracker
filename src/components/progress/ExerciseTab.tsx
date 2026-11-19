@@ -6,7 +6,7 @@ import type { ExerciseHistoryPoint } from "@/lib/types";
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
 import type { ExerciseOption } from "@/hooks/useExerciseCatalog";
 import { CHART_TOOLTIP_STYLE } from "./chart-style";
-import EmptyState from "./EmptyState";
+import EmptyState from "@/components/widgets/EmptyState";
 
 interface Props {
   options: ExerciseOption[];

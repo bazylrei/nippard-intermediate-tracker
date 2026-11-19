@@ -7,7 +7,7 @@ import { useHomeFeed } from "@/hooks/useHomeFeed";
 import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import NextWorkoutCard from "@/components/widgets/NextWorkoutCard";
 import { startWorkoutHref } from "@/lib/workout-history";
-import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
+import RecentActivity from "@/components/home/RecentActivity";
 import { getSessionNumber } from "@/lib/program-data";
 import { useWeighIn } from "@/hooks/useWeighIn";
 import WeighInCard from "@/components/widgets/WeighInCard";
@@ -46,16 +46,7 @@ export default function Home() {
         </Link>
       )}
 
-      <h3 className="font-display font-bold text-xs uppercase tracking-widest text-muted px-1 pt-2">
-        Recent activity
-      </h3>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted px-1">No workouts yet — your completed sessions will show up here.</p>
-      ) : (
-        <div className="space-y-2.5">
-          {items.map((item) => <CompletedWorkoutCell key={item.session.id} item={item} />)}
-        </div>
-      )}
+      <RecentActivity items={items} />
     </div>
   );
 }

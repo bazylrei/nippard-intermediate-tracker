@@ -1,20 +1,21 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { useCatalogExercise } from "@/hooks/useCatalog";
 import { useSaveError } from "@/hooks/useSaveError";
 import { deleteExercise } from "@/lib/db";
 import { equipmentLabel, muscleGroupLabel } from "@/lib/exercise-form";
 import { EXERCISES_PATH, editExerciseHref } from "@/lib/exercise-routes";
-import { WARMUP_PROTOCOLS } from "@/components/builder/constants";
+import ExerciseFacts from "@/components/exercises/ExerciseFacts";
+import ExerciseHowTo from "@/components/exercises/ExerciseHowTo";
+import DeleteExerciseControl from "@/components/exercises/DeleteExerciseControl";
 import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
 import BackLink from "@/components/widgets/BackLink";
 import VideoLink from "@/components/widgets/VideoLink";
-import type { CatalogExercise } from "@/lib/types";
 
 const IN_USE = "This exercise is used in a program or in logged sets, so it can't be deleted.";
 
@@ -23,7 +24,6 @@ function ExerciseDetail() {
   const router = useRouter();
   const id = decodeURIComponent(exerciseId);
   const { status, exercise, isOwn } = useCatalogExercise(id);
-  const [confirming, setConfirming] = useState(false);
   const saveError = useSaveError();
 
   if (status === "error") return <FullScreenMessage message="Couldn't load this exercise. Check your connection and try again." />;
@@ -31,7 +31,6 @@ function ExerciseDetail() {
   if (status === "loading" || !exercise) return <FullScreenMessage message="Loading…" />;
 
   async function handleDelete() {
-    setConfirming(false);
     let deleted: boolean;
     try {
       deleted = await deleteExercise(id);
@@ -64,15 +63,9 @@ function ExerciseDetail() {
 
       {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
 
-      <Facts exercise={exercise} />
+      <ExerciseFacts exercise={exercise} />
 
-      {(exercise.formNote || exercise.instructions) && (
-        <section className="glass gloss rounded-2xl p-4 space-y-2 text-sm text-fg">
-          <h2 className="font-display font-bold text-xs uppercase tracking-widest text-muted">How to</h2>
-          {exercise.formNote && <p className="whitespace-pre-line">{exercise.formNote}</p>}
-          {exercise.instructions && <p className="whitespace-pre-line text-muted">{exercise.instructions}</p>}
-        </section>
-      )}
+      <ExerciseHowTo exercise={exercise} />
 
       {exercise.youtubeUrl && (
         <VideoLink url={exercise.youtubeUrl} className="glass gloss rounded-2xl p-4 flex items-center gap-2 text-sm font-medium text-primary">
@@ -80,40 +73,8 @@ function ExerciseDetail() {
         </VideoLink>
       )}
 
-      {isOwn && (confirming ? (
-        <div className="glass gloss rounded-2xl p-4 space-y-3">
-          <p className="text-sm text-fg">Delete “{exercise.name}”? This can&apos;t be undone.</p>
-          <div className="flex gap-2">
-            <button onClick={handleDelete} className="flex-1 rounded-xl py-2 text-sm font-semibold bg-danger/10 text-danger cursor-pointer">Delete</button>
-            <button onClick={() => setConfirming(false)} className="flex-1 rounded-xl py-2 text-sm font-semibold bg-elevated text-fg cursor-pointer">Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <button onClick={() => setConfirming(true)} className="flex items-center justify-center gap-2 py-3 text-sm font-medium text-danger cursor-pointer">
-          <Trash2 size={16} /> Delete exercise
-        </button>
-      ))}
+      {isOwn && <DeleteExerciseControl name={exercise.name} onDelete={handleDelete} />}
     </div>
-  );
-}
-
-function Facts({ exercise }: { exercise: CatalogExercise }) {
-  const [restMin, restMax] = exercise.restSeconds;
-  const warmup = WARMUP_PROTOCOLS.find((w) => w.value === exercise.warmupProtocol)?.label ?? exercise.warmupProtocol;
-  const facts = [
-    { label: "Rest", value: restMin === restMax ? `${restMin}s` : `${restMin}–${restMax}s` },
-    { label: "Warm-up", value: warmup },
-    { label: "Weight", value: exercise.weightPerSide ? "Per side" : exercise.isBodyweight ? "Added to body weight" : "Total" },
-  ];
-  return (
-    <dl className="grid grid-cols-3 gap-2.5">
-      {facts.map((f) => (
-        <div key={f.label} className="glass gloss rounded-2xl p-3">
-          <dt className="text-xs text-muted">{f.label}</dt>
-          <dd className="font-display font-semibold text-sm text-fg mt-0.5">{f.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
