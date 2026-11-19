@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lastWeek, nextDayIndex } from "@/lib/program-structure";
+import { lastWeek, nextDayIndex, totalWeeksAfterDeletingWeek } from "@/lib/program-structure";
 
 describe("nextDayIndex", () => {
   it("appends after the highest index in the week", () => {
@@ -26,5 +26,26 @@ describe("lastWeek", () => {
   });
   it("is 0 for an empty program", () => {
     expect(lastWeek({ totalWeeks: 0, days: [] })).toBe(0);
+  });
+});
+
+describe("totalWeeksAfterDeletingWeek", () => {
+  const days = (...weeks: number[]) => weeks.map((week) => ({ week }));
+
+  it("shrinks the program by one when its last week is deleted", () => {
+    expect(totalWeeksAfterDeletingWeek({ totalWeeks: 3, days: days(1, 2, 3) }, 3)).toBe(2);
+  });
+
+  it("keeps the count when a middle week is deleted", () => {
+    expect(totalWeeksAfterDeletingWeek({ totalWeeks: 3, days: days(1, 2, 3) }, 2)).toBe(3);
+  });
+
+  it("never drops below the last week that still has days", () => {
+    // Declared 5 weeks, but week 4 is still in use: deleting week 5 leaves 4.
+    expect(totalWeeksAfterDeletingWeek({ totalWeeks: 5, days: days(1, 4, 5) }, 5)).toBe(4);
+  });
+
+  it("goes down to zero when the only week is deleted", () => {
+    expect(totalWeeksAfterDeletingWeek({ totalWeeks: 1, days: days(1) }, 1)).toBe(0);
   });
 });

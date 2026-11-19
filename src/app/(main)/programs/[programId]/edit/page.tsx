@@ -2,13 +2,8 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useRequireUser } from "@/context/AuthContext";
-import {
-  getBuilderProgram, updateProgramDayExercise, updateProgram, toggleProgramPublic,
-  getAllExercises, addProgramWeek, addProgramDay, addExerciseToDay, duplicateProgramWeek,
-  deleteProgramDayExercise, deleteProgramDay, deleteProgramWeek,
-} from "@/lib/db";
-import type { BuilderProgram, BuilderExercise } from "@/lib/types";
+import { useProgramEditor } from "@/hooks/useProgramEditor";
+import type { BuilderExercise } from "@/lib/types";
 import { Plus } from "lucide-react";
 import WeekCard from "@/components/builder/WeekCard";
 import ProgramEditorHeader from "@/components/builder/ProgramEditorHeader";
@@ -17,11 +12,8 @@ import AddExerciseModal from "@/components/builder/AddExerciseModal";
 import ExerciseEditModal from "@/components/builder/ExerciseEditModal";
 import ProgramEditModal from "@/components/builder/ProgramEditModal";
 import OverlayPresence from "@/components/OverlayPresence";
-import type { ExerciseInfo } from "@/components/builder/constants";
 import SaveErrorAlert from "@/components/SaveErrorAlert";
-import { useSaveError } from "@/hooks/useSaveError";
-import { lastWeek, nextDayIndex } from "@/lib/program-structure";
-import { canEditProgram } from "@/lib/program-access";
+import { lastWeek } from "@/lib/program-structure";
 import { programHref } from "@/lib/program-routes";
 
 export default function ProgramEditorPageWrapper() {
@@ -43,11 +35,7 @@ function PageSkeleton() {
 function ProgramEditorPage() {
   const { programId } = useParams<{ programId: string }>();
   const router = useRouter();
-  const userId = useRequireUser()?.id ?? null;
-  const [program, setProgram] = useState<BuilderProgram | null>(null);
-  const [allExercises, setAllExercises] = useState<ExerciseInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const { status, program, allExercises, canEdit, saveError, deletingKey, duplicatingWeek, actions } = useProgramEditor(programId);
   const [expandedWeeks, setExpandedWeeks] = useState<Set<number>>(new Set([1]));
 
   // Modals
@@ -56,36 +44,18 @@ function ProgramEditorPage() {
   const [addingDayToWeek, setAddingDayToWeek] = useState<number | null>(null);
   const [addingExerciseToDayId, setAddingExerciseToDayId] = useState<string | null>(null);
 
-  // Inline confirmations — key format: "week:N", "day:pdId", "ex:pdeId"
+  // Inline confirmation of a delete — key format: "week:N", "day:pdId", "ex:pdeId"
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [deletingKey, setDeletingKey] = useState<string | null>(null);
-  const [duplicatingWeek, setDuplicatingWeek] = useState<number | null>(null);
-  const saveError = useSaveError();
-  const { attempt } = saveError;
-
-  useEffect(() => {
-    if (!userId) return;
-    async function load() {
-      try {
-        const [data, exercises] = await Promise.all([getBuilderProgram(programId), getAllExercises()]);
-        setProgram(data);
-        setAllExercises(exercises);
-      } catch (error) {
-        console.error(error);
-        setLoadFailed(true);
-      }
-      setLoading(false);
-    }
-    void load();
-  }, [programId, userId]);
-
-  const isOwner = !!program && canEditProgram(program, userId);
 
   // Editing is for those who can edit; everyone else gets the preview.
-  const loadedWithoutEditRights = !loading && !!program && !isOwner;
+  const loadedWithoutEditRights = status === "ready" && !canEdit;
   useEffect(() => {
     if (loadedWithoutEditRights) router.replace(programHref(programId));
   }, [loadedWithoutEditRights, programId, router]);
+
+  const expandWeek = (week: number | null) => {
+    if (week !== null) setExpandedWeeks((prev) => new Set([...prev, week]));
+  };
 
   function toggleWeek(week: number) {
     setExpandedWeeks((prev) => {
@@ -95,155 +65,43 @@ function ProgramEditorPage() {
     });
   }
 
-  // ── Program actions ──────────────────────────────────────────────────────────
+  // Each handler runs the action, then does the page's own follow-up (close a sheet, expand a week).
+  const handleAddWeek = async () => expandWeek(await actions.addWeek());
+  const handleDuplicateWeek = async (week: number) => expandWeek(await actions.duplicateWeek(week));
 
-  async function handleTogglePublic() {
-    if (!program) return;
-    const next = !program.isPublic;
-    setProgram((p) => p ? { ...p, isPublic: next } : p);
-    const ok = await attempt(() => toggleProgramPublic(program.id, next), "Couldn't change who can see this program. Try again.");
-    if (!ok) setProgram((p) => p ? { ...p, isPublic: !next } : p);
-  }
-
-  // ── Week actions ─────────────────────────────────────────────────────────────
-
-  async function handleAddWeek() {
-    if (!program) return;
-    const newTotal = program.totalWeeks + 1;
-    if (!(await attempt(() => addProgramWeek(program.id, newTotal), "Couldn't add a week. Try again."))) return;
-    setProgram((p) => p ? { ...p, totalWeeks: newTotal } : p);
-    setExpandedWeeks((prev) => new Set([...prev, newTotal]));
-  }
-
-  async function handleDuplicateWeek(week: number) {
-    if (!program || duplicatingWeek !== null) return;
-    setDuplicatingWeek(week);
-    const targetWeek = lastWeek(program) + 1;
-    let newDays: BuilderProgram["days"] = [];
-    const ok = await attempt(async () => {
-      newDays = await duplicateProgramWeek(program.id, week, targetWeek, targetWeek);
-    }, "Couldn't duplicate the week. Try again.");
-    setDuplicatingWeek(null);
-    if (!ok) return;
-    setProgram((p) => p ? { ...p, totalWeeks: targetWeek, days: [...p.days, ...newDays] } : p);
-    setExpandedWeeks((prev) => new Set([...prev, targetWeek]));
-  }
-
-  async function handleDeleteWeek(week: number) {
-    if (!program) return;
-    setDeletingKey(`week:${week}`);
-    const ok = await attempt(() => deleteProgramWeek(program.id, week), "Couldn't delete the week. Try again.");
-    setDeletingKey(null);
+  async function handleDelete(action: () => Promise<boolean>) {
+    await action();
     setConfirmDelete(null);
-    if (!ok) return;
-    setProgram((p) => {
-      if (!p) return p;
-      const remaining = p.days.filter((d) => d.week !== week);
-      const maxRemaining = remaining.length > 0 ? Math.max(...remaining.map((d) => d.week)) : 0;
-      const newTotal = week === p.totalWeeks ? Math.max(week - 1, maxRemaining) : p.totalWeeks;
-      return { ...p, days: remaining, totalWeeks: newTotal };
-    });
   }
-
-  // ── Day actions ──────────────────────────────────────────────────────────────
 
   async function handleAddDay(week: number, dayType: string) {
-    if (!program) return;
-    let newDay: BuilderProgram["days"][number] | null = null;
-    const ok = await attempt(async () => {
-      newDay = await addProgramDay(program.id, week, nextDayIndex(program.days, week), dayType);
-    }, "Couldn't add the day. Try again.");
+    await actions.addDay(week, dayType);
     setAddingDayToWeek(null);
-    if (!ok || !newDay) return;
-    const added = newDay;
-    setProgram((p) => p ? { ...p, days: [...p.days, added] } : p);
   }
-
-  async function handleDeleteDay(pdId: string) {
-    setDeletingKey(`day:${pdId}`);
-    const ok = await attempt(() => deleteProgramDay(pdId), "Couldn't delete the day. Try again.");
-    setDeletingKey(null);
-    setConfirmDelete(null);
-    if (ok) setProgram((p) => p ? { ...p, days: p.days.filter((d) => d.pdId !== pdId) } : p);
-  }
-
-  // ── Exercise actions ─────────────────────────────────────────────────────────
 
   async function handleSaveExercise(pdeId: string, fields: Partial<BuilderExercise>) {
-    const ok = await attempt(() => updateProgramDayExercise(pdeId, {
-      exerciseId: fields.exerciseId,
-      repRangeMin: fields.repRangeMin,
-      repRangeMax: fields.repRangeMax,
-      earlySetCount: fields.earlySetCount,
-      lastSetCount: fields.lastSetCount,
-      earlySetRpeMin: fields.earlySetRpeMin,
-      earlySetRpeMax: fields.earlySetRpeMax,
-      lastSetTarget: fields.lastSetTarget,
-    }), "Couldn't save the exercise. Try again.");
-    if (!ok) return;
-    const resolvedFields = { ...fields };
-    if (fields.exerciseId) {
-      const found = allExercises.find((e) => e.id === fields.exerciseId);
-      if (found) resolvedFields.name = found.name;
-    }
-    setProgram((p) => {
-      if (!p) return p;
-      return {
-        ...p,
-        days: p.days.map((day) => ({
-          ...day,
-          exercises: day.exercises.map((ex) => ex.pdeId === pdeId ? { ...ex, ...resolvedFields } : ex),
-        })),
-      };
-    });
-    setEditingExercise(null);
+    if (await actions.saveExercise(pdeId, fields)) setEditingExercise(null);
   }
 
   async function handleAddExerciseToDay(pdId: string, exerciseId: string) {
-    if (!program) return;
-    const day = program.days.find((d) => d.pdId === pdId);
-    if (!day) return;
-    const exInfo = allExercises.find((e) => e.id === exerciseId);
-    if (!exInfo) return;
-    let created: BuilderExercise | null = null;
-    const ok = await attempt(async () => {
-      created = await addExerciseToDay(pdId, exerciseId, exInfo.name, exInfo.warmupProtocol, day.exercises.length);
-    }, "Couldn't add the exercise. Try again.");
+    const created = await actions.addExercise(pdId, exerciseId);
     setAddingExerciseToDayId(null);
-    if (!ok || !created) return;
-    const newEx: BuilderExercise = created;
-    setProgram((p) => {
-      if (!p) return p;
-      return { ...p, days: p.days.map((d) => d.pdId === pdId ? { ...d, exercises: [...d.exercises, newEx] } : d) };
-    });
-    setEditingExercise(newEx);
-  }
-
-  async function handleDeleteExercise(pdeId: string) {
-    setDeletingKey(`ex:${pdeId}`);
-    const ok = await attempt(() => deleteProgramDayExercise(pdeId), "Couldn't delete the exercise. Try again.");
-    setDeletingKey(null);
-    setConfirmDelete(null);
-    if (!ok) return;
-    setProgram((p) => {
-      if (!p) return p;
-      return { ...p, days: p.days.map((d) => ({ ...d, exercises: d.exercises.filter((ex) => ex.pdeId !== pdeId) })) };
-    });
+    if (created) setEditingExercise(created);
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  if (loading) return <PageSkeleton />;
+  if (status === "loading") return <PageSkeleton />;
 
-  if (loadFailed) {
+  if (status === "failed") {
     return <div className="max-w-2xl mx-auto p-4 md:p-8 text-center text-subtle py-16">Couldn&apos;t load this program. Check your connection and try again.</div>;
   }
 
-  if (!program) {
+  if (status === "not-found" || !program) {
     return <div className="max-w-2xl mx-auto p-4 md:p-8 text-center text-subtle py-16">Program not found.</div>;
   }
 
-  if (!isOwner) return <PageSkeleton />; // on its way to the preview
+  if (!canEdit) return <PageSkeleton />; // on its way to the preview
 
   const maxWeek = lastWeek(program);
   const weeks = maxWeek > 0 ? Array.from({ length: maxWeek }, (_, i) => i + 1) : [];
@@ -253,10 +111,10 @@ function ProgramEditorPage() {
 
       <ProgramEditorHeader
         program={program}
-        isOwner={isOwner}
+        isOwner={canEdit}
         onBack={() => router.push(programHref(program.id))}
         onEdit={() => setEditingProgram(true)}
-        onTogglePublic={handleTogglePublic}
+        onTogglePublic={actions.togglePublic}
       />
 
       {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
@@ -269,7 +127,7 @@ function ProgramEditorPage() {
             week={week}
             days={program.days.filter((d) => d.week === week).sort((a, b) => a.dayIndex - b.dayIndex)}
             expanded={expandedWeeks.has(week)}
-            isOwner={isOwner}
+            isOwner={canEdit}
             confirmDelete={confirmDelete}
             deletingKey={deletingKey}
             duplicatingWeek={duplicatingWeek}
@@ -277,9 +135,9 @@ function ProgramEditorPage() {
             onToggle={() => toggleWeek(week)}
             onAskDelete={setConfirmDelete}
             onCancelDelete={() => setConfirmDelete(null)}
-            onDeleteWeek={() => handleDeleteWeek(week)}
-            onDeleteDay={handleDeleteDay}
-            onDeleteExercise={handleDeleteExercise}
+            onDeleteWeek={() => handleDelete(() => actions.deleteWeek(week))}
+            onDeleteDay={(pdId) => handleDelete(() => actions.deleteDay(pdId))}
+            onDeleteExercise={(pdeId) => handleDelete(() => actions.deleteExercise(pdeId))}
             onDuplicate={() => handleDuplicateWeek(week)}
             onEditExercise={setEditingExercise}
             onAddExercise={setAddingExerciseToDayId}
@@ -289,7 +147,7 @@ function ProgramEditorPage() {
 
 
         {/* Add week */}
-        {isOwner && (
+        {canEdit && (
           <button
             onClick={handleAddWeek}
             className="w-full flex items-center justify-center gap-2 py-3 text-sm text-subtle hover:text-primary transition-colors border border-dashed border-border hover:border-primary/40 rounded-2xl"
@@ -329,9 +187,8 @@ function ProgramEditorPage() {
           <ProgramEditModal
             program={program}
             onSave={async (fields) => {
-              const ok = await attempt(() => updateProgram(program.id, fields), "Couldn't save the program details. Try again.");
+              await actions.updateDetails(fields);
               setEditingProgram(false);
-              if (ok) setProgram((p) => p ? { ...p, ...fields } : p);
             }}
             onClose={() => setEditingProgram(false)}
           />
