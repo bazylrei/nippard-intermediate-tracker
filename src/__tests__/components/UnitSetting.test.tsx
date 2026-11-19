@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import UnitSetting from "@/components/program/UnitSetting";
+import UnitSetting from "@/components/widgets/UnitSetting";
 
 describe("UnitSetting", () => {
   it("offers KG and LBS, with the current unit selected", () => {

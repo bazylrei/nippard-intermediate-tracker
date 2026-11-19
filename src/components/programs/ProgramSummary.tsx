@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Globe, Lock, Pencil, Users } from "lucide-react";
-import { BackLink } from "@/components/BackToProfile";
+import BackLink from "@/components/widgets/BackLink";
 import { PROGRAMS_PATH, editProgramHref } from "@/lib/program-routes";
 import type { BuilderProgram } from "@/lib/types";
 

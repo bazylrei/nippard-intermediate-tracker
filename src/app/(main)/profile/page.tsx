@@ -8,7 +8,7 @@ import { requireSignedInUser, SIGN_IN_PATH } from "@/lib/require-user";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getTotalSessions } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
+import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import { ChevronRight, ClipboardList, Dumbbell, LibraryBig, LogOut, Settings, UserRound, type LucideIcon } from "lucide-react";
 import { EXERCISES_PATH } from "@/lib/exercise-routes";

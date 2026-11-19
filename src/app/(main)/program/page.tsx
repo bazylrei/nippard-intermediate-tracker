@@ -10,13 +10,13 @@ import type { WorkoutPosition } from "@/lib/types";
 import { latestSessionBySlot, startWorkoutHref, workoutDetailHref } from "@/lib/workout-history";
 import { settleUnfinishedWorkout, type UnfinishedChoice } from "@/lib/unfinished-workout";
 import { dayLabel } from "@/lib/day-types";
-import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
+import NextWorkoutCard from "@/components/widgets/NextWorkoutCard";
 import WeekDayTile, { type DayStatus } from "@/components/program/WeekDayTile";
 import StartWorkoutSheet from "@/components/program/StartWorkoutSheet";
-import OverlayPresence from "@/components/OverlayPresence";
-import FullScreenMessage from "@/components/FullScreenMessage";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
-import BackToProfile from "@/components/BackToProfile";
+import BackToProfile from "@/components/widgets/BackToProfile";
 
 const samePosition = (a: WorkoutPosition | null | undefined, b: WorkoutPosition) =>
   !!a && a.week === b.week && a.dayIndex === b.dayIndex;

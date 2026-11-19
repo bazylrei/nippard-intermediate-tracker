@@ -9,7 +9,7 @@ import { lastWeek } from "@/lib/program-structure";
 import type { BuilderProgram } from "@/lib/types";
 import ProgramSummary from "@/components/programs/ProgramSummary";
 import DayPreviewCard from "@/components/programs/DayPreviewCard";
-import FullScreenMessage from "@/components/FullScreenMessage";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Loaded = { program: BuilderProgram | null; userId: string };

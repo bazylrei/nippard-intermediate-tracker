@@ -7,7 +7,7 @@ import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, logBodyWeigh
 import { localYmd } from "@/lib/dates";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
-import FullScreenMessage from "@/components/FullScreenMessage";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import ExerciseTab from "./ExerciseTab";
 import type { ExerciseHistoryPoint } from "@/lib/types";
 import VolumeTab from "./VolumeTab";

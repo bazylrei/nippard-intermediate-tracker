@@ -6,7 +6,7 @@ import { createExercise, newExerciseId } from "@/lib/db";
 import { EMPTY_DRAFT } from "@/lib/exercise-form";
 import { EXERCISES_PATH, exerciseHref } from "@/lib/exercise-routes";
 import ExerciseForm from "@/components/exercises/ExerciseForm";
-import { BackLink } from "@/components/BackToProfile";
+import BackLink from "@/components/widgets/BackLink";
 import type { ExerciseInput } from "@/lib/types";
 
 export default function NewExercisePage() {

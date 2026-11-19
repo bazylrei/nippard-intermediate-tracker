@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Flag } from "lucide-react";
-import OverlayPresence from "@/components/OverlayPresence";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
 import FinishWorkoutSheet from "./FinishWorkoutSheet";
 
 interface Props {

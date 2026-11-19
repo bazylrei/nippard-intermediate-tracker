@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import ThemeSetting from "@/components/program/ThemeSetting";
+import ThemeSetting from "@/components/widgets/ThemeSetting";
 import { readThemePreference } from "@/lib/theme";
 
 beforeEach(() => {

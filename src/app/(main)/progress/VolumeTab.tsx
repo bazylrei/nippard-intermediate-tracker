@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Rectangle, type Ba
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
 import type { WeeklyVolume } from "@/lib/volume";
 import { MUSCLE_REGIONS, type MuscleRegion } from "@/lib/muscle-regions";
-import BodyWeightCta from "@/components/BodyWeightCta";
+import BodyWeightCta from "@/components/widgets/BodyWeightCta";
 import { CHART_TOOLTIP_STYLE } from "./chart-style";
 import EmptyState from "./EmptyState";
 import RegionLegend, { regionColor } from "./RegionLegend";

@@ -6,8 +6,8 @@ import { ChevronRight, Plus, Search } from "lucide-react";
 import { useCatalog } from "@/hooks/useCatalog";
 import { MUSCLE_GROUPS, equipmentLabel } from "@/lib/exercise-form";
 import { exerciseHref, NEW_EXERCISE_PATH } from "@/lib/exercise-routes";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import BackToProfile from "@/components/BackToProfile";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import BackToProfile from "@/components/widgets/BackToProfile";
 import type { CatalogExercise } from "@/lib/types";
 
 export default function ExercisesPage() {

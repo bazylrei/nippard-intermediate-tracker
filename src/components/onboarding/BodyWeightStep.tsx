@@ -1,4 +1,4 @@
-import WeighInCard from "@/components/WeighInCard";
+import WeighInCard from "@/components/widgets/WeighInCard";
 import type { WeightUnit } from "@/lib/units";
 
 interface Props {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { EQUIPMENT, MUSCLE_GROUPS, validateDraft, type DraftErrors, type ExerciseDraft } from "@/lib/exercise-form";
 import { WARMUP_PROTOCOLS } from "@/components/builder/constants";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
+import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
 import { useSaveError } from "@/hooks/useSaveError";
 import type { ExerciseInput, MuscleGroup, WarmupProtocol } from "@/lib/types";
 

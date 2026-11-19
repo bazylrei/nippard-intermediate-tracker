@@ -2,7 +2,7 @@
 
 import type { Exercise } from "@/lib/types";
 import { Repeat2, ExternalLink, Info } from "lucide-react";
-import VideoLink from "@/components/VideoLink";
+import VideoLink from "@/components/widgets/VideoLink";
 
 interface Props {
   /** The exercise being done: the slot's own, or the alternate chosen for it. */

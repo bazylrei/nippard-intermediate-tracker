@@ -1,8 +1,8 @@
 import type { UserPreferences } from "@/lib/types";
 import { displayToKg, kgToDisplay, type WeightUnit } from "@/lib/units";
 import { WEEKDAYS } from "@/lib/dates";
-import ThemeSetting from "./ThemeSetting";
-import UnitSetting from "./UnitSetting";
+import ThemeSetting from "@/components/widgets/ThemeSetting";
+import UnitSetting from "@/components/widgets/UnitSetting";
 
 interface Props {
   prefs: UserPreferences;

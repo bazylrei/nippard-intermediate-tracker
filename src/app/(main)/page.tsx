@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useHomeFeed } from "@/hooks/useHomeFeed";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import NextWorkoutCard from "@/components/workouts/NextWorkoutCard";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import NextWorkoutCard from "@/components/widgets/NextWorkoutCard";
 import { startWorkoutHref } from "@/lib/workout-history";
 import CompletedWorkoutCell from "@/components/workouts/CompletedWorkoutCell";
 import { getSessionNumber } from "@/lib/program-data";
 import { useWeighIn } from "@/hooks/useWeighIn";
-import WeighInCard from "@/components/WeighInCard";
+import WeighInCard from "@/components/widgets/WeighInCard";
 
 export default function Home() {
   const router = useRouter();

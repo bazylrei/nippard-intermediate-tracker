@@ -10,10 +10,10 @@ import { deleteExercise } from "@/lib/db";
 import { equipmentLabel, muscleGroupLabel } from "@/lib/exercise-form";
 import { EXERCISES_PATH, editExerciseHref } from "@/lib/exercise-routes";
 import { WARMUP_PROTOCOLS } from "@/components/builder/constants";
-import FullScreenMessage from "@/components/FullScreenMessage";
-import SaveErrorAlert from "@/components/SaveErrorAlert";
-import { BackLink } from "@/components/BackToProfile";
-import VideoLink from "@/components/VideoLink";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
+import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
+import BackLink from "@/components/widgets/BackLink";
+import VideoLink from "@/components/widgets/VideoLink";
 import type { CatalogExercise } from "@/lib/types";
 
 const IN_USE = "This exercise is used in a program or in logged sets, so it can't be deleted.";

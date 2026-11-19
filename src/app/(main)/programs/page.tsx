@@ -9,9 +9,9 @@ import { editProgramHref } from "@/lib/program-routes";
 import type { ProgramRow } from "@/lib/types";
 import ProgramCard from "@/components/programs/ProgramCard";
 import NewProgramSheet from "@/components/programs/NewProgramSheet";
-import OverlayPresence from "@/components/OverlayPresence";
+import OverlayPresence from "@/components/widgets/OverlayPresence";
 import { LibraryBig, Plus } from "lucide-react";
-import BackToProfile from "@/components/BackToProfile";
+import BackToProfile from "@/components/widgets/BackToProfile";
 
 export default function ProgramsPage() {
   const router = useRouter();

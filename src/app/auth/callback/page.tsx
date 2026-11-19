@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { providerReturnError } from "@/lib/auth-errors";
 import { SIGN_IN_PATH } from "@/lib/require-user";
 import { useLinkSession } from "@/hooks/useLinkSession";
-import FullScreenMessage from "@/components/FullScreenMessage";
+import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 
 const HOME = "/";
 const GENERIC = "Couldn't sign you in. Try again, or use your email instead.";

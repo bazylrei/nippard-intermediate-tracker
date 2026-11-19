@@ -4,7 +4,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 const open = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/youtube", () => ({ openInYouTubeApp: open }));
 
-import VideoLink from "@/components/VideoLink";
+import VideoLink from "@/components/widgets/VideoLink";
 
 describe("VideoLink", () => {
   it("is an ordinary new-tab link to the video", () => {
