@@ -637,6 +637,16 @@ describe("WorkoutPage — warm-up slide", () => {
     expect(screen.queryByRole("button", { name: /Log Set/ })).toBeNull();
   });
 
+  it("ends the rest from the previous set as soon as a warm-up set is performed", async () => {
+    bootWith({ phase: "warmup", setIndex: -1 });
+    await renderPage();
+    expect(rest.stop).not.toHaveBeenCalled();
+
+    await click(screen.getByText("~60% × 6–10 reps"));
+
+    expect(rest.stop).toHaveBeenCalledTimes(1);
+  });
+
   it("slides to the first working set once the warm-up is done, keeping a recap", async () => {
     bootWith({ phase: "warmup", setIndex: -1 });
     await renderPage();

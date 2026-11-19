@@ -7,13 +7,14 @@ interface Props {
   steps: string[];
   active: boolean;
   onComplete: () => void;
+  onStepDone?: () => void;
   prevWorkingWeightKg?: number;
   unit: "kg" | "lbs";
   weightPerSide?: boolean;
 }
 
 /** The set carousel's warm-up slide: the checklist while warming up, a read-only recap afterwards. */
-export default function WarmupSlide({ steps, active, onComplete, prevWorkingWeightKg, unit, weightPerSide }: Props) {
+export default function WarmupSlide({ steps, active, onComplete, onStepDone, prevWorkingWeightKg, unit, weightPerSide }: Props) {
   if (active) {
     return (
       <div className="glass rounded-2xl p-4">
@@ -21,6 +22,7 @@ export default function WarmupSlide({ steps, active, onComplete, prevWorkingWeig
           steps={steps}
           onComplete={onComplete}
           onSkip={onComplete}
+          onStepDone={onStepDone}
           prevWorkingWeightKg={prevWorkingWeightKg}
           unit={unit}
           weightPerSide={weightPerSide}

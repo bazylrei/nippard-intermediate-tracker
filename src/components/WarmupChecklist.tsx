@@ -8,6 +8,8 @@ interface Props {
   steps: string[];
   onComplete: () => void;
   onSkip: () => void;
+  /** Called each time a step is ticked off, i.e. a warm-up set has just been performed. */
+  onStepDone?: () => void;
   prevWorkingWeightKg?: number;
   unit: "kg" | "lbs";
   /** Weights are per hand/side, so suggestions read "2× …" like the working sets. */
@@ -27,7 +29,7 @@ function suggestWeight(step: string, workingWeightKg: number, unit: "kg" | "lbs"
   return `~${kg} kg`;
 }
 
-export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorkingWeightKg, unit, weightPerSide }: Props) {
+export default function WarmupChecklist({ steps, onComplete, onSkip, onStepDone, prevWorkingWeightKg, unit, weightPerSide }: Props) {
   const [checked, setChecked] = useState<boolean[]>(steps.map(() => false));
 
   if (!steps.length) return null;
@@ -38,6 +40,7 @@ export default function WarmupChecklist({ steps, onComplete, onSkip, prevWorking
     const next = [...checked];
     next[i] = !next[i];
     setChecked(next);
+    if (next[i]) onStepDone?.();
   }
 
   return (
