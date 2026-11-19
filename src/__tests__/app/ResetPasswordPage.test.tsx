@@ -1,23 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@/test-utils/render";
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn(), onSignedInChange: vi.fn(), updatePassword: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: vi.fn(), getSignedInUser: vi.fn(), updatePassword: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 import ResetPasswordPage from "@/app/auth/reset/page";
 
-let signedInListener: (signedIn: boolean) => void = () => {};
+let authListener: (user: { id: string } | null) => void = () => {};
 const stopListening = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.spyOn(console, "error").mockImplementation(() => {});
-  signedInListener = () => {};
-  auth.onSignedInChange.mockImplementation((cb) => { signedInListener = cb; return stopListening; });
+  authListener = () => {};
+  auth.onAuthUserChange.mockImplementation((cb) => { authListener = cb; return stopListening; });
   auth.getSignedInUser.mockResolvedValue({ id: "user-1" });
   auth.updatePassword.mockResolvedValue(undefined);
 });
@@ -40,7 +40,7 @@ describe("Reset password page", () => {
     await renderPage();
     expect(screen.getByText("Checking your link…")).toBeInTheDocument();
 
-    await act(async () => { signedInListener(true); });
+    await act(async () => { authListener({ id: "user-1" }); });
     expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeInTheDocument();
   });
 
@@ -57,7 +57,7 @@ describe("Reset password page", () => {
     auth.getSignedInUser.mockResolvedValue(null);
     await renderPage();
     await act(async () => { vi.advanceTimersByTime(4000); });
-    await act(async () => { signedInListener(true); });
+    await act(async () => { authListener({ id: "user-1" }); });
     expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeInTheDocument();
   });
 

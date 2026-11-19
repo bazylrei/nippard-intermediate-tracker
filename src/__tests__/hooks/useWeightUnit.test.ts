@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@/test-utils/render";
 import { cacheGet, cacheSet } from "@/lib/cache";
 
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 const db = vi.hoisted(() => ({ getPreferences: vi.fn() }));
 vi.mock("@/lib/db", () => db);

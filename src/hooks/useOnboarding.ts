@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { getPreferences, logBodyWeight, upsertPreferences } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import { checkOnboarded, finishOnboarding } from "@/lib/onboarding";
@@ -22,23 +22,21 @@ const HOME = "/";
  */
 export function useOnboarding() {
   const router = useRouter();
+  const userId = useRequireUser()?.id ?? null;
   const saveError = useSaveError();
   const { attempt, clear } = saveError;
   const [status, setStatus] = useState<OnboardingStatus>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
   const [saved, setSaved] = useState<UserPreferences>(DEFAULT_PREFS);
   const [stepIndex, setStepIndex] = useState(0);
   const [unit, setUnit] = useState<WeightUnit>(DEFAULT_PREFS.unit);
   const [weekStartsOn, setWeekStartsOn] = useState(DEFAULT_PREFS.weekStartsOn);
 
   useEffect(() => {
-    async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
+    if (!userId) return;
+    async function load(id: string) {
       try {
-        const [done, prefs] = await Promise.all([checkOnboarded(user.id), getPreferences(user.id)]);
+        const [done, prefs] = await Promise.all([checkOnboarded(id), getPreferences(id)]);
         if (done) { router.replace(HOME); return; }
-        setUserId(user.id);
         setSaved(prefs);
         setUnit(prefs.unit);
         setWeekStartsOn(prefs.weekStartsOn);
@@ -48,8 +46,8 @@ export function useOnboarding() {
         setStatus("error");
       }
     }
-    void load();
-  }, [router]);
+    void load(userId);
+  }, [userId, router]);
 
   const next = useCallback(() => {
     clear();

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSignedInUser } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
 import { checkOnboarded, ONBOARDING_PATH } from "@/lib/onboarding";
 
 /**
@@ -12,18 +12,17 @@ import { checkOnboarded, ONBOARDING_PATH } from "@/lib/onboarding";
  */
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { user } = useAuth(); // a signed-out visitor is left to each page, which sends them to sign in
+  const userId = user?.id;
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
-    async function check() {
-      const user = await getSignedInUser();
-      if (!user) return; // each page already sends a signed-out visitor to sign in
-      const done = await checkOnboarded(user.id);
-      if (!done && !cancelled) router.replace(ONBOARDING_PATH);
-    }
-    check().catch((error) => console.error(error));
+    checkOnboarded(userId)
+      .then((done) => { if (!done && !cancelled) router.replace(ONBOARDING_PATH); })
+      .catch((error) => console.error(error));
     return () => { cancelled = true; };
-  }, [router]);
+  }, [userId, router]);
 
   return <>{children}</>;
 }

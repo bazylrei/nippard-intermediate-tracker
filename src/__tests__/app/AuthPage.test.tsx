@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@/test-utils/render";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 const auth = vi.hoisted(() => ({
-  getSignedInUser: vi.fn(), signIn: vi.fn(), signUp: vi.fn(), resendConfirmation: vi.fn(), sendPasswordReset: vi.fn(),
+  onAuthUserChange: () => () => {}, getSignedInUser: vi.fn(), signIn: vi.fn(), signUp: vi.fn(), resendConfirmation: vi.fn(), sendPasswordReset: vi.fn(),
   signInWithProvider: vi.fn(), getEnabledSocialProviders: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => auth);

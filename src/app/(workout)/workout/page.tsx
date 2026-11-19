@@ -31,13 +31,13 @@ import FinishWorkoutButton from "@/components/workout/FinishWorkoutButton";
 import ExerciseSetCarousel from "@/components/workout/ExerciseSetCarousel";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
-import { SIGN_IN_PATH } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 
 function WorkoutContent() {
   const router = useRouter();
   const { week, dayIndex, workoutDay } = useWorkoutRoute();
   const { warmupSteps, programId, ready: programReady, failed: programFailed } = useProgramContext();
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useRequireUser()?.id ?? null;
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
   const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
@@ -66,7 +66,8 @@ function WorkoutContent() {
   }, [done, stopRestTimer]);
 
   useEffect(() => {
-    if (!programReady) return;
+    if (!programReady || !userId) return;
+    const owner = userId;
 
     async function init() {
       setLoadFailed(false);
@@ -76,15 +77,13 @@ function WorkoutContent() {
       setLoading(true);
       let boot;
       try {
-        boot = await bootstrapWorkout({ week, dayIndex, workoutDay });
+        boot = await bootstrapWorkout({ userId: owner, week, dayIndex, workoutDay });
       } catch (error) {
         console.error(error);
         setLoadFailed(true);
         setLoading(false);
         return;
       }
-      if (!boot) { router.replace(SIGN_IN_PATH); return; }
-      setUserId(boot.userId);
       setPrefs(boot.prefs);
       setSession(boot.session);
       restore(boot);
@@ -92,7 +91,7 @@ function WorkoutContent() {
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, router, workoutDay, programReady, setPrefs, restore]);
+  }, [week, dayIndex, userId, workoutDay, programReady, setPrefs, restore]);
 
   /** Creates the session only now, so opening a day to look at it never starts one. */
   async function handleBegin() {

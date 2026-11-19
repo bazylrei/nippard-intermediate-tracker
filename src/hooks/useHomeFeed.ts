@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import { getRecentWorkouts, getWorkoutOverview } from "@/lib/db";
 import { buildWorkoutFeed, type WorkoutFeedItem } from "@/lib/feed";
 import { programRun } from "@/lib/program-data";
@@ -28,19 +27,18 @@ export interface HomeFeed {
 
 /** `failed` is true only when loading failed and there is no cached feed to show. */
 export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
-  const router = useRouter();
+  const user = useRequireUser();
   const { program } = useProgramContext();
   const [data, setData] = useState<FeedData | null>(() => cacheGet<FeedData>(CACHE_KEY));
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
+    const userId = user.id;
     async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
-
       const [{ unfinished, completed }, recent] = await Promise.all([
         getWorkoutOverview(),
-        getRecentWorkouts(user.id, FEED_LIMIT),
+        getRecentWorkouts(userId, FEED_LIMIT),
       ]);
       const fresh: FeedData = {
         resume: unfinished ? { week: unfinished.week, dayIndex: unfinished.dayIndex } : null,
@@ -51,7 +49,7 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
       cacheSet(CACHE_KEY, fresh);
     }
     load().catch((error) => { console.error(error); setLoadFailed(true); });
-  }, [router]);
+  }, [user]);
 
   const feed = useMemo<HomeFeed | null>(() => data && {
     nextSession: data.resume ?? programRun(data.completed, program).next,

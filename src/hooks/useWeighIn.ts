@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getSignedInUser } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
 import { getLatestBodyWeight, getPreferences, logBodyWeight } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import { displayToKg, type WeightUnit } from "@/lib/units";
@@ -18,26 +18,24 @@ interface WeighIn {
 
 /** The weekly weigh-in prompt's state. A failed check just leaves the prompt hidden. */
 export function useWeighIn(): WeighIn {
-  const [userId, setUserId] = useState<string | null>(null);
+  const userId = useAuth().user?.id ?? null;
   const [unit, setUnit] = useState<WeightUnit>("kg");
   const [weekStartsOn, setWeekStartsOn] = useState(1);
   const [due, setDue] = useState(false);
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
-    async function check() {
-      const user = await getSignedInUser();
-      if (!user) return;
-      const [prefs, latest] = await Promise.all([getPreferences(user.id), getLatestBodyWeight(user.id)]);
+    async function check(id: string) {
+      const [prefs, latest] = await Promise.all([getPreferences(id), getLatestBodyWeight(id)]);
       if (cancelled) return;
-      setUserId(user.id);
       setUnit(prefs.unit);
       setWeekStartsOn(prefs.weekStartsOn);
       setDue(isWeighInDue(latest, new Date(), prefs.weekStartsOn));
     }
-    check().catch((error) => console.error(error));
+    check(userId).catch((error) => console.error(error));
     return () => { cancelled = true; };
-  }, []);
+  }, [userId]);
 
   const save = useCallback(async (weight: number) => {
     if (!userId) return;

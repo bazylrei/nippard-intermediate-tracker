@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSignedInUser, onSignedInChange } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
 
 export type LinkStatus = "checking" | "ready" | "invalid";
 
@@ -13,15 +13,15 @@ export const LINK_WAIT_MS = 4000;
  * slow one still goes through if it arrives later.
  */
 export function useLinkSession(): LinkStatus {
-  const [status, setStatus] = useState<LinkStatus>("checking");
+  const signedIn = useAuth().status === "signedIn";
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    const ready = () => setStatus("ready");
-    const stop = onSignedInChange((signedIn) => { if (signedIn) ready(); });
-    getSignedInUser().then((user) => { if (user) ready(); }).catch((error) => console.error(error));
-    const timer = setTimeout(() => setStatus((s) => (s === "ready" ? s : "invalid")), LINK_WAIT_MS);
-    return () => { stop(); clearTimeout(timer); };
+    const timer = setTimeout(() => setTimedOut(true), LINK_WAIT_MS);
+    return () => clearTimeout(timer);
   }, []);
 
-  return status;
+  // A slow link still goes through if it signs the person in after the wait.
+  if (signedIn) return "ready";
+  return timedOut ? "invalid" : "checking";
 }

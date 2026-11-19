@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@/test-utils/render";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 const onboarding = vi.hoisted(() => ({ checkOnboarded: vi.fn() }));
 vi.mock("@/lib/onboarding", () => ({ ...onboarding, ONBOARDING_PATH: "/onboarding" }));

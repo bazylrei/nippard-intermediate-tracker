@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { providerReturnError } from "@/lib/auth-errors";
-import { SIGN_IN_PATH } from "@/lib/require-user";
+import { SIGN_IN_PATH } from "@/lib/auth-paths";
 import { useLinkSession } from "@/hooks/useLinkSession";
 import FullScreenMessage from "@/components/FullScreenMessage";
 

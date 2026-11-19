@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@/test-utils/render";
 import type { SetLog, WorkoutSession } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
-const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
+const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({

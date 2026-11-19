@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth";
-import { requireSignedInUser, SIGN_IN_PATH } from "@/lib/require-user";
+import { SIGN_IN_PATH } from "@/lib/auth-paths";
+import { useRequireUser } from "@/context/AuthContext";
 import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getTotalSessions } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -17,13 +17,9 @@ import { PROGRAMS_PATH } from "@/lib/program-routes";
 export default function ProfilePage() {
   const router = useRouter();
   const { program } = useProgramContext();
-  const [email, setEmail] = useState("");
-  const saveError = useSaveError();
-
   // Only the email comes from the session (stored locally, no round trip), so the page renders straight away.
-  useEffect(() => {
-    requireSignedInUser(router).then((user) => setEmail(user?.email ?? ""));
-  }, [router]);
+  const email = useRequireUser()?.email ?? "";
+  const saveError = useSaveError();
 
   async function handleSignOut() {
     if (await saveError.attempt(signOut, "Couldn't sign out. Try again.")) router.replace(SIGN_IN_PATH);

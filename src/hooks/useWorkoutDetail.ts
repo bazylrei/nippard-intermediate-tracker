@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { requireSignedInUser } from "@/lib/require-user";
+import { useRequireUser } from "@/context/AuthContext";
 import {
   getWorkoutDetail, updateSetLog, deleteSetLog, deleteExerciseSetsFromSession,
   updateExerciseIdForSets, addSetsToSession, deleteWorkoutSession,
@@ -20,19 +19,17 @@ export interface NewSet {
  * success; on failure it leaves local state untouched and surfaces `saveError`.
  */
 export function useWorkoutDetail(sessionId: string) {
-  const router = useRouter();
+  const user = useRequireUser();
+  const userId = user?.id ?? null;
   const saveError = useSaveError();
   const { attempt } = saveError;
   const [status, setStatus] = useState<WorkoutDetailStatus>("loading");
-  const [userId, setUserId] = useState<string | null>(null);
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [sets, setSets] = useState<SetLog[]>([]);
 
   useEffect(() => {
+    if (!userId) return;
     async function load() {
-      const user = await requireSignedInUser(router);
-      if (!user) return;
-      setUserId(user.id);
       try {
         const detail = await getWorkoutDetail(sessionId);
         if (!detail) { setStatus("not-found"); return; }
@@ -45,7 +42,7 @@ export function useWorkoutDetail(sessionId: string) {
       }
     }
     void load();
-  }, [sessionId, router]);
+  }, [sessionId, userId]);
 
   const updateSet = useCallback(async (setId: string, weight: number, reps: number, rpe: number | null) => {
     const ok = await attempt(() => updateSetLog(setId, weight, reps, rpe), "Couldn't save that set. Try again.");

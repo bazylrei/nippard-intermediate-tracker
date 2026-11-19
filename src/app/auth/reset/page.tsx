@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updatePassword } from "@/lib/auth";
 import { authErrorMessage } from "@/lib/auth-errors";
-import { SIGN_IN_PATH } from "@/lib/require-user";
+import { SIGN_IN_PATH } from "@/lib/auth-paths";
 import PasswordField from "@/components/auth/PasswordField";
 import { MIN_PASSWORD_LENGTH } from "@/components/auth/CredentialsForm";
 import { useLinkSession } from "@/hooks/useLinkSession";
