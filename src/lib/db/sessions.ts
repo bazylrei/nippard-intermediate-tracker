@@ -3,21 +3,6 @@ import type { SetLog, WorkoutPosition, WorkoutSession } from "../types";
 import { mapSession, mapSetLog } from "./mappers";
 import { unwrap } from "./result";
 
-export async function getIncompleteSession(
-  userId: string
-): Promise<WorkoutSession | null> {
-  const sb = createClient();
-  const data = unwrap("getIncompleteSession", await sb
-    .from("workout_sessions")
-    .select("*")
-    .eq("user_id", userId)
-    .is("completed_at", null)
-    .order("started_at", { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  return data ? mapSession(data) : null;
-}
-
 /** The latest unfinished session together with its logged sets, in one round trip. */
 export async function getIncompleteSessionWithSets(
   userId: string
@@ -109,16 +94,34 @@ export interface CompletedSlot extends WorkoutPosition {
   sessionId: string;
 }
 
-/** Where every completed session sits in the program, newest first. Lightweight: no set data. */
-export async function getCompletedSlots(userId: string): Promise<CompletedSlot[]> {
+/** The workout left unfinished, with its working sets logged so far (warm-ups not counted). */
+export interface UnfinishedSession extends WorkoutPosition {
+  sessionId: string;
+  dayType: string;
+  setCount: number;
+}
+
+/** Where the user is in their program: the unfinished workout, if any, and every completed one. */
+export interface WorkoutOverview {
+  unfinished: UnfinishedSession | null;
+  /** Newest first. */
+  completed: CompletedSlot[];
+}
+
+interface OverviewJson {
+  unfinished: { id: string; week: number; day_index: number; day_type: string; set_count: number } | null;
+  completed: { id: string; week: number; day_index: number }[];
+}
+
+/** The unfinished workout and every completed slot in one round trip (`workout_overview`). */
+export async function getWorkoutOverview(): Promise<WorkoutOverview> {
   const sb = createClient();
-  const data = unwrap("getCompletedSlots", await sb
-    .from("workout_sessions")
-    .select("id, week, day_index")
-    .eq("user_id", userId)
-    .not("completed_at", "is", null)
-    .order("completed_at", { ascending: false }));
-  return (data ?? []).map((r) => ({ sessionId: r.id, week: r.week, dayIndex: r.day_index }));
+  const json = unwrap("getWorkoutOverview", await sb.rpc("workout_overview")) as unknown as OverviewJson;
+  const u = json.unfinished;
+  return {
+    unfinished: u && { sessionId: u.id, week: u.week, dayIndex: u.day_index, dayType: u.day_type, setCount: u.set_count },
+    completed: json.completed.map((c) => ({ sessionId: c.id, week: c.week, dayIndex: c.day_index })),
+  };
 }
 
 export interface SessionSetRef {

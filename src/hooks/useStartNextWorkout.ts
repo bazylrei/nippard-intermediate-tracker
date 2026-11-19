@@ -21,7 +21,7 @@ export function useStartNextWorkout(): () => Promise<void> {
     if (!user) return;
     let next = null;
     try {
-      next = await findNextWorkout(user.id, program);
+      next = await findNextWorkout(program);
     } catch (error) {
       console.error(error);
     }

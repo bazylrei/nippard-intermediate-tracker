@@ -56,7 +56,7 @@ function ProgressContent() {
       if (!user) return;
       setUserId(user.id);
       try {
-        const [ids, weekly] = await Promise.all([getLoggedExerciseIds(user.id), getWeeklyVolume(user.id)]);
+        const [ids, weekly] = await Promise.all([getLoggedExerciseIds(), getWeeklyVolume(user.id)]);
         setLoggedIds(ids);
         setVolume(weekly);
         setStatus("ready");

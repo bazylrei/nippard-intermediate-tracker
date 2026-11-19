@@ -23,7 +23,7 @@ import {
   logSetAndAdvance, createSession, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
   getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
-  deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
+  deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getWorkoutOverview, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId, isOnboarded, completeOnboarding,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
@@ -411,18 +411,34 @@ describe("getWorkoutDetail", () => {
   });
 });
 
-describe("getCompletedSlots", () => {
-  it("selects only position columns for completed sessions, newest first", async () => {
-    responses.push({ data: [{ id: "s2", week: 1, day_index: 1 }, { id: "s1", week: 1, day_index: 0 }], error: null });
-    const result = await getCompletedSlots("user-1");
+describe("getWorkoutOverview", () => {
+  it("reads the unfinished workout and every completed slot from one RPC", async () => {
+    responses.push({
+      data: {
+        unfinished: { id: "u1", week: 2, day_index: 1, day_type: "lower-a", set_count: 3 },
+        completed: [{ id: "s2", week: 1, day_index: 1 }, { id: "s1", week: 1, day_index: 0 }],
+      },
+      error: null,
+    });
+    const result = await getWorkoutOverview();
 
-    expect(fn("select")).toHaveBeenCalledWith("id, week, day_index");
-    expect(fn("not")).toHaveBeenCalledWith("completed_at", "is", null);
-    expect(fn("order")).toHaveBeenCalledWith("completed_at", { ascending: false });
-    expect(result).toEqual([
-      { sessionId: "s2", week: 1, dayIndex: 1 },
-      { sessionId: "s1", week: 1, dayIndex: 0 },
-    ]);
+    expect(fn("rpc")).toHaveBeenCalledTimes(1);
+    expect(fn("rpc")).toHaveBeenCalledWith("workout_overview");
+    expect(fn("from")).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      unfinished: { sessionId: "u1", week: 2, dayIndex: 1, dayType: "lower-a", setCount: 3 },
+      completed: [{ sessionId: "s2", week: 1, dayIndex: 1 }, { sessionId: "s1", week: 1, dayIndex: 0 }],
+    });
+  });
+
+  it("has no unfinished workout when there isn't one", async () => {
+    responses.push({ data: { unfinished: null, completed: [] }, error: null });
+    expect(await getWorkoutOverview()).toEqual({ unfinished: null, completed: [] });
+  });
+
+  it("fails fast on a Supabase error", async () => {
+    responses.push(failure("boom"));
+    await expect(getWorkoutOverview()).rejects.toThrow("getWorkoutOverview failed: boom");
   });
 });
 
@@ -437,14 +453,25 @@ describe("getRecentWorkouts without a limit", () => {
 // ─── Progress ────────────────────────────────────────────────────────────────
 
 describe("getWeeklyVolume", () => {
-  // Three parallel queries, answered in order: sets, exercises, weigh-ins.
+  // Three parallel calls, answered in order: volume groups (RPC), exercises, weigh-ins.
   const totals = (result: WeeklyVolume) => result.weeks.map(({ week, volume }) => ({ week, volume }));
-  const set = (exercise_id: string, weight_kg: number, reps: number, week: number) =>
-    ({ exercise_id, weight_kg, reps, logged_at: "2026-11-10T10:00:00Z", workout_sessions: { week, completed_at: "x" } });
+  const group = (exercise_id: string, weight_reps: number, reps: number, week: number, logged_on = "2026-11-10") =>
+    ({ exercise_id, weight_reps, reps, week, logged_on });
+
+  it("asks the database to add the sets up, in the device's time zone, instead of downloading them", async () => {
+    responses.push(
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    );
+    await getWeeklyVolume("user-1");
+    expect(fn("rpc")).toHaveBeenCalledWith("weekly_volume_groups", { p_tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    expect(fn("from")).not.toHaveBeenCalledWith("set_logs");
+  });
 
   it("sums kg × reps per week, rounds, and sorts weeks ascending", async () => {
     responses.push(
-      { data: [set("bench", 100, 5, 2), set("bench", 50.5, 3, 1), set("bench", 100, 5, 2)], error: null },
+      { data: [group("bench", 1000.4, 10, 2), group("bench", 151.5, 3, 1)], error: null },
       { data: [{ id: "bench", is_bodyweight: false, weight_per_side: false, muscle_group: "chest" }], error: null },
       { data: [], error: null },
     );
@@ -452,28 +479,32 @@ describe("getWeeklyVolume", () => {
     expect(totals(result)).toEqual([{ week: 1, volume: 152 }, { week: 2, volume: 1000 }]);
     expect(result.weeks[1].byRegion.chest).toBe(1000);
     expect(result.missingBodyWeight).toBe(false);
-    expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
   });
 
   it("doubles per-side weights and adds the body weight logged by then to bodyweight sets", async () => {
     responses.push(
-      { data: [set("db-row", 30, 10, 1), set("pull-up", 10, 8, 1)], error: null },
+      { data: [group("db-row", 300, 10, 1), group("pull-up", 80, 8, 1)], error: null },
       { data: [
         { id: "db-row", is_bodyweight: false, weight_per_side: true, muscle_group: "back" },
         { id: "pull-up", is_bodyweight: true, weight_per_side: false, muscle_group: "back" },
       ], error: null },
       { data: [{ logged_on: "2026-11-09", weight_kg: 80, source: "manual" }], error: null },
     );
-    // 2 × 30 × 10 = 600, plus (80 + 10) × 8 = 720
+    // 2 × (30 × 10) = 600, plus 10 × 8 added + 80 × 8 body weight = 720
     expect(totals(await getWeeklyVolume("user-1"))).toEqual([{ week: 1, volume: 1320 }]);
   });
 });
 
 describe("getLoggedExerciseIds", () => {
-  it("returns each logged exercise once, working sets only", async () => {
-    responses.push({ data: [{ exercise_id: "bench" }, { exercise_id: "row" }, { exercise_id: "bench" }], error: null });
-    expect(await getLoggedExerciseIds("user-1")).toEqual(["bench", "row"]);
-    expect(fn("select")).toHaveBeenCalledWith("exercise_id");
-    expect(fn("gte")).toHaveBeenCalledWith("set_index", 0);
+  it("asks the database for the distinct ids instead of downloading every set", async () => {
+    responses.push({ data: ["bench", "row"], error: null });
+    expect(await getLoggedExerciseIds()).toEqual(["bench", "row"]);
+    expect(fn("rpc")).toHaveBeenCalledWith("logged_exercise_ids");
+    expect(fn("from")).not.toHaveBeenCalled();
+  });
+
+  it("is empty with no logged sets", async () => {
+    responses.push({ data: null, error: null });
+    expect(await getLoggedExerciseIds()).toEqual([]);
   });
 });
