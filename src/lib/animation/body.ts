@@ -27,7 +27,7 @@ export const BODY = {
 } as const;
 
 /** Parts of the body a motion can highlight as the muscles doing the work. */
-export type Segment = "upperArm" | "forearm" | "thigh" | "shin" | "pelvis" | "abdomen" | "chest";
+export type Segment = "upperArm" | "forearm" | "thigh" | "shin" | "pelvis" | "abdomen" | "chest" | "hamstrings" | "glutes" | "quads";
 
 /**
  * The angles a motion drives. Both sides move together. Each angle means the same thing in
