@@ -14,6 +14,20 @@ describe("WarmupSlide", () => {
     expect(onComplete).toHaveBeenCalledOnce();
   });
 
+  it("reports each warm-up set performed, not one being un-ticked", () => {
+    const onStepDone = vi.fn();
+    render(<WarmupSlide steps={steps} active onComplete={vi.fn()} onStepDone={onStepDone} unit="kg" />);
+
+    fireEvent.click(screen.getByText(steps[0]));
+    expect(onStepDone).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText(steps[0])); // un-tick
+    expect(onStepDone).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText(steps[1]));
+    expect(onStepDone).toHaveBeenCalledTimes(2);
+  });
+
   it("prefixes suggestions with 2× for per-side exercises", () => {
     render(<WarmupSlide steps={steps} active onComplete={vi.fn()} prevWorkingWeightKg={20} unit="kg" weightPerSide />);
 

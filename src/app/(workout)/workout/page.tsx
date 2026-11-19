@@ -212,6 +212,8 @@ function WorkoutContent() {
                 steps={currentWarmupSteps}
                 active={warmingUp}
                 onComplete={progress.completeWarmup}
+                // Warming up means the last rest is over.
+                onStepDone={stopRestTimer}
                 prevWorkingWeightKg={record.lastSets.at(-1)?.weight}
                 unit={prefs.unit}
                 weightPerSide={currentExercise.weightPerSide}
