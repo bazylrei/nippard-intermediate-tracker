@@ -10,6 +10,7 @@ import { deleteExercise } from "@/lib/db";
 import { equipmentLabel, muscleGroupLabel } from "@/lib/exercise-form";
 import { EXERCISES_PATH, editExerciseHref } from "@/lib/exercise-routes";
 import ExerciseFacts from "@/components/exercises/ExerciseFacts";
+import ExerciseAnimation from "@/components/exercise-animation/ExerciseAnimation";
 import ExerciseHowTo from "@/components/exercises/ExerciseHowTo";
 import DeleteExerciseControl from "@/components/exercises/DeleteExerciseControl";
 import FullScreenMessage from "@/components/widgets/FullScreenMessage";
@@ -62,6 +63,9 @@ function ExerciseDetail() {
       </header>
 
       {saveError.message && <SaveErrorAlert message={saveError.message} onDismiss={saveError.clear} />}
+
+      {/* Built-in exercises only: a custom exercise could share a name with one that has an animation. */}
+      {exercise.createdBy === null && <ExerciseAnimation exerciseName={exercise.name} />}
 
       <ExerciseFacts exercise={exercise} />
 
