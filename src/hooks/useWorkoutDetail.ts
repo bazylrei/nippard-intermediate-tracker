@@ -49,7 +49,7 @@ export function useWorkoutDetail(sessionId: string) {
 
   const updateSet = useCallback(async (setId: string, weight: number, reps: number, rpe: number | null) => {
     const ok = await attempt(() => updateSetLog(setId, weight, reps, rpe), "Couldn't save that set. Try again.");
-    if (ok) setSets((prev) => prev.map((s) => (s.id === setId ? { ...s, weight, reps } : s)));
+    if (ok) setSets((prev) => prev.map((s) => (s.id === setId ? { ...s, weight, reps, rpe } : s)));
     return ok;
   }, [attempt]);
 

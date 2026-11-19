@@ -2,28 +2,39 @@ import { createClient } from "../supabase";
 import { localTimeZone } from "../dates";
 import { unwrap } from "./result";
 import { getBodyWeightLogs } from "./body-weight";
+import type { ExerciseHistoryPoint } from "../types";
 import { weeklyVolume, type VolumeExercise, type VolumeGroup, type WeeklyVolume } from "../volume";
 
-export async function getExerciseHistory(
+/** The last working set of each session for several exercises, oldest first, in one round trip. */
+export async function getExerciseHistories(
   userId: string,
-  exerciseId: string
-): Promise<{ date: string; weight: number; reps: number; dayType: string }[]> {
+  exerciseIds: string[]
+): Promise<Record<string, ExerciseHistoryPoint[]>> {
+  if (exerciseIds.length === 0) return {};
   const sb = createClient();
-  const data = unwrap("getExerciseHistory", await sb
+  const data = unwrap("getExerciseHistories", await sb
     .from("set_logs")
-    .select("weight_kg, reps, logged_at, workout_sessions(day_type)")
+    .select("exercise_id, weight_kg, reps, logged_at, workout_sessions(day_type)")
     .eq("user_id", userId)
-    .eq("exercise_id", exerciseId)
+    .in("exercise_id", exerciseIds)
     .eq("is_last_set", true)
     .gte("set_index", 0)
     .order("logged_at"));
 
-  return (data ?? []).map((row) => ({
-    date: row.logged_at.split("T")[0],
-    weight: row.weight_kg,
-    reps: row.reps,
-    dayType: row.workout_sessions?.day_type ?? "",
-  }));
+  const byExercise: Record<string, ExerciseHistoryPoint[]> = {};
+  for (const row of data ?? []) {
+    (byExercise[row.exercise_id] ??= []).push({
+      date: row.logged_at.split("T")[0],
+      weight: row.weight_kg,
+      reps: row.reps,
+      dayType: row.workout_sessions?.day_type ?? "",
+    });
+  }
+  return byExercise;
+}
+
+export async function getExerciseHistory(userId: string, exerciseId: string): Promise<ExerciseHistoryPoint[]> {
+  return (await getExerciseHistories(userId, [exerciseId]))[exerciseId] ?? [];
 }
 
 /** Load flags and muscle group for every exercise, keyed by id (the catalogue is small). */

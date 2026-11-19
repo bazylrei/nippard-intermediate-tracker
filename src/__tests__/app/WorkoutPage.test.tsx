@@ -20,7 +20,7 @@ const db = vi.hoisted(() => ({
   saveExerciseNote: vi.fn(),
   upsertPreferences: vi.fn(),
   saveExerciseSwaps: vi.fn(),
-  getExerciseHistory: vi.fn().mockResolvedValue([]),
+  getExerciseHistories: vi.fn().mockResolvedValue({}),
   getLatestBodyWeight: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("@/lib/db", () => db);
