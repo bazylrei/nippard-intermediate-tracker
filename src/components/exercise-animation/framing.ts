@@ -11,8 +11,9 @@ export const ASPECT = 4 / 3;
  */
 export function createCamera(aspect = ASPECT): THREE.PerspectiveCamera {
   const camera = new THREE.PerspectiveCamera(28, aspect, 0.1, 50);
-  camera.position.set(2.5, 1.5, 3.9);
-  camera.lookAt(0, 0.82, 0);
+  // From the side and a little behind: the hinge reads in profile and the back of the legs shows.
+  camera.position.set(3.6, 1.45, -1.7);
+  camera.lookAt(0, 0.8, 0);
   camera.updateMatrixWorld(true);
   return camera;
 }

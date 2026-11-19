@@ -26,7 +26,7 @@ const gobletSquat: Motion = {
   seconds: 4.5,
   peak: 0.5,
   prop: { kind: "goblet" },
-  targets: ["thigh", "pelvis"],
+  targets: ["quads", "glutes"],
   // Hands at the chest holding the dumbbell's ends the whole way.
   base: { shoulderFlex: 5, elbowFlex: 125 },
   keyframes: [
@@ -42,7 +42,7 @@ const dumbbellRdl: Motion = {
   seconds: 5,
   peak: 0.5,
   prop: { kind: "dumbbells" },
-  targets: ["thigh", "pelvis"],
+  targets: ["hamstrings", "glutes"],
   // Soft knees, shins vertical (equal hip and knee angles keep them so).
   base: { hipFlex: 12, kneeFlex: 12 },
   keyframes: [

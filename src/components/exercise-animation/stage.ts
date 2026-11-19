@@ -24,9 +24,10 @@ const token = (name: string, fallback: string) =>
 
 function themeColors(): FigureColors & { floor: string } {
   return {
-    body: token("--muted", "#6F6F6B"),
+    // A warm, light neutral reads as a body on both themes, like an anatomy illustration.
+    body: "#D3CCC1",
     target: token("--primary", "#E8540A"),
-    iron: token("--fg", "#111110"),
+    iron: "#6A6A6A",
     floor: token("--border", "#D4D3CB"),
   };
 }
@@ -53,12 +54,15 @@ function contactShadow(): THREE.Mesh {
 function buildScene(motion: Motion) {
   const colors = themeColors();
   const scene = new THREE.Scene();
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x77736c, 1.5));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
-  key.position.set(2, 4, 3);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.8);
-  rim.position.set(-3, 2, -2);
-  scene.add(key, rim);
+  // Soft studio lighting: a warm key from above the camera, a cool fill, and a rim behind to lift the silhouette.
+  scene.add(new THREE.HemisphereLight(0xfff8f0, 0x6d665c, 1.1));
+  const key = new THREE.DirectionalLight(0xfff4e6, 2.6);
+  key.position.set(3, 4, -1);
+  const fill = new THREE.DirectionalLight(0xe6eeff, 0.7);
+  fill.position.set(-3, 1.5, 2);
+  const rim = new THREE.DirectionalLight(0xffffff, 1.4);
+  rim.position.set(-1, 2.5, -4);
+  scene.add(key, fill, rim);
 
   const floor = new THREE.Mesh(new THREE.CircleGeometry(0.85, 64), new THREE.MeshBasicMaterial({ color: colors.floor }));
   floor.rotation.x = -Math.PI / 2;
@@ -105,6 +109,7 @@ function repClock(seconds: number, startAt: number) {
 export function createStage(host: HTMLElement, motion: Motion, playing: boolean): Stage {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.domElement.style.display = "block";
   host.appendChild(renderer.domElement);
   const world = buildScene(motion);

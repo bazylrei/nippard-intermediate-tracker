@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { BODY, type Pose, type Segment } from "@/lib/animation/body";
 import type { Prop } from "@/lib/animation/motion";
+import { lathe, MUSCLES, PROFILES, type Blob } from "./anatomy";
+import { MUSCLE_MAPS, Skin as Materials } from "./skin";
 
 export interface FigureColors {
   body: string;
@@ -39,42 +41,6 @@ type Vec3 = [number, number, number];
 const RES = 16;
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
-/** Owns every material and geometry, and which meshes belong to which segment. */
-class Materials {
-  readonly body: THREE.MeshStandardMaterial;
-  readonly target: THREE.MeshStandardMaterial;
-  readonly iron: THREE.MeshStandardMaterial;
-  readonly bySegment = new Map<Segment, THREE.Mesh[]>();
-  private geometries: THREE.BufferGeometry[] = [];
-
-  constructor(colors: FigureColors) {
-    this.body = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0.05 });
-    this.target = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.05 });
-    this.iron = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.6 });
-    this.recolor(colors);
-  }
-
-  recolor({ body, target, iron }: FigureColors) {
-    this.body.color.set(body);
-    this.target.color.set(target);
-    this.iron.color.set(iron);
-  }
-
-  add(parent: THREE.Object3D, geometry: THREE.BufferGeometry, at: Vec3, segment?: Segment): THREE.Mesh {
-    this.geometries.push(geometry);
-    const mesh = new THREE.Mesh(geometry, this.body);
-    mesh.position.set(...at);
-    parent.add(mesh);
-    if (segment) this.bySegment.set(segment, [...(this.bySegment.get(segment) ?? []), mesh]);
-    return mesh;
-  }
-
-  dispose() {
-    this.geometries.forEach((g) => g.dispose());
-    [this.body, this.target, this.iron].forEach((m) => m.dispose());
-  }
-}
-
 function pivot(parent: THREE.Object3D, at: Vec3 = [0, 0, 0]): THREE.Group {
   const group = new THREE.Group();
   group.position.set(...at);
@@ -83,45 +49,80 @@ function pivot(parent: THREE.Object3D, at: Vec3 = [0, 0, 0]): THREE.Group {
 }
 
 /** An ellipsoid with these radii along x, y and z: reads as muscle rather than tube. */
-function ellipsoid(mats: Materials, parent: THREE.Object3D, radii: Vec3, at: Vec3, segment?: Segment) {
-  mats.add(parent, new THREE.SphereGeometry(1, RES, RES), at, segment).scale.set(...radii);
+function ellipsoid(mats: Materials, parent: THREE.Object3D, radii: Vec3, at: Vec3, segment?: Segment): THREE.Mesh {
+  const mesh = mats.add(parent, new THREE.SphereGeometry(1, 32, 24), at, segment);
+  mesh.scale.set(...radii);
+  return mesh;
 }
 
-/** A limb tapering from `top` to `bottom` radius, hanging down from its pivot, with a ball at the joint. */
-function limb(mats: Materials, parent: THREE.Object3D, segment: Segment, [top, bottom, length]: Vec3) {
-  mats.add(parent, new THREE.SphereGeometry(top * 1.05, RES, RES), [0, 0, 0]);
-  mats.add(parent, new THREE.CylinderGeometry(top, bottom, length, RES), [0, -length / 2, 0], segment);
+/** A shaped muscle from the anatomy table, mirrored to the figure's `side`. */
+function muscle(mats: Materials, parent: THREE.Object3D, blob: Blob, segment?: Segment, side: 1 | -1 = 1) {
+  const [x, y, z] = blob.at;
+  ellipsoid(mats, parent, blob.radii, [x * side, y, z], segment);
+}
+
+/** A lathed limb, flattened front-to-back or side-to-side by `scale`. */
+function limb(mats: Materials, parent: THREE.Object3D, profile: keyof typeof PROFILES, segment: Segment, scale: [number, number] = [1, 1]): THREE.Mesh {
+  // Limbs drawn a little fuller than measured: true-to-life radii look skeletal at phone size.
+  const fuller = profile === "abdomen" || profile === "chest" || profile === "neck" ? 1 : 1.25;
+  const mesh = mats.add(parent, lathe(PROFILES[profile]), [0, 0, 0], segment);
+  mesh.scale.set(scale[0] * fuller, 1, scale[1] * fuller);
+  return mesh;
+}
+
+/** A rounded joint that hides the seam where two segments meet. */
+function joint(mats: Materials, parent: THREE.Object3D, radius: number) {
+  ellipsoid(mats, parent, [radius, radius, radius], [0, 0, 0]);
 }
 
 function buildArm(mats: Materials, chest: THREE.Object3D, side: 1 | -1) {
-  const shoulder = pivot(chest, [side * BODY.shoulderHalfWidth, BODY.chest - 0.03, 0]);
-  limb(mats, shoulder, "upperArm", [0.05, 0.038, BODY.upperArm]);
+  const shoulder = pivot(chest, [side * BODY.shoulderHalfWidth, BODY.chest - 0.035, 0]);
+  muscle(mats, shoulder, MUSCLES.deltoid, undefined, side);
+  limb(mats, shoulder, "upperArm", "upperArm", [0.95, 1.05]);
   const elbow = pivot(shoulder, [0, -BODY.upperArm, 0]);
-  limb(mats, elbow, "forearm", [0.038, 0.028, BODY.forearm]);
+  joint(mats, elbow, 0.034 * 1.25);
+  limb(mats, elbow, "forearm", "forearm", [1.05, 0.9]);
   const hand = pivot(elbow, [0, -BODY.forearm, 0]);
-  ellipsoid(mats, hand, [0.0315, 0.0567, 0.0231], [0, -0.05, 0]);
+  joint(mats, hand, 0.021 * 1.25);
+  // Palm facing the body: flat side to side, fingers continuing the forearm.
+  ellipsoid(mats, hand, [0.019, 0.05, 0.04], [0, -0.045, 0.004]);
+  ellipsoid(mats, hand, [0.016, 0.035, 0.032], [0, -0.1, 0.006]);
+  ellipsoid(mats, hand, [0.013, 0.028, 0.013], [side * 0.008, -0.04, 0.042]); // thumb
   return { shoulder, elbow, hand };
 }
 
 function buildLeg(mats: Materials, pelvis: THREE.Object3D, side: 1 | -1) {
   const hip = pivot(pelvis, [side * BODY.hipHalfWidth, 0, 0]);
-  limb(mats, hip, "thigh", [0.075, 0.05, BODY.thigh]);
+  const thigh = limb(mats, hip, "thigh", "thigh", [0.95, 1.08]);
+  mats.paint(thigh, "hamstrings", MUSCLE_MAPS.hamstrings);
   const knee = pivot(hip, [0, -BODY.thigh, 0]);
-  limb(mats, knee, "shin", [0.052, 0.034, BODY.shin]);
+  joint(mats, knee, 0.045 * 1.25);
+  limb(mats, knee, "shin", "shin", [0.95, 1.0]);
   const ankle = pivot(knee, [0, -BODY.shin, 0]);
-  mats.add(ankle, new THREE.BoxGeometry(0.09, BODY.footHeight, 0.25), [0, -BODY.footHeight / 2, 0.07]);
+  joint(mats, ankle, 0.025 * 1.25);
+  // Heel, arch and toes as one rounded shape, lying on the floor.
+  ellipsoid(mats, ankle, [0.042, BODY.footHeight / 2, 0.125], [0, -BODY.footHeight / 2, 0.06]);
+  ellipsoid(mats, ankle, [0.036, 0.03, 0.04], [0, -0.025, -0.025]);
   return { hip, knee, ankle };
 }
 
 function buildTrunk(mats: Materials, pelvis: THREE.Object3D) {
-  ellipsoid(mats, pelvis, [0.156, 0.0975, 0.1105], [0, 0.02, 0], "pelvis");
+  // Pelvis rounded out behind into the glutes.
+  const hips = ellipsoid(mats, pelvis, [0.155, 0.115, 0.125], [0, 0.0, -0.01], "pelvis");
+  mats.paint(hips, "glutes", MUSCLE_MAPS.glutes);
   const spine = pivot(pelvis, [0, 0.04, 0]);
-  ellipsoid(mats, spine, [0.12, 0.12, 0.09], [0, BODY.abdomen / 2, 0], "abdomen");
+  limb(mats, spine, "abdomen", "abdomen", [1.25, 0.82]);
   const chest = pivot(spine, [0, BODY.abdomen, 0]);
-  ellipsoid(mats, chest, [0.187, 0.17, 0.1224], [0, BODY.chest / 2, 0], "chest");
-  const neck = pivot(chest, [0, BODY.chest, 0]);
-  mats.add(neck, new THREE.CylinderGeometry(0.04, 0.045, 0.08, RES), [0, 0.04, 0]);
-  ellipsoid(mats, neck, [0.09, 0.115, 0.1], [0, 0.17, 0.01]);
+  limb(mats, chest, "chest", "chest", [1.3, 0.8]);
+  // Fills the waist seam as the lower and upper back bend.
+  ellipsoid(mats, chest, [0.155, 0.06, 0.1], [0, 0, 0]);
+  for (const side of [1, -1] as const) muscle(mats, chest, { ...MUSCLES.pec, at: [0.065, MUSCLES.pec.at[1], MUSCLES.pec.at[2]] }, undefined, side);
+  muscle(mats, chest, MUSCLES.trapezius);
+  const neck = pivot(chest, [0, BODY.chest - 0.01, 0]);
+  limb(mats, neck, "neck", "chest");
+  // Skull, then the jaw a little lower and forward: a head, not an egg.
+  ellipsoid(mats, neck, [0.077, 0.098, 0.093], [0, 0.17, 0.0]);
+  ellipsoid(mats, neck, [0.058, 0.05, 0.06], [0, 0.115, 0.03]);
   return { spine, chest, neck };
 }
 
@@ -183,11 +184,7 @@ export function createFigure(colors: FigureColors): Figure {
       else if (prop.kind === "goblet") held = [dumbbell(mats, chest, [0, 0.12, 0.22], 2 * BODY.shoulderHalfWidth)];
       else held = [];
     },
-    highlight(targets) {
-      for (const [segment, meshes] of mats.bySegment) {
-        meshes.forEach((m) => { m.material = targets.includes(segment) ? mats.target : mats.body; });
-      }
-    },
+    highlight: (targets) => mats.highlight(targets),
     props: () => held,
     recolor: (c) => mats.recolor(c),
     dispose: () => mats.dispose(),
