@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getExerciseHistory, getLatestBodyWeight, logBodyWeight } from "@/lib/db";
+import { getExerciseHistories, getLatestBodyWeight, logBodyWeight } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import type { Exercise } from "@/lib/types";
 
@@ -24,10 +24,13 @@ export function usePostHistory(done: boolean, userId: string | null, exercises: 
 
   useEffect(() => {
     if (!done || !userId || exercises.length === 0) return;
-    Promise.all([
-      Promise.all(exercises.map((ex) => getExerciseHistory(userId, ex.id).then((h) => [ex.id, h] as const))),
-      getLatestBodyWeight(userId),
-    ]).then(([results, latest]) => setData({ history: Object.fromEntries(results), bodyWeightKg: latest?.weightKg ?? null }));
+    const ids = exercises.map((ex) => ex.id);
+    Promise.all([getExerciseHistories(userId, ids), getLatestBodyWeight(userId)])
+      .then(([histories, latest]) => setData({
+        history: Object.fromEntries(ids.map((id) => [id, histories[id] ?? []])),
+        bodyWeightKg: latest?.weightKg ?? null,
+      }))
+      .catch((error) => console.error(error)); // the report still shows without charts
   }, [done, userId, exercises]);
 
   const logWeight = useCallback(async (weightKg: number) => {

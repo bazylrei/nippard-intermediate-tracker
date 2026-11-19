@@ -188,3 +188,12 @@ export interface BuilderProgram {
   days: BuilderDay[];
   userCount: number;
 }
+
+/** One session's last working set of an exercise, for its progress chart. */
+export interface ExerciseHistoryPoint {
+  date: string;
+  /** kg */
+  weight: number;
+  reps: number;
+  dayType: string;
+}

@@ -76,6 +76,14 @@ describe("edits", () => {
     expect(result.current.sets[0]).toMatchObject({ id: "a", weight: 110, reps: 6, rpe: 8 });
   });
 
+  it("shows an edited RPE straight away, not only after a reload (regression)", async () => {
+    const { result } = await loaded();
+    await act(async () => { await result.current.actions.updateSet("a", 100, 8, 9.5); });
+    expect(result.current.sets[0].rpe).toBe(9.5);
+    await act(async () => { await result.current.actions.updateSet("a", 100, 8, null); });
+    expect(result.current.sets[0].rpe).toBeNull();
+  });
+
   it("leaves local state alone and surfaces a message when a save fails", async () => {
     db.updateSetLog.mockRejectedValue(new Error("offline"));
     const { result } = await loaded();

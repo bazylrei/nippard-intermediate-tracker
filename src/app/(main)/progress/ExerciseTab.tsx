@@ -2,18 +2,11 @@ import { ChevronDown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { dayLabel } from "@/lib/day-types";
 import { formatCalendarDate } from "@/lib/dates";
+import type { ExerciseHistoryPoint } from "@/lib/types";
 import { kgToDisplay, type WeightUnit } from "@/lib/units";
 import type { ExerciseOption } from "@/hooks/useExerciseCatalog";
 import { CHART_TOOLTIP_STYLE } from "./chart-style";
 import EmptyState from "./EmptyState";
-
-export interface ExerciseHistoryPoint {
-  date: string;
-  /** kg */
-  weight: number;
-  reps: number;
-  dayType: string;
-}
 
 interface Props {
   options: ExerciseOption[];
