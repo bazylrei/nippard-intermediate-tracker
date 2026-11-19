@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase", () => ({ createClient: () => chain }));
 
 import {
   logSetAndAdvance, createSession, getLastSetsForExercises, getBestSetsForExercises, duplicateProgramWeek, getPrograms,
-  getIncompleteSessionWithSets, getExerciseHistory, upsertPreferences, completeSession,
+  getIncompleteSessionWithSets, getExerciseHistory, getExerciseHistories, upsertPreferences, completeSession,
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getCompletedSlots, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId, isOnboarded, completeOnboarding,
@@ -255,13 +255,37 @@ describe("getIncompleteSessionWithSets", () => {
 describe("getExerciseHistory", () => {
   it("reads day type from the embedded session instead of a second query", async () => {
     responses.push({
-      data: [{ weight_kg: 100, reps: 8, logged_at: "2026-11-01T10:00:00Z", workout_sessions: { day_type: "upper-a" } }],
+      data: [{ exercise_id: "bench", weight_kg: 100, reps: 8, logged_at: "2026-11-01T10:00:00Z", workout_sessions: { day_type: "upper-a" } }],
       error: null,
     });
     const result = await getExerciseHistory("user-1", "bench");
 
     expect(fn("from")).toHaveBeenCalledTimes(1);
     expect(result).toEqual([{ date: "2026-11-01", weight: 100, reps: 8, dayType: "upper-a" }]);
+  });
+});
+
+describe("getExerciseHistories", () => {
+  it("loads several exercises in one query and groups them by exercise", async () => {
+    responses.push({
+      data: [
+        { exercise_id: "bench", weight_kg: 100, reps: 8, logged_at: "2026-11-01T10:00:00Z", workout_sessions: { day_type: "upper-a" } },
+        { exercise_id: "row", weight_kg: 60, reps: 10, logged_at: "2026-11-01T10:30:00Z", workout_sessions: null },
+        { exercise_id: "bench", weight_kg: 102, reps: 8, logged_at: "2026-11-08T10:00:00Z", workout_sessions: { day_type: "upper-a" } },
+      ],
+      error: null,
+    });
+    const result = await getExerciseHistories("user-1", ["bench", "row"]);
+
+    expect(fn("from")).toHaveBeenCalledTimes(1);
+    expect(fn("in")).toHaveBeenCalledWith("exercise_id", ["bench", "row"]);
+    expect(result.bench.map((p) => p.weight)).toEqual([100, 102]);
+    expect(result.row).toEqual([{ date: "2026-11-01", weight: 60, reps: 10, dayType: "" }]);
+  });
+
+  it("makes no request for no exercises", async () => {
+    expect(await getExerciseHistories("user-1", [])).toEqual({});
+    expect(fn("from")).not.toHaveBeenCalled();
   });
 });
 
