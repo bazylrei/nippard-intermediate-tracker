@@ -1,12 +1,16 @@
 "use client";
 
 import { useReducer, useState, useEffect, useRef } from "react";
-import { CheckCircle, Info } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import type { Exercise, SetLog } from "@/lib/types";
 import { useProgramContext } from "@/context/ProgramContext";
 import FailureTechniqueModal from "./FailureTechniqueModal";
 import OverlayPresence from "./OverlayPresence";
 import PreviousPerformance from "./workout/PreviousPerformance";
+import SetLoggerHeader from "./workout/SetLoggerHeader";
+import WeightField from "./workout/WeightField";
+import RpePicker from "./workout/RpePicker";
+import FailureToggle from "./workout/FailureToggle";
 import OverloadTip from "./workout/OverloadTip";
 import { overloadTip } from "@/lib/progression";
 import { kgToDisplay, displayToKg } from "@/lib/units";
@@ -27,8 +31,6 @@ interface Props {
    */
   editing?: { set: SetLog; onSave: (weightKg: number, reps: number, rpe: number | null) => Promise<void> };
 }
-
-const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
 type FormState = { weight: string; reps: string; rpe: string };
 type FormAction =
@@ -69,6 +71,7 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
   const tip = editing ? null : overloadTip(prevSet, exercise.repRange, unit);
   const { weightPerSide, isBodyweight } = exercise;
   const { failureTechniques } = useProgramContext();
+  const setField = (field: keyof FormState, value: string) => dispatch({ type: "set", field, value });
   const targetRpe = isLastSet ? exercise.lastSetRpe : exercise.earlySetRpe;
   const techniqueInfo = isLastSet ? failureTechniques[exercise.lastSetTarget] : null;
 
@@ -95,31 +98,13 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
 
   return (
     <div className="glass gloss rounded-2xl p-4 space-y-4">
-      {/* Set header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <span className={`font-display font-bold text-base uppercase tracking-wide ${isLastSet ? "text-primary" : "text-muted"}`}>
-            Set {setIndex + 1}
-          </span>
-          {isLastSet && techniqueInfo && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-primary/80">{techniqueInfo.label}</span>
-              <button
-                onClick={() => setShowTechniqueInfo(true)}
-                className="text-subtle hover:text-primary transition-colors cursor-pointer"
-              >
-                <Info size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-        {targetRpe && (
-          <span className="text-xs text-muted px-2.5 py-1 rounded-full font-display"
-            style={{ background: "color-mix(in srgb, var(--fg) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}>
-            RPE {targetRpe[0]}–{targetRpe[1]}
-          </span>
-        )}
-      </div>
+      <SetLoggerHeader
+        setIndex={setIndex}
+        isLastSet={isLastSet}
+        techniqueLabel={techniqueInfo?.label}
+        onShowTechnique={() => setShowTechniqueInfo(true)}
+        targetRpe={targetRpe}
+      />
 
       <PreviousPerformance lastSet={prevSet} bestSet={bestSet} unit={unit} weightPerSide={weightPerSide} />
       {tip && (
@@ -129,67 +114,19 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
           unit={unit}
           weightPerSide={weightPerSide}
           applied={parseFloat(form.weight) === tip.suggestedWeight}
-          onUse={() => dispatch({ type: "set", field: "weight", value: String(tip.suggestedWeight) })}
+          onUse={() => setField("weight", String(tip.suggestedWeight))}
         />
       )}
 
-      {/* Input form */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-muted mb-1.5">
-              {weightPerSide ? `Each hand (${unit})` : isBodyweight ? `Added (${unit})` : `Weight (${unit})`}
-            </label>
-            {weightPerSide ? (
-              <div className="space-y-1.5">
-                {/* "2×" overlays the left edge so the number centres across the whole box, like Reps.
-                    A flex row let the number input's intrinsic width overflow and push the value right. */}
-                <div className="relative rounded-xl"
-                  style={{ background: "color-mix(in srgb, var(--fg) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)" }}>
-                  <span aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 font-display font-bold text-lg text-muted select-none pointer-events-none">2×</span>
-                  <input
-                    type="number"
-                    value={form.weight}
-                    onChange={(e) => dispatch({ type: "set", field: "weight", value: e.target.value })}
-                    step="any"
-                    min="0"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    aria-label={`Each hand (${unit})`}
-                    className="block w-full min-w-0 py-3 px-10 text-fg text-center font-display text-3xl font-bold focus:outline-none bg-transparent"
-                    placeholder="—"
-                    required
-                  />
-                </div>
-                {form.weight && !isNaN(parseFloat(form.weight)) && parseFloat(form.weight) > 0 && (
-                  <p className="text-center text-xs text-muted font-display">
-                    = {(parseFloat(form.weight) * 2)} {unit} total
-                  </p>
-                )}
-              </div>
-            ) : (
-              <input
-                type="number"
-                value={form.weight}
-                onChange={(e) => dispatch({ type: "set", field: "weight", value: e.target.value })}
-                step="any"
-                min="0"
-                inputMode="decimal"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
-                style={{
-                  background: "color-mix(in srgb, var(--fg) 6%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
-                }}
-                placeholder="—"
-                required
-              />
-            )}
-          </div>
+          <WeightField
+            unit={unit}
+            weightPerSide={weightPerSide}
+            isBodyweight={isBodyweight}
+            value={form.weight}
+            onChange={(value) => setField("weight", value)}
+          />
           <div>
             <label className="block text-xs text-muted mb-1.5">
               Reps ({exercise.repRange[0]}–{exercise.repRange[1]})
@@ -197,83 +134,23 @@ export default function SetLogger({ exercise, setIndex, isLastSet, previousSets,
             <input
               type="number"
               value={form.reps}
-              onChange={(e) => dispatch({ type: "set", field: "reps", value: e.target.value })}
+              onChange={(e) => setField("reps", e.target.value)}
               min="1"
               max="50"
               inputMode="numeric"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
-              className="w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
-              style={{
-                background: "color-mix(in srgb, var(--fg) 6%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--fg) 10%, transparent)",
-              }}
+              className="input-well w-full rounded-xl px-3 py-3 text-fg text-center font-display text-3xl font-bold focus:outline-none transition-colors"
               placeholder="—"
               required
             />
           </div>
         </div>
 
-        {/* RPE selector */}
-        <div>
-          <label className="block text-xs text-muted mb-1.5">RPE (optional)</label>
-          <div className="flex gap-1">
-            {RPE_VALUES.map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => dispatch({ type: "set", field: "rpe", value: form.rpe === String(r) ? "" : String(r) })}
-                className={`flex-1 py-2 rounded-lg text-xs font-display font-semibold transition-colors cursor-pointer ${
-                  form.rpe === String(r)
-                    ? "bg-primary text-primary-fg"
-                    : "text-muted hover:text-fg"
-                }`}
-                style={form.rpe !== String(r) ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-        </div>
+        <RpePicker value={form.rpe} onChange={(value) => setField("rpe", value)} />
 
-        {/* Failure toggle */}
-        {isLastSet && !editing && (
-          <div>
-            <label className="block text-xs text-muted mb-1.5">Reached failure?</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setFailureHit(true)}
-                className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
-                  failureHit === true
-                    ? "bg-accent text-accent-fg"
-                    : "text-muted hover:text-fg"
-                }`}
-                style={failureHit !== true ? { background: "color-mix(in srgb, var(--fg) 7%, transparent)" } : {}}
-              >
-                Yes
-              </button>
-              <button
-                type="button"
-                onClick={() => setFailureHit(false)}
-                className={`py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${
-                  failureHit === false
-                    ? "text-fg"
-                    : "text-muted hover:text-fg"
-                }`}
-                style={{
-                  background: failureHit === false
-                    ? "color-mix(in srgb, var(--fg) 12%, transparent)"
-                    : "color-mix(in srgb, var(--fg) 7%, transparent)",
-                  border: failureHit === false ? "1px solid color-mix(in srgb, var(--fg) 20%, transparent)" : "none",
-                }}
-              >
-                No
-              </button>
-            </div>
-          </div>
-        )}
+        {isLastSet && !editing && <FailureToggle value={failureHit} onChange={setFailureHit} />}
 
         <button
           type="submit"

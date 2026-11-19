@@ -143,6 +143,16 @@ body {
     border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
   }
 
+  /* A recessed field (number inputs) and an unselected chip (RPE, Yes/No), tinted from the text colour so both themes work. */
+  .input-well {
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+  }
+
+  .chip-idle {
+    background: color-mix(in srgb, var(--fg) 7%, transparent);
+  }
+
   .no-scrollbar {
     scrollbar-width: none;
   }
