@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@/test-utils/render";
+import { render, screen, fireEvent, act } from "@/test-utils/render-with-prefs";
 import type { WeekSchedule } from "@/lib/types";
 import { localYmd } from "@/lib/dates";
 import { readCachedPrefs } from "@/lib/prefs-cache";

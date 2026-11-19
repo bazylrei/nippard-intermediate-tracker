@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 
 const db = vi.hoisted(() => ({
-  getPreferences: vi.fn(),
   getIncompleteSessionWithSets: vi.fn(),
   getLastSetsForExercises: vi.fn(),
   getBestSetsForExercises: vi.fn(),
@@ -32,23 +31,22 @@ const best = { bench: { id: "b1" }, row: { id: "b2" } } as unknown as Record<str
 
 beforeEach(() => {
   vi.clearAllMocks();
-  db.getPreferences.mockResolvedValue(prefs);
   db.getLastSetsForExercises.mockResolvedValue(prev);
   db.getBestSetsForExercises.mockResolvedValue(best);
   db.createSession.mockResolvedValue(session({ id: "new", currentExerciseIndex: 0, currentSetIndex: 0 }));
 });
 
 describe("bootstrapWorkout", () => {
-  it("loads the given user's preferences and unfinished session", async () => {
+  it("loads the given user's unfinished session, and no preferences (those come from the provider)", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue(null);
-    await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
-    expect(db.getPreferences).toHaveBeenCalledWith("user-1");
+    await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
     expect(db.getIncompleteSessionWithSets).toHaveBeenCalledWith("user-1");
+    expect(db).not.toHaveProperty("getPreferences");
   });
 
   it("resumes a matching session using its embedded sets, with no follow-up queries", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session(), sets });
-    const boot = await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    const boot = await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     expect(db.createSession).not.toHaveBeenCalled();
     expect(boot).toMatchObject({ sessionSets: sets, exerciseIndex: 1, setIndex: 2, phase: "sets" });
@@ -56,7 +54,7 @@ describe("bootstrapWorkout", () => {
 
   it("prefetches last-session sets and all-time bests for every exercise of the day and each alternate", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue(null);
-    const boot = await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    const boot = await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     // A slot can be swapped before its first set, so its alternates' history is needed too: one call, no duplicates.
     const everyOption = ["bench", "db-bench", "machine-press", "row", "cable-row", "bb-row"];
@@ -70,14 +68,14 @@ describe("bootstrapWorkout", () => {
 
   it("resumes in the warm-up when the session was left at the warm-up position", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ currentExerciseIndex: 0, currentSetIndex: -1 }), sets: [] });
-    const boot = await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    const boot = await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     expect(boot).toMatchObject({ exerciseIndex: 0, setIndex: -1, phase: "warmup" });
   });
 
   it("only shows a new day: no session, nothing in progress, until it's begun", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue(null);
-    const boot = await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    const boot = await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     expect(db.createSession).not.toHaveBeenCalled();
     expect(cacheSet).not.toHaveBeenCalledWith("active_workout", expect.anything());
@@ -86,7 +84,7 @@ describe("bootstrapWorkout", () => {
 
   it("doesn't resume an unfinished workout for a different day", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ dayIndex: 4 }), sets });
-    const boot = await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    const boot = await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     expect(db.createSession).not.toHaveBeenCalled();
     expect(boot).toMatchObject({ session: null, sessionSets: [], phase: "overview" });
@@ -94,19 +92,18 @@ describe("bootstrapWorkout", () => {
 
   it("shows the exercise swapped in for this workout as the one in progress", async () => {
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ exerciseSwaps: { row: "cable-row" } }), sets });
-    await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    await bootstrapWorkout({ userId: "user-1", alternateSelections: {}, week: 2, dayIndex: 1, workoutDay });
 
     expect(cacheSet).toHaveBeenCalledWith("active_workout", expect.objectContaining({ exerciseName: "Cable Row", exerciseIndex: 1 }));
   });
 
   it("uses saved defaults for the in-progress exercise, and a swap over a default", async () => {
-    db.getPreferences.mockResolvedValue({ ...prefs, alternateSelections: { row: "bb-row" } });
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session(), sets });
-    await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    await bootstrapWorkout({ userId: "user-1", alternateSelections: { row: "bb-row" }, week: 2, dayIndex: 1, workoutDay });
     expect(cacheSet).toHaveBeenLastCalledWith("active_workout", expect.objectContaining({ exerciseName: "Barbell Row" }));
 
     db.getIncompleteSessionWithSets.mockResolvedValue({ session: session({ exerciseSwaps: { row: "cable-row" } }), sets });
-    await bootstrapWorkout({ userId: "user-1", week: 2, dayIndex: 1, workoutDay });
+    await bootstrapWorkout({ userId: "user-1", alternateSelections: { row: "bb-row" }, week: 2, dayIndex: 1, workoutDay });
     expect(cacheSet).toHaveBeenLastCalledWith("active_workout", expect.objectContaining({ exerciseName: "Cable Row" }));
   });
 });

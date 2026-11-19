@@ -1,42 +1,24 @@
-import { useState } from "react";
-import { saveExerciseNote, upsertPreferences } from "@/lib/db";
-import { cachePrefs, DEFAULT_PREFS, readCachedPrefs } from "@/lib/prefs-cache";
-import type { UserPreferences } from "@/lib/types";
+import { usePreferences } from "@/context/PreferencesContext";
 
-/** User preferences during a workout: state, local cache and persistence in one place. */
-export function useWorkoutPrefs(userId: string | null) {
-  const [prefs, setPrefs] = useState<UserPreferences>(() => readCachedPrefs() ?? DEFAULT_PREFS);
-
-  function update(next: UserPreferences) {
-    setPrefs(next);
-    cachePrefs(next);
-  }
+/** What a workout changes in the user's preferences: default alternates and exercise notes. */
+export function useWorkoutPrefs() {
+  const { prefs, save } = usePreferences();
 
   /**
    * Saves which exercise to do by default in place of `mainId` (the main exercise
-   * itself clears the default). Optimistic; reverts and rethrows if the save fails.
+   * itself clears the default). Optimistic; reverts and rejects if the save fails.
    */
   async function setDefaultAlternate(mainId: string, chosenId: string) {
-    const previous = prefs;
     const alternateSelections = { ...prefs.alternateSelections };
     if (chosenId === mainId) delete alternateSelections[mainId];
     else alternateSelections[mainId] = chosenId;
-    update({ ...prefs, alternateSelections });
-    if (!userId) return;
-    try {
-      await upsertPreferences(userId, { alternateSelections });
-    } catch (error) {
-      update(previous);
-      throw error;
-    }
+    await save({ alternateSelections });
   }
 
+  /** Saves the note for an exercise; rejects (so the notes sheet can say so) if that fails. */
   async function saveNote(exerciseId: string, note: string) {
-    if (!userId) return;
-    const current = prefs.exerciseNotes ?? {};
-    await saveExerciseNote(userId, exerciseId, note, current);
-    update({ ...prefs, exerciseNotes: { ...current, [exerciseId]: note } });
+    await save({ exerciseNotes: { ...prefs.exerciseNotes, [exerciseId]: note } });
   }
 
-  return { prefs, setPrefs, setDefaultAlternate, saveNote };
+  return { prefs, setDefaultAlternate, saveNote };
 }

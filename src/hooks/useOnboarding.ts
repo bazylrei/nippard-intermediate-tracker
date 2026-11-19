@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useRequireUser } from "@/context/AuthContext";
-import { getPreferences, logBodyWeight, upsertPreferences } from "@/lib/db";
+import { logBodyWeight } from "@/lib/db";
+import { usePreferences } from "@/context/PreferencesContext";
 import { localYmd } from "@/lib/dates";
 import { checkOnboarded, finishOnboarding } from "@/lib/onboarding";
-import { cachePrefs, DEFAULT_PREFS } from "@/lib/prefs-cache";
 import { displayToKg, type WeightUnit } from "@/lib/units";
-import type { UserPreferences } from "@/lib/types";
 import { useSaveError } from "./useSaveError";
 
 export const ONBOARDING_STEPS = ["units", "weight", "program"] as const;
@@ -25,28 +24,25 @@ export function useOnboarding() {
   const userId = useRequireUser()?.id ?? null;
   const saveError = useSaveError();
   const { attempt, clear } = saveError;
-  const [status, setStatus] = useState<OnboardingStatus>("loading");
-  const [saved, setSaved] = useState<UserPreferences>(DEFAULT_PREFS);
+  const { prefs, ready, failed, save } = usePreferences();
+  const [checked, setChecked] = useState<"pending" | "ready" | "error">("pending");
+  const status: OnboardingStatus = failed || checked === "error" ? "error" : ready && checked === "ready" ? "ready" : "loading";
   const [stepIndex, setStepIndex] = useState(0);
-  const [unit, setUnit] = useState<WeightUnit>(DEFAULT_PREFS.unit);
-  const [weekStartsOn, setWeekStartsOn] = useState(DEFAULT_PREFS.weekStartsOn);
+  // Until the person picks, the choices are what the account already has.
+  const [pickedUnit, setUnit] = useState<WeightUnit | null>(null);
+  const [pickedWeekStart, setWeekStartsOn] = useState<number | null>(null);
+  const unit = pickedUnit ?? prefs.unit;
+  const weekStartsOn = pickedWeekStart ?? prefs.weekStartsOn;
 
+  // Someone who has finished is sent Home.
   useEffect(() => {
     if (!userId) return;
-    async function load(id: string) {
-      try {
-        const [done, prefs] = await Promise.all([checkOnboarded(id), getPreferences(id)]);
-        if (done) { router.replace(HOME); return; }
-        setSaved(prefs);
-        setUnit(prefs.unit);
-        setWeekStartsOn(prefs.weekStartsOn);
-        setStatus("ready");
-      } catch (error) {
-        console.error(error);
-        setStatus("error");
-      }
-    }
-    void load(userId);
+    checkOnboarded(userId)
+      .then((done) => {
+        if (done) router.replace(HOME);
+        else setChecked("ready");
+      })
+      .catch((error) => { console.error(error); setChecked("error"); });
   }, [userId, router]);
 
   const next = useCallback(() => {
@@ -62,10 +58,7 @@ export function useOnboarding() {
   /** Saves the unit and first day of the week, then moves on. */
   async function saveUnits() {
     if (!userId) return;
-    const ok = await attempt(async () => {
-      await upsertPreferences(userId, { unit, weekStartsOn });
-      cachePrefs({ ...saved, unit, weekStartsOn });
-    }, "Couldn't save your settings. Try again.");
+    const ok = await attempt(() => save({ unit, weekStartsOn }), "Couldn't save your settings. Try again.");
     if (ok) next();
   }
 

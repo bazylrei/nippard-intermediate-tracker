@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { deleteWorkoutSession } from "@/lib/db";
 import { useProgramContext } from "@/context/ProgramContext";
@@ -32,6 +32,7 @@ import ExerciseSetCarousel from "@/components/workout/ExerciseSetCarousel";
 import SkipExerciseButton from "@/components/workout/SkipExerciseButton";
 import { useWorkoutRoute } from "@/hooks/useWorkoutRoute";
 import { useRequireUser } from "@/context/AuthContext";
+import { usePreferences } from "@/context/PreferencesContext";
 
 function WorkoutContent() {
   const router = useRouter();
@@ -39,7 +40,11 @@ function WorkoutContent() {
   const { warmupSteps, programId, ready: programReady, failed: programFailed } = useProgramContext();
   const userId = useRequireUser()?.id ?? null;
   const [session, setSession] = useState<WorkoutSession | null>(null);
-  const { prefs, setPrefs, setDefaultAlternate, saveNote } = useWorkoutPrefs(userId);
+  const { prefs, setDefaultAlternate, saveNote } = useWorkoutPrefs();
+  const { ready: prefsReady, failed: prefsFailed } = usePreferences();
+  // The workout starts from the defaults it was opened with; changing one mid-workout mustn't restart it.
+  const alternatesRef = useRef(prefs.alternateSelections);
+  useEffect(() => { alternatesRef.current = prefs.alternateSelections; }, [prefs.alternateSelections]);
   const { choices, swapSheet, openSwap } = useExerciseSwap({ session, setSession, defaults: prefs.alternateSelections, setDefaultAlternate });
   const { start: startRestTimer, stop: stopRestTimer } = useRestTimer();
   const [loading, setLoading] = useState(true);
@@ -66,7 +71,7 @@ function WorkoutContent() {
   }, [done, stopRestTimer]);
 
   useEffect(() => {
-    if (!programReady || !userId) return;
+    if (!programReady || !prefsReady || !userId) return;
     const owner = userId;
 
     async function init() {
@@ -77,21 +82,20 @@ function WorkoutContent() {
       setLoading(true);
       let boot;
       try {
-        boot = await bootstrapWorkout({ userId: owner, week, dayIndex, workoutDay });
+        boot = await bootstrapWorkout({ userId: owner, alternateSelections: alternatesRef.current, week, dayIndex, workoutDay });
       } catch (error) {
         console.error(error);
         setLoadFailed(true);
         setLoading(false);
         return;
       }
-      setPrefs(boot.prefs);
       setSession(boot.session);
       restore(boot);
       setRecordsByExercise(boot.recordsByExercise);
       setLoading(false);
     }
     init();
-  }, [week, dayIndex, userId, workoutDay, programReady, setPrefs, restore]);
+  }, [week, dayIndex, userId, workoutDay, programReady, prefsReady, restore]);
 
   /** Creates the session only now, so opening a day to look at it never starts one. */
   async function handleBegin() {
@@ -114,7 +118,7 @@ function WorkoutContent() {
   }
 
   if (programFailed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
-  if (loadFailed) return <FullScreenMessage message="Couldn't load the workout. Check your connection and try again." />;
+  if (loadFailed || prefsFailed) return <FullScreenMessage message="Couldn't load the workout. Check your connection and try again." />;
   if (loading) return <FullScreenMessage message="Loading workout…" />;
   if (!workoutDay || !currentExercise) return <FullScreenMessage message="Invalid workout." />;
 

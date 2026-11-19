@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@/test-utils/render";
+import { renderHook, waitFor, act } from "@/test-utils/render-with-prefs";
 
 const auth = vi.hoisted(() => ({ onAuthUserChange: () => () => {}, getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);

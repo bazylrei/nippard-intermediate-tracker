@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act, within } from "@/test-utils/render";
+import { render, screen, fireEvent, waitFor, act, within } from "@/test-utils/render-with-prefs";
 import type { Exercise, SetLog, WorkoutSession } from "@/lib/types";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -17,7 +17,7 @@ const db = vi.hoisted(() => ({
   logSetAndAdvance: vi.fn(),
   deleteWorkoutSession: vi.fn(),
   updateSetLog: vi.fn(),
-  saveExerciseNote: vi.fn(),
+  getPreferences: vi.fn(),
   upsertPreferences: vi.fn(),
   saveExerciseSwaps: vi.fn(),
   getExerciseHistory: vi.fn().mockResolvedValue([]),
@@ -62,9 +62,9 @@ const session: WorkoutSession = {
 };
 const prevSet = { id: "p", exerciseId: "bench", setIndex: 0, weight: 100, reps: 8, rpe: null } as SetLog;
 
-function bootWith(overrides: Record<string, unknown> = {}) {
+function bootWith({ prefs, ...overrides }: Record<string, unknown> = {}) {
+  db.getPreferences.mockResolvedValue({ unit: "kg", alternateSelections: {}, exerciseNotes: {}, weekStartsOn: 1, ...(prefs as object) });
   boot.bootstrapWorkout.mockResolvedValue({
-    prefs: { unit: "kg", alternateSelections: {}, exerciseNotes: {} },
     session, sessionSets: [], recordsByExercise: { bench: { lastSets: [prevSet] } },
     exerciseIndex: 0, setIndex: 0, phase: "sets",
     ...overrides,
@@ -682,6 +682,27 @@ describe("WorkoutPage — invalid or failed starts", () => {
     boot.bootstrapWorkout.mockRejectedValue(new Error("offline"));
     await act(async () => { render(<WorkoutPage />); });
     expect(screen.getByText(/Couldn't load the workout/)).toBeInTheDocument();
+  });
+
+  it("doesn't start the workout until the account's preferences have loaded", async () => {
+    db.getPreferences.mockReturnValue(new Promise(() => {}));
+    await act(async () => { render(<WorkoutPage />); });
+    expect(boot.bootstrapWorkout).not.toHaveBeenCalled();
+    expect(screen.getByText("Loading workout…")).toBeInTheDocument();
+  });
+
+  it("starts the workout with the saved default alternates", async () => {
+    bootWith({ prefs: { alternateSelections: { bench: "bench-db" } } });
+    await act(async () => { render(<WorkoutPage />); });
+    expect(boot.bootstrapWorkout).toHaveBeenCalledWith(expect.objectContaining({ userId: "user-1", alternateSelections: { bench: "bench-db" } }));
+  });
+
+  it("shows an error instead of loading forever when the preferences can't be loaded", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    db.getPreferences.mockRejectedValue(new Error("offline"));
+    await act(async () => { render(<WorkoutPage />); });
+    expect(screen.getByText(/Couldn't load the workout/)).toBeInTheDocument();
+    expect(boot.bootstrapWorkout).not.toHaveBeenCalled();
   });
 
   it("explains when the program itself couldn't be loaded", async () => {

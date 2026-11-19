@@ -40,7 +40,8 @@ Next.js App Router app for tracking the Jeff Nippard Intermediate bodybuilding p
 
 1. **`ProgramContext`** (`src/context/ProgramContext.tsx`) — Loads the full 12-week program structure, warmup protocols, and failure technique metadata once at app start. Available everywhere via `useProgramContext()`; `failed` is true when it couldn't load and nothing is cached.
 2. **Supabase** — Authoritative store for workout sessions (`workout_sessions`), set logs (`set_logs`), and user preferences (`user_preferences`).
-3. **localStorage** (`src/lib/cache.ts`) — Short-lived cache for program data (`workout_cache_program-v1`), dashboard/home-feed state, user prefs (`lib/prefs-cache.ts`) and the workout in progress for the Workout tab (`lib/active-workout.ts`) to avoid redundant DB round-trips.
+3. **`PreferencesProvider`** (`src/context/PreferencesContext.tsx`) — The one owner of the signed-in user's `user_preferences`: one load per session (cached copy shown first), shared by every screen via `usePreferences()` → `{ prefs, ready, failed, save }`. `save(patch)` is optimistic and reverts the changed fields + rejects on failure. Never call `getPreferences` from a hook or page; tests that need it use `@/test-utils/render-with-prefs`.
+4. **localStorage** (`src/lib/cache.ts`) — Short-lived cache for program data (`workout_cache_program-v1`), dashboard/home-feed state, user prefs (`lib/prefs-cache.ts`) and the workout in progress for the Workout tab (`lib/active-workout.ts`) to avoid redundant DB round-trips.
 
 ### Data Flow: Starting a Workout
 

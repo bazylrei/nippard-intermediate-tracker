@@ -43,15 +43,6 @@ export async function upsertPreferences(
   ));
 }
 
-export async function saveExerciseNote(userId: string, exerciseId: string, note: string, current: Record<string, string>): Promise<void> {
-  const sb = createClient();
-  const updated = { ...current, [exerciseId]: note };
-  unwrap("saveExerciseNote", await sb.from("user_preferences").upsert(
-    { user_id: userId, exercise_notes: updated },
-    { onConflict: "user_id" }
-  ));
-}
-
 /** Whether the user has finished onboarding; false for an account that has saved nothing yet. */
 export async function isOnboarded(userId: string): Promise<boolean> {
   const sb = createClient();
