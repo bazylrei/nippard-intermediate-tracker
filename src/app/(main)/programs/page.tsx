@@ -1,23 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
 import { createProgram, getPrograms, type NewProgramFields } from "@/lib/db";
 import { canEditProgram } from "@/lib/program-access";
-import { editProgramHref } from "@/lib/program-routes";
+import { editProgramHref, PROGRAMS_PATH } from "@/lib/program-routes";
+import { useProgramContext } from "@/context/ProgramContext";
 import type { ProgramRow } from "@/lib/types";
 import NewProgramSheet from "@/components/programs/NewProgramSheet";
 import OverlayPresence from "@/components/widgets/OverlayPresence";
 import ProgramGroup from "@/components/programs/ProgramGroup";
 import ProgramsPageHeader from "@/components/programs/ProgramsPageHeader";
 
+/** useSearchParams needs a Suspense boundary to prerender. */
 export default function ProgramsPage() {
+  return (
+    <Suspense>
+      <Programs />
+    </Suspense>
+  );
+}
+
+function Programs() {
   const router = useRouter();
+  const { programId: currentId } = useProgramContext();
+  // NEW_PROGRAM_HREF (?new=1) arrives with the "New program" sheet open.
+  const openedToCreate = useSearchParams().get("new") === "1";
   const [programs, setPrograms] = useState<ProgramRow[] | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [naming, setNaming] = useState(false);
+  const [naming, setNaming] = useState(openedToCreate);
 
   useEffect(() => {
     async function load() {
@@ -33,6 +46,11 @@ export default function ProgramsPage() {
     }
     void load();
   }, [router]);
+
+  function closeNaming() {
+    setNaming(false);
+    if (openedToCreate) router.replace(PROGRAMS_PATH, { scroll: false });
+  }
 
   /** Creates the program, then opens it in the editor to build. Rejects (the sheet stays open) if saving fails. */
   async function handleCreate(owner: string, id: string, fields: NewProgramFields) {
@@ -64,12 +82,12 @@ export default function ProgramsPage() {
 
       <OverlayPresence>
         {naming && userId && (
-          <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={() => setNaming(false)} />
+          <NewProgramSheet onCreate={(id, fields) => handleCreate(userId, id, fields)} onClose={closeNaming} />
         )}
       </OverlayPresence>
 
-      {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} />}
-      {available.length > 0 && <ProgramGroup title="Available to me" programs={available} />}
+      {mine.length > 0 && <ProgramGroup title="Created by me" programs={mine} currentId={currentId} />}
+      {available.length > 0 && <ProgramGroup title="Available to me" programs={available} currentId={currentId} />}
     </div>
   );
 }

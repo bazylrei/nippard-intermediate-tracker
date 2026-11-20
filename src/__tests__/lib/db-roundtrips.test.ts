@@ -25,6 +25,7 @@ import {
   getLatestBodyWeight, logBodyWeight, saveExerciseSwaps,
   deleteWorkoutSession, deleteProgramDay, getWorkoutDetail, getWorkoutOverview, getRecentWorkouts,
   getWeeklyVolume, getLoggedExerciseIds, createProgram, newProgramId, isOnboarded, completeOnboarding,
+  setActiveProgram,
 } from "@/lib/db";
 import { DbError } from "@/lib/db/result";
 
@@ -444,10 +445,10 @@ describe("getWorkoutOverview", () => {
       },
       error: null,
     });
-    const result = await getWorkoutOverview();
+    const result = await getWorkoutOverview("p1");
 
     expect(fn("rpc")).toHaveBeenCalledTimes(1);
-    expect(fn("rpc")).toHaveBeenCalledWith("workout_overview");
+    expect(fn("rpc")).toHaveBeenCalledWith("workout_overview", { p_program_id: "p1" });
     expect(fn("from")).not.toHaveBeenCalled();
     expect(result).toEqual({
       unfinished: { sessionId: "u1", week: 2, dayIndex: 1, dayType: "lower-a", setCount: 3 },
@@ -457,12 +458,34 @@ describe("getWorkoutOverview", () => {
 
   it("has no unfinished workout when there isn't one", async () => {
     responses.push({ data: { unfinished: null, completed: [] }, error: null });
-    expect(await getWorkoutOverview()).toEqual({ unfinished: null, completed: [] });
+    expect(await getWorkoutOverview("p1")).toEqual({ unfinished: null, completed: [] });
   });
 
   it("fails fast on a Supabase error", async () => {
     responses.push(failure("boom"));
-    await expect(getWorkoutOverview()).rejects.toThrow("getWorkoutOverview failed: boom");
+    await expect(getWorkoutOverview("p1")).rejects.toThrow("getWorkoutOverview failed: boom");
+  });
+
+  it("following no program, has nothing to ask for and asks nothing", async () => {
+    expect(await getWorkoutOverview(null)).toEqual({ unfinished: null, completed: [] });
+    expect(fn("rpc")).not.toHaveBeenCalled();
+  });
+});
+
+describe("setActiveProgram", () => {
+  it("saves the program followed on the user's preferences, safe to retry", async () => {
+    await setActiveProgram("user-1", "p2");
+    expect(fn("upsert")).toHaveBeenCalledWith({ user_id: "user-1", active_program_id: "p2" }, { onConflict: "user_id" });
+  });
+
+  it("saves following none as null", async () => {
+    await setActiveProgram("user-1", null);
+    expect(fn("upsert")).toHaveBeenCalledWith({ user_id: "user-1", active_program_id: null }, { onConflict: "user_id" });
+  });
+
+  it("throws a DbError when it can't be saved", async () => {
+    responses.push(failure("network down"));
+    await expect(setActiveProgram("user-1", "p2")).rejects.toThrow("setActiveProgram failed");
   });
 });
 

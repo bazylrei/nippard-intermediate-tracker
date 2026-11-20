@@ -22,11 +22,21 @@ const slotRow = {
   last_set_target: "failure", exercises: exerciseRow, alternate_1: dbBenchRow, alternate_2: machineRow,
 };
 
-/** A client whose tables answer with canned rows and remember the columns each was asked for. */
-function fakeClient(slot: Record<string, unknown> = slotRow) {
+const followedProgram = (slot: Record<string, unknown>) => ({
+  id: "prog-1", name: "Nippard Intermediate",
+  program_days: [{ week: 1, day_index: 0, day_type: "upper-a", program_day_exercises: [slot] }],
+});
+
+/**
+ * A client whose tables answer with canned rows and remember the columns each was
+ * asked for, and which user each was filtered to. `prefs` is the preferences
+ * query's answer: by default, following a one-day program.
+ */
+function fakeClient(slot: Record<string, unknown> = slotRow, prefs: unknown = { data: { program: followedProgram(slot) }, error: null }) {
   const selected: Record<string, string> = {};
+  const filters: Record<string, unknown[]> = {};
   const rows: Record<string, unknown> = {
-    programs: { data: { id: "prog-1", program_days: [{ week: 1, day_index: 0, day_type: "upper-a", program_day_exercises: [slot] }] }, error: null },
+    user_preferences: prefs,
     warmup_protocols: { data: [{ id: "3-set", steps: ["a", "b", "c"] }], error: null },
     failure_techniques: { data: [{ id: "failure", label: "Failure", description: "Go to failure" }], error: null },
   };
@@ -34,32 +44,59 @@ function fakeClient(slot: Record<string, unknown> = slotRow) {
     from: (table: string) => {
       const query: Record<string, unknown> = {};
       query.select = vi.fn((columns: string) => { selected[table] = columns; return query; });
-      query.eq = vi.fn(() => query);
-      query.single = vi.fn(async () => rows[table]);
+      query.eq = vi.fn((...args: unknown[]) => { filters[table] = args; return query; });
+      query.maybeSingle = vi.fn(async () => rows[table]);
       query.then = (resolve: (r: unknown) => unknown) => Promise.resolve(rows[table]).then(resolve);
       return query;
     },
   };
-  return { client: client as unknown as SupabaseClient, selected };
+  return { client: client as unknown as SupabaseClient, selected, filters };
 }
 
 describe("loadFullProgram", () => {
   it("names the exercises relationship in its embed, so extra references to exercises can't make it ambiguous", async () => {
     const { client, selected } = fakeClient();
-    await loadFullProgram(client);
-    expect(selected.programs).toContain(MAIN_FK);
-    expect(selected.programs).not.toMatch(/[ ,(]exercises\(/);
+    await loadFullProgram(client, "user-1");
+    expect(selected.user_preferences).toContain(MAIN_FK);
+    expect(selected.user_preferences).not.toMatch(/[ ,(]exercises\(/);
   });
 
   it("maps a slot's exercise with its prescription", async () => {
     const { client } = fakeClient();
-    const loaded = await loadFullProgram(client);
+    const loaded = await loadFullProgram(client, "user-1");
     const exercise = loaded!.program[0].days[0].exercises[0];
     expect(exercise).toMatchObject({
       id: "bench", name: "Bench Press", muscleGroup: "chest", repRange: [6, 10], earlySetCount: 2, lastSetCount: 1,
       restSeconds: [90, 120], warmupProtocol: "3-set",
     });
     expect(loaded!.programId).toBe("prog-1");
+  });
+});
+
+describe("loadFullProgram — the program followed", () => {
+  it("reads the user's own followed program, through the named relationship, in the same query as their preferences", async () => {
+    const { client, selected, filters } = fakeClient();
+    const loaded = await loadFullProgram(client, "user-1");
+    expect(filters.user_preferences).toEqual(["user_id", "user-1"]);
+    expect(selected.user_preferences).toContain("program:programs!user_preferences_active_program_id_fkey(");
+    expect(loaded).toMatchObject({ programId: "prog-1", programName: "Nippard Intermediate" });
+  });
+
+  it("following none (no program set), loads an empty schedule rather than failing", async () => {
+    const { client } = fakeClient(slotRow, { data: { program: null }, error: null });
+    const loaded = await loadFullProgram(client, "user-1");
+    expect(loaded).toMatchObject({ program: [], programId: null, programName: null });
+    expect(loaded!.warmupSteps["3-set"]).toEqual(["a", "b", "c"]); // the rest still loads
+  });
+
+  it("treats an account with no preferences yet as following none", async () => {
+    const { client } = fakeClient(slotRow, { data: null, error: null });
+    expect(await loadFullProgram(client, "user-1")).toMatchObject({ program: [], programId: null });
+  });
+
+  it("is null when the followed program can't be loaded", async () => {
+    const { client } = fakeClient(slotRow, { data: null, error: { message: "offline" } });
+    expect(await loadFullProgram(client, "user-1")).toBeNull();
   });
 });
 
@@ -71,13 +108,13 @@ describe("loadFullProgram — alternates", () => {
 
   it("loads both alternates with each slot, through their own named relationships", async () => {
     const { client, selected } = fakeClient();
-    await loadFullProgram(client);
-    for (const embed of MAIN_AND_ALTERNATE_FKS) expect(selected.programs).toContain(embed);
+    await loadFullProgram(client, "user-1");
+    for (const embed of MAIN_AND_ALTERNATE_FKS) expect(selected.user_preferences).toContain(embed);
   });
 
   it("builds each alternate as a full exercise: its own id, flags, rest and warm-up, and the slot's sets, reps and RPE", async () => {
     const { client } = fakeClient();
-    const loaded = await loadFullProgram(client);
+    const loaded = await loadFullProgram(client, "user-1");
     const bench = loaded!.program[0].days[0].exercises[0];
 
     expect(bench.alternates.map((a) => a.id)).toEqual(["alt-db-bench-press", "alt-machine-press"]);
@@ -90,13 +127,13 @@ describe("loadFullProgram — alternates", () => {
 
   it("has fewer alternates for a slot that has fewer", async () => {
     const { client } = fakeClient({ ...slotRow, alternate_2: null });
-    const loaded = await loadFullProgram(client);
+    const loaded = await loadFullProgram(client, "user-1");
     expect(loaded!.program[0].days[0].exercises[0].alternates.map((a) => a.id)).toEqual(["alt-db-bench-press"]);
   });
 
   it("has none for a slot with no alternates", async () => {
     const { client } = fakeClient({ ...slotRow, alternate_1: null, alternate_2: null });
-    const loaded = await loadFullProgram(client);
+    const loaded = await loadFullProgram(client, "user-1");
     expect(loaded!.program[0].days[0].exercises[0].alternates).toEqual([]);
   });
 });

@@ -15,7 +15,8 @@ vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: 
 
 const day = {} as WorkoutDay;
 let program: WeekSchedule[] = [];
-vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
+let followed = { programId: "p1" as string | null, ready: true, failed: false };
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program, ...followed }) }));
 
 import { useHomeFeed } from "@/hooks/useHomeFeed";
 
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   program = weeks(13, 5);
+  followed = { programId: "p1", ready: true, failed: false };
   overview(null, completedThrough(12, 5));
   db.getRecentWorkouts.mockResolvedValue({ sessions: [], sets: [] });
 });
@@ -63,6 +65,27 @@ describe("useHomeFeed", () => {
     await waitFor(() => expect(result.current.feed).not.toBeNull());
     expect(db.getRecentWorkouts).toHaveBeenCalledTimes(1);
     expect(db.getRecentWorkouts).toHaveBeenCalledWith("user-1", 20);
+  });
+});
+
+describe("useHomeFeed — the program followed", () => {
+  it("asks for the followed program's workouts only", async () => {
+    const { result } = renderHook(() => useHomeFeed());
+    await waitFor(() => expect(result.current.feed).not.toBeNull());
+    expect(db.getWorkoutOverview).toHaveBeenCalledWith("p1");
+  });
+
+  it("waits for the followed program to load before asking", async () => {
+    followed = { programId: null, ready: false, failed: false };
+    renderHook(() => useHomeFeed());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(db.getWorkoutOverview).not.toHaveBeenCalled();
+  });
+
+  it("reports failure, instead of loading forever, when the program can't load", async () => {
+    followed = { programId: null, ready: false, failed: true };
+    const { result } = renderHook(() => useHomeFeed());
+    expect(result.current.failed).toBe(true);
   });
 });
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getSessionNumber, getTotalSessions, programRun } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import { useProgramOverview } from "@/hooks/useProgramOverview";
@@ -18,13 +17,14 @@ import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import WeekSwitcher from "@/components/widgets/WeekSwitcher";
 import ProgramPageHeader from "@/components/program/ProgramPageHeader";
 import ProgramProgressCard from "@/components/program/ProgramProgressCard";
+import ChooseProgramCard from "@/components/widgets/ChooseProgramCard";
 
 const samePosition = (a: WorkoutPosition | null | undefined, b: WorkoutPosition) =>
   !!a && a.week === b.week && a.dayIndex === b.dayIndex;
 
 export default function MyProgram() {
   const router = useRouter();
-  const { program } = useProgramContext();
+  const { program, programId, programName, ready } = useProgramContext();
   const { overview, failed } = useProgramOverview();
   /** The week being browsed; until one is picked, the next workout's week. */
   const [pickedWeek, setPickedWeek] = useState<number | null>(null);
@@ -32,6 +32,14 @@ export default function MyProgram() {
 
   if (failed) return <FullScreenMessage message="Couldn't load your program. Check your connection and try again." />;
   if (!overview) return <FullScreenMessage message="Loading…" />;
+  if (ready && !programId) {
+    return (
+      <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
+        <ProgramPageHeader name="My program" />
+        <ChooseProgramCard />
+      </div>
+    );
+  }
 
   // Derived from the program's real schedule — it can have any number of weeks and days, done in any order.
   const { unfinished, completed } = overview;
@@ -63,7 +71,7 @@ export default function MyProgram() {
   return (
     <div className="main-min-viewport max-w-lg md:max-w-2xl mx-auto flex flex-col p-4 md:p-8 gap-4">
 
-      <ProgramPageHeader name={ACTIVE_PROGRAM_NAME} />
+      <ProgramPageHeader name={programName ?? "My program"} />
 
       <ProgramProgressCard
         doneCount={run.doneCount}

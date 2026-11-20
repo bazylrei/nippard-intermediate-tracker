@@ -22,7 +22,8 @@ const program = [
   { week: 1, days: [day("upper-a"), day("lower-a"), day("push")] },
   { week: 2, days: [day("upper-a"), day("lower-a"), day("push")] },
 ] as unknown as WeekSchedule[];
-vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
+const followed = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => followed.value }));
 
 import MyProgram from "@/app/(main)/program/page";
 
@@ -30,6 +31,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  followed.value = { program, programId: "p1", programName: "Nippard Intermediate", ready: true, failed: false };
   auth.getSignedInUser.mockResolvedValue({ id: "user-1", email: "me@example.com" });
   db.completeSession.mockResolvedValue(undefined);
   db.deleteWorkoutSession.mockResolvedValue(undefined);
@@ -150,6 +152,23 @@ describe("Program page — header", () => {
     await renderPage();
     expect(db.getPreferences).not.toHaveBeenCalled();
     expect(db.getLatestBodyWeight).not.toHaveBeenCalled();
+  });
+});
+
+describe("Program page — the program followed", () => {
+  it("is titled with the program's name, and asks for that program's workouts", async () => {
+    await renderPage();
+    expect(screen.getByRole("heading", { name: "Nippard Intermediate" })).toBeInTheDocument();
+    expect(db.getWorkoutOverview).toHaveBeenCalledWith("p1");
+  });
+
+  it("following none, offers to browse programs or create one instead of a schedule", async () => {
+    followed.value = { program: [], programId: null, programName: null, ready: true, failed: false };
+    db.getWorkoutOverview.mockResolvedValue({ unfinished: null, completed: [] });
+    render(<MyProgram />);
+    expect(await screen.findByRole("link", { name: /Browse programs/ })).toHaveAttribute("href", "/programs");
+    expect(screen.getByRole("link", { name: /Create your own/ })).toHaveAttribute("href", "/programs?new=1");
+    expect(screen.queryByText(/Overview/)).toBeNull();
   });
 });
 

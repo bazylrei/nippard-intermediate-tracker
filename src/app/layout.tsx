@@ -3,7 +3,6 @@ import { Barlow_Condensed, Barlow } from "next/font/google";
 import "./globals.css";
 import { ProgramProvider } from "@/context/ProgramContext";
 import { RestTimerProvider } from "@/context/RestTimerContext";
-import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 const barlowCondensed = Barlow_Condensed({
@@ -21,9 +20,12 @@ const barlow = Barlow({
   display: "swap",
 });
 
+/** The app's name, kept from when it tracked one program only. */
+const APP_NAME = "Nippard Intermediate";
+
 export const metadata: Metadata = {
-  title: ACTIVE_PROGRAM_NAME,
-  description: `${ACTIVE_PROGRAM_NAME} program tracker`,
+  title: APP_NAME,
+  description: `${APP_NAME} program tracker`,
 };
 
 export const viewport: Viewport = {

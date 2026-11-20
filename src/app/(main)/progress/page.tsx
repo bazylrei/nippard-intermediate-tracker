@@ -7,10 +7,13 @@ import { getExerciseHistory, getWeeklyVolume, getLoggedExerciseIds, logBodyWeigh
 import { localYmd } from "@/lib/dates";
 import { useExerciseCatalog } from "@/hooks/useExerciseCatalog";
 import { useWeightUnit } from "@/hooks/useWeightUnit";
+import { useStartNextWorkout } from "@/hooks/useStartNextWorkout";
+import { useProgramContext } from "@/context/ProgramContext";
 import FullScreenMessage from "@/components/widgets/FullScreenMessage";
 import ExerciseTab from "@/components/progress/ExerciseTab";
 import type { ExerciseHistoryPoint } from "@/lib/types";
 import VolumeTab from "@/components/progress/VolumeTab";
+import ProgressEmptyState from "@/components/progress/ProgressEmptyState";
 import ProgressTabBar, { isProgressTab, type ProgressTab } from "@/components/progress/ProgressTabBar";
 import type { WeeklyVolume } from "@/lib/volume";
 
@@ -27,6 +30,8 @@ function ProgressContent() {
   const searchParams = useSearchParams();
   const { options } = useExerciseCatalog();
   const unit = useWeightUnit();
+  const { programId, ready: programReady } = useProgramContext();
+  const startNextWorkout = useStartNextWorkout();
   // The tab lives in the URL so a reload or Back keeps it.
   const tabParam = searchParams.get("tab");
   const tab: ProgressTab = isProgressTab(tabParam) ? tabParam : "exercise";
@@ -87,6 +92,8 @@ function ProgressContent() {
 
   if (status === "loading") return <FullScreenMessage message="Loading progress…" />;
   if (status === "error") return <FullScreenMessage message="Couldn't load your progress. Check your connection and try again." />;
+  // Nothing logged yet: no charts to show, so point the way to a first workout.
+  const isEmpty = loggedIds.length === 0 && volume.weeks.length === 0;
 
   return (
     <div className="main-viewport max-w-lg md:max-w-3xl mx-auto flex flex-col">
@@ -94,10 +101,11 @@ function ProgressContent() {
         <h1 className="font-display font-bold text-xl tracking-wide text-fg">Progress</h1>
       </div>
 
-      <ProgressTabBar tab={tab} onSelect={setTab} />
+      {!isEmpty && <ProgressTabBar tab={tab} onSelect={setTab} />}
 
       <div ref={chartContainerRef} className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-above-raised-tab">
-        {tab === "exercise" && (
+        {isEmpty && <ProgressEmptyState hasProgram={!programReady || !!programId} onStartWorkout={() => void startNextWorkout()} />}
+        {!isEmpty && tab === "exercise" && (
           <ExerciseTab
             options={exercisesWithData}
             selectedId={activeExercise}
@@ -107,7 +115,7 @@ function ProgressContent() {
             chartWidth={chartWidth}
           />
         )}
-        {tab === "volume" && <VolumeTab volume={volume} unit={unit} chartWidth={chartWidth} onLogBodyWeight={logWeightAndRefresh} />}
+        {!isEmpty && tab === "volume" && <VolumeTab volume={volume} unit={unit} chartWidth={chartWidth} onLogBodyWeight={logWeightAndRefresh} />}
       </div>
     </div>
   );

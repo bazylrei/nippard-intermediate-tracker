@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
-import { getPreferences, logBodyWeight, upsertPreferences } from "@/lib/db";
+import { getPreferences, getPrograms, logBodyWeight, upsertPreferences } from "@/lib/db";
 import { localYmd } from "@/lib/dates";
 import { checkOnboarded, finishOnboarding } from "@/lib/onboarding";
 import { cachePrefs, DEFAULT_PREFS } from "@/lib/prefs-cache";
 import { displayToKg, type WeightUnit } from "@/lib/units";
-import type { UserPreferences } from "@/lib/types";
+import type { ProgramRow, UserPreferences } from "@/lib/types";
 import { useSaveError } from "./useSaveError";
 
 export const ONBOARDING_STEPS = ["units", "weight", "program"] as const;
@@ -30,16 +30,19 @@ export function useOnboarding() {
   const [stepIndex, setStepIndex] = useState(0);
   const [unit, setUnit] = useState<WeightUnit>(DEFAULT_PREFS.unit);
   const [weekStartsOn, setWeekStartsOn] = useState(DEFAULT_PREFS.weekStartsOn);
+  /** The programs on offer at the last step. */
+  const [programs, setPrograms] = useState<ProgramRow[]>([]);
 
   useEffect(() => {
     async function load() {
       const user = await requireSignedInUser(router);
       if (!user) return;
       try {
-        const [done, prefs] = await Promise.all([checkOnboarded(user.id), getPreferences(user.id)]);
+        const [done, prefs, offered] = await Promise.all([checkOnboarded(user.id), getPreferences(user.id), getPrograms(user.id)]);
         if (done) { router.replace(HOME); return; }
         setUserId(user.id);
         setSaved(prefs);
+        setPrograms(offered);
         setUnit(prefs.unit);
         setWeekStartsOn(prefs.weekStartsOn);
         setStatus("ready");
@@ -85,7 +88,7 @@ export function useOnboarding() {
   }
 
   return {
-    status, step: ONBOARDING_STEPS[stepIndex], stepIndex, saveError,
+    status, step: ONBOARDING_STEPS[stepIndex], stepIndex, saveError, programs,
     unit, weekStartsOn, setUnit, setWeekStartsOn,
     next, back, saveUnits, saveBodyWeight, finish,
   };

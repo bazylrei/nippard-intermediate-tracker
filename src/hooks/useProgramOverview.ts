@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { requireSignedInUser } from "@/lib/require-user";
 import { getWorkoutOverview, type CompletedSlot } from "@/lib/db";
 import { cacheGet, cacheSet } from "@/lib/cache";
+import { useProgramContext } from "@/context/ProgramContext";
 import type { WorkoutPosition } from "@/lib/types";
 
 const CACHE_KEY = "dashboard-v5";
@@ -23,19 +24,22 @@ export interface ProgramOverview {
 }
 
 /**
- * What the Program screen shows, from the cache at once and then fresh from the
+ * What the Program screen shows about the program the user follows, from the cache at once and then fresh from the
  * server. `failed` is true only when loading failed and nothing is cached.
  */
 export function useProgramOverview(): { overview: ProgramOverview | null; failed: boolean } {
   const router = useRouter();
+  const { programId, ready, failed: programFailed } = useProgramContext();
   const [overview, setOverview] = useState<ProgramOverview | null>(() => cacheGet<ProgramOverview>(CACHE_KEY));
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
+    // Wait for the followed program, so the overview is of the right one.
+    if (!ready) return;
     async function load() {
       const user = await requireSignedInUser(router);
       if (!user) return;
-      const { unfinished: found, completed } = await getWorkoutOverview();
+      const { unfinished: found, completed } = await getWorkoutOverview(programId);
       const unfinished = found && {
         sessionId: found.sessionId,
         position: { week: found.week, dayIndex: found.dayIndex },
@@ -47,7 +51,7 @@ export function useProgramOverview(): { overview: ProgramOverview | null; failed
       cacheSet(CACHE_KEY, fresh);
     }
     load().catch((error) => { console.error(error); setLoadFailed(true); });
-  }, [router]);
+  }, [router, programId, ready]);
 
-  return { overview, failed: loadFailed && !overview };
+  return { overview, failed: (loadFailed || programFailed) && !overview };
 }
