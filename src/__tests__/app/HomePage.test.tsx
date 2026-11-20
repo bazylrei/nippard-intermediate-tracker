@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const program = vi.hoisted(() => [] as unknown[]);
-vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
+const followed = vi.hoisted(() => ({ programId: "p1" as string | null, ready: true }));
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program, ...followed }) }));
 const feed = vi.hoisted(() => ({ nextSession: null as { week: number; dayIndex: number } | null, hasResume: false, items: [] }));
 vi.mock("@/hooks/useHomeFeed", () => ({ useHomeFeed: () => ({ feed, failed: false }) }));
 const weighIn = vi.hoisted(() => ({ due: false, unit: "kg", save: vi.fn(), skip: vi.fn() }));
@@ -15,6 +16,8 @@ beforeEach(() => {
   weighIn.due = false;
   feed.nextSession = null;
   program.length = 0;
+  followed.programId = "p1";
+  followed.ready = true;
 });
 
 describe("Home — weekly weigh-in", () => {
@@ -42,5 +45,27 @@ describe("Home — choosing what to train", () => {
   it("has nothing to choose from before the program loads", () => {
     render(<Home />);
     expect(screen.queryByRole("link", { name: "Choose a different workout" })).toBeNull();
+  });
+});
+
+describe("Home — following no program", () => {
+  it("offers to browse programs or create one", () => {
+    followed.programId = null;
+    render(<Home />);
+    expect(screen.getByRole("link", { name: /Browse programs/ })).toHaveAttribute("href", "/programs");
+    expect(screen.getByRole("link", { name: /Create your own/ })).toHaveAttribute("href", "/programs?new=1");
+  });
+
+  it("doesn't offer it while the program is still loading, or when following one", () => {
+    followed.programId = null;
+    followed.ready = false;
+    const { unmount } = render(<Home />);
+    expect(screen.queryByRole("link", { name: /Browse programs/ })).toBeNull();
+    unmount();
+
+    followed.programId = "p1";
+    followed.ready = true;
+    render(<Home />);
+    expect(screen.queryByRole("link", { name: /Browse programs/ })).toBeNull();
   });
 });

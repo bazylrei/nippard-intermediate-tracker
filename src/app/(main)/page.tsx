@@ -11,10 +11,11 @@ import RecentActivity from "@/components/home/RecentActivity";
 import { getSessionNumber } from "@/lib/program-data";
 import { useWeighIn } from "@/hooks/useWeighIn";
 import WeighInCard from "@/components/widgets/WeighInCard";
+import ChooseProgramCard from "@/components/widgets/ChooseProgramCard";
 
 export default function Home() {
   const router = useRouter();
-  const { program } = useProgramContext();
+  const { program, programId, ready } = useProgramContext();
   const { feed, failed } = useHomeFeed();
   const weighIn = useWeighIn();
 
@@ -29,6 +30,8 @@ export default function Home() {
       <h1 className="font-display font-bold text-xl text-fg pt-2">Home</h1>
 
       {weighIn.due && <WeighInCard unit={weighIn.unit} onSave={weighIn.save} onDismiss={weighIn.skip} />}
+
+      {ready && !programId && <ChooseProgramCard />}
 
       {nextSession && nextDay && (
         <NextWorkoutCard

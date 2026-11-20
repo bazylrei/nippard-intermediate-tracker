@@ -8,6 +8,8 @@ const auth = vi.hoisted(() => ({ getSignedInUser: vi.fn() }));
 vi.mock("@/lib/auth", () => auth);
 const next = vi.hoisted(() => ({ findNextWorkout: vi.fn() }));
 vi.mock("@/lib/next-workout", () => next);
+const followed = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => followed.value }));
 
 import AppNav from "@/components/BottomNav";
 import { RestTimerProvider, useRestTimer } from "@/context/RestTimerContext";
@@ -28,6 +30,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   pathname = "/";
+  followed.value = { program: [], programId: "p1", ready: true };
   auth.getSignedInUser.mockResolvedValue({ id: "user-1" });
   next.findNextWorkout.mockResolvedValue({ week: 3, dayIndex: 2 });
 });
@@ -56,7 +59,15 @@ describe("AppNav", () => {
     render(<AppNav />);
     fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
     await waitFor(() => expect(router.push).toHaveBeenCalledWith("/workout?week=3&day=2"));
-    expect(next.findNextWorkout).toHaveBeenCalledWith(expect.any(Array));
+    expect(next.findNextWorkout).toHaveBeenCalledWith(expect.any(Array), "p1");
+  });
+
+  it("following no program, opens My programs to choose or create one", async () => {
+    followed.value = { program: [], programId: null, ready: true };
+    render(<AppNav />);
+    fireEvent.click(mobileBar().getByRole("button", { name: "Start workout" }));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/programs"));
+    expect(next.findNextWorkout).not.toHaveBeenCalled();
   });
 
   it("goes Home when the next workout can't be worked out", async () => {

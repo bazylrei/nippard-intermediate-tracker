@@ -101,7 +101,7 @@ export interface UnfinishedSession extends WorkoutPosition {
   setCount: number;
 }
 
-/** Where the user is in their program: the unfinished workout, if any, and every completed one. */
+/** Where the user is in the program they follow: the unfinished workout, if any, and every completed one. */
 export interface WorkoutOverview {
   unfinished: UnfinishedSession | null;
   /** Newest first. */
@@ -113,10 +113,14 @@ interface OverviewJson {
   completed: { id: string; week: number; day_index: number }[];
 }
 
-/** The unfinished workout and every completed slot in one round trip (`workout_overview`). */
-export async function getWorkoutOverview(): Promise<WorkoutOverview> {
+/**
+ * The program's unfinished workout and every completed slot in it, in one round
+ * trip (`workout_overview`). Following no program, there's nothing to ask for.
+ */
+export async function getWorkoutOverview(programId: string | null): Promise<WorkoutOverview> {
+  if (!programId) return { unfinished: null, completed: [] };
   const sb = createClient();
-  const json = unwrap("getWorkoutOverview", await sb.rpc("workout_overview")) as unknown as OverviewJson;
+  const json = unwrap("getWorkoutOverview", await sb.rpc("workout_overview", { p_program_id: programId })) as unknown as OverviewJson;
   const u = json.unfinished;
   return {
     unfinished: u && { sessionId: u.id, week: u.week, dayIndex: u.day_index, dayType: u.day_type, setCount: u.set_count },

@@ -1,12 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Exercise, WeekSchedule, WorkoutDay } from "./types";
 
-/**
- * The program the app trains. There is no per-user program selection yet, so
- * this is the single place that decides which program is "active".
- */
-export const ACTIVE_PROGRAM_NAME = "Nippard Intermediate";
-
 /** Columns read for a slot's exercise and for each of its alternates. */
 const EXERCISE_COLUMNS =
   "id, name, muscle_group, rest_min, rest_max, warmup_protocol, form_note, youtube_url, instructions, is_bodyweight, weight_per_side";
@@ -85,49 +79,24 @@ function mapToExercise(pde: ProgramDayExerciseRow): Exercise {
   return toExercise(pde.exercises, pde, alternates);
 }
 
-export async function loadFullProgram(sb: SupabaseClient): Promise<{
+/** Everything a screen needs about the program the user follows. `programId` is null when they follow none. */
+export interface LoadedProgram {
   program: WeekSchedule[];
   warmupSteps: Record<string, string[]>;
   failureTechniques: Record<string, { label: string; description: string }>;
   programId: string | null;
-} | null> {
-  const [programResult, warmupResult, techniqueResult] = await Promise.all([
-    sb
-      .from("programs")
-      .select(
-        `id, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises!program_day_exercises_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_1:exercises!program_day_exercises_alternate_1_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_2:exercises!program_day_exercises_alternate_2_exercise_id_fkey(${EXERCISE_COLUMNS})))`
-      )
-      .eq("name", ACTIVE_PROGRAM_NAME)
-      .single(),
-    sb.from("warmup_protocols").select("id, steps"),
-    sb.from("failure_techniques").select("id, label, description"),
-  ]);
+  programName: string | null;
+}
 
-  if (programResult.error || !programResult.data) return null;
+type ActiveProgramRow = { id: string; name: string; program_days: ProgramDayRow[] };
 
-  const warmupSteps: Record<string, string[]> = {};
-  if (!warmupResult.error && warmupResult.data) {
-    for (const row of (warmupResult.data as WarmupProtocolRow[])) {
-      warmupSteps[row.id] = row.steps;
-    }
-  }
+const PROGRAM_COLUMNS = `id, name, program_days(week, day_index, day_type, program_day_exercises(position, rep_range_min, rep_range_max, early_set_count, last_set_count, early_set_rpe_min, early_set_rpe_max, last_set_rpe_min, last_set_rpe_max, last_set_target, exercises!program_day_exercises_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_1:exercises!program_day_exercises_alternate_1_exercise_id_fkey(${EXERCISE_COLUMNS}), alternate_2:exercises!program_day_exercises_alternate_2_exercise_id_fkey(${EXERCISE_COLUMNS})))`;
 
-  const failureTechniques: Record<string, { label: string; description: string }> = {};
-  if (!techniqueResult.error && techniqueResult.data) {
-    for (const row of (techniqueResult.data as FailureTechniqueRow[])) {
-      failureTechniques[row.id] = { label: row.label, description: row.description };
-    }
-  }
-
-  const programDays = programResult.data.program_days as unknown as ProgramDayRow[];
-
-  // Group days by week
+/** Days grouped into weeks, each day's exercises in slot order. */
+function toSchedule(programDays: ProgramDayRow[]): WeekSchedule[] {
   const weekMap = new Map<number, WorkoutDay[]>();
   for (const day of programDays) {
-    const existing = weekMap.get(day.week);
-    if (!existing) {
-      weekMap.set(day.week, []);
-    }
+    if (!weekMap.has(day.week)) weekMap.set(day.week, []);
     weekMap.get(day.week)![day.day_index] = {
       dayType: day.day_type,
       exercises: [...day.program_day_exercises]
@@ -135,10 +104,43 @@ export async function loadFullProgram(sb: SupabaseClient): Promise<{
         .map(mapToExercise),
     };
   }
-
-  const program: WeekSchedule[] = Array.from(weekMap.entries())
+  return Array.from(weekMap.entries())
     .sort(([a], [b]) => a - b)
     .map(([week, days]) => ({ week, days }));
+}
 
-  return { program, warmupSteps, failureTechniques, programId: programResult.data.id as string };
+/**
+ * The program `userId` follows (from their preferences, in the same round trip)
+ * with warm-ups and failure techniques. Following none is not an error: the
+ * schedule is empty and `programId` null. Null only when loading failed.
+ */
+export async function loadFullProgram(sb: SupabaseClient, userId: string): Promise<LoadedProgram | null> {
+  const [prefsResult, warmupResult, techniqueResult] = await Promise.all([
+    sb
+      .from("user_preferences")
+      .select(`program:programs!user_preferences_active_program_id_fkey(${PROGRAM_COLUMNS})`)
+      .eq("user_id", userId)
+      .maybeSingle(),
+    sb.from("warmup_protocols").select("id, steps"),
+    sb.from("failure_techniques").select("id, label, description"),
+  ]);
+
+  if (prefsResult.error) return null;
+
+  const warmupSteps: Record<string, string[]> = {};
+  for (const row of (warmupResult.data ?? []) as WarmupProtocolRow[]) warmupSteps[row.id] = row.steps;
+
+  const failureTechniques: Record<string, { label: string; description: string }> = {};
+  for (const row of (techniqueResult.data ?? []) as FailureTechniqueRow[]) {
+    failureTechniques[row.id] = { label: row.label, description: row.description };
+  }
+
+  const active = (prefsResult.data as { program: ActiveProgramRow | null } | null)?.program ?? null;
+  return {
+    program: active ? toSchedule(active.program_days) : [],
+    warmupSteps,
+    failureTechniques,
+    programId: active?.id ?? null,
+    programName: active?.name ?? null,
+  };
 }

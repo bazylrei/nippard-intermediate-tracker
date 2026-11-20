@@ -52,6 +52,15 @@ export async function saveExerciseNote(userId: string, exerciseId: string, note:
   ));
 }
 
+/** Sets the program the user follows; null to follow none. Safe to retry. */
+export async function setActiveProgram(userId: string, programId: string | null): Promise<void> {
+  const sb = createClient();
+  unwrap("setActiveProgram", await sb.from("user_preferences").upsert(
+    { user_id: userId, active_program_id: programId },
+    { onConflict: "user_id" }
+  ));
+}
+
 /** Whether the user has finished onboarding; false for an account that has saved nothing yet. */
 export async function isOnboarded(userId: string): Promise<boolean> {
   const sb = createClient();

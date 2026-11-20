@@ -11,12 +11,21 @@ vi.mock("@/lib/auth", () => auth);
 
 const db = vi.hoisted(() => ({
   isOnboarded: vi.fn(), completeOnboarding: vi.fn(), getPreferences: vi.fn(), upsertPreferences: vi.fn(), logBodyWeight: vi.fn(),
+  getPrograms: vi.fn(),
 }));
 vi.mock("@/lib/db", () => db);
 
 const day = (dayType: string) => ({ dayType, exercises: [] });
 let program: WeekSchedule[] = [];
-vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ program }) }));
+/** Following resolves with the followed program's schedule, as the context's does. */
+const followProgram = vi.hoisted(() => vi.fn());
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => ({ followProgram }) }));
+
+const nippard = {
+  id: "nippard", name: "Nippard Intermediate", description: "Hypertrophy, 5 days a week", category: null,
+  totalWeeks: 12, createdBy: "coach", isPublic: true, createdAt: "2026-01-01", userCount: 3,
+};
+const other = { ...nippard, id: "ppl", name: "Push Pull Legs", description: null, totalWeeks: 8 };
 
 import OnboardingPage from "@/app/onboarding/page";
 
@@ -35,6 +44,8 @@ beforeEach(() => {
     { week: 1, days: [day("upper-a"), day("lower-a")] },
     { week: 2, days: [day("upper-a"), day("lower-a")] },
   ] as unknown as WeekSchedule[];
+  db.getPrograms.mockResolvedValue([nippard, other]);
+  followProgram.mockImplementation(async (id: string | null) => (id ? program : []));
 });
 
 async function renderPage() {
@@ -74,7 +85,7 @@ describe("Onboarding — the steps", () => {
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
     await press("Next");
     await press("Skip for now");
-    expect(screen.getByRole("heading", { name: "You're all set" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pick your program" })).toBeInTheDocument();
     expect(dots()).toBe("Step 3 of 3");
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
   });
@@ -153,14 +164,14 @@ describe("Onboarding — body weight", () => {
     const [userId, loggedOn, kg] = db.logBodyWeight.mock.calls[0];
     expect([userId, loggedOn]).toEqual(["user-1", localYmd(new Date())]);
     expect(kg).toBeCloseTo(79.83, 1); // 176 lbs
-    expect(screen.getByRole("heading", { name: "You're all set" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pick your program" })).toBeInTheDocument();
   });
 
   it("can be skipped, logging nothing", async () => {
     await goTo("weight");
     await press("Skip for now");
     expect(db.logBodyWeight).not.toHaveBeenCalled();
-    expect(screen.getByRole("heading", { name: "You're all set" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pick your program" })).toBeInTheDocument();
   });
 
   it("stays on the step, with the form's error, when the weight can't be saved", async () => {
@@ -175,26 +186,65 @@ describe("Onboarding — body weight", () => {
 });
 
 describe("Onboarding — your program", () => {
-  it("shows the program being followed, sized from the loaded schedule", async () => {
+  const option = (name: RegExp) => screen.getByRole("radio", { name });
+
+  it("offers the programs available, and starting with none", async () => {
     await goTo("program");
-    expect(screen.getByText("Nippard Intermediate")).toBeInTheDocument();
-    expect(screen.getByText("2 weeks · 4 workouts")).toBeInTheDocument();
+    expect(option(/Nippard Intermediate/)).toHaveTextContent("12 weeks · Hypertrophy, 5 days a week");
+    expect(option(/Push Pull Legs/)).toHaveTextContent("8 weeks");
+    expect(option(/No program for now/)).toBeInTheDocument();
   });
 
-  it("finishes onboarding, then starts the first workout", async () => {
+  it("has the first program picked to begin with, so starting is one tap", async () => {
     await goTo("program");
+    expect(option(/Nippard Intermediate/)).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Start first workout" })).toBeInTheDocument();
+  });
+
+  it("follows the chosen program, finishes onboarding, then starts its first workout", async () => {
+    await goTo("program");
+    fireEvent.click(option(/Push Pull Legs/));
     await press("Start first workout");
 
+    expect(followProgram).toHaveBeenCalledWith("ppl");
     expect(db.completeOnboarding).toHaveBeenCalledWith("user-1");
     expect(router.push).toHaveBeenCalledWith("/workout?week=1&day=0");
     expect(db.completeOnboarding.mock.invocationCallOrder[0]).toBeLessThan(router.push.mock.invocationCallOrder[0]);
   });
 
-  it("finishes onboarding, then goes Home", async () => {
+  it("can start with no program: follows none, finishes, and goes Home", async () => {
     await goTo("program");
+    fireEvent.click(option(/No program for now/));
     await press("Go to Home");
+
+    expect(followProgram).toHaveBeenCalledWith(null);
     expect(db.completeOnboarding).toHaveBeenCalledWith("user-1");
     expect(router.push).toHaveBeenCalledWith("/");
+  });
+
+  it("goes Home when the chosen program has no workouts yet", async () => {
+    followProgram.mockResolvedValue([]);
+    await goTo("program");
+    await press("Start first workout");
+    expect(router.push).toHaveBeenCalledWith("/");
+  });
+
+  it("can go and build a program instead, following none", async () => {
+    await goTo("program");
+    await press(/Build your own program/);
+    expect(db.completeOnboarding).toHaveBeenCalledWith("user-1");
+    expect(router.push).toHaveBeenCalledWith("/programs?new=1");
+    expect(followProgram).not.toHaveBeenCalled();
+  });
+
+  it("stays, with an alert and onboarding unfinished, when the program can't be saved", async () => {
+    followProgram.mockRejectedValueOnce(new Error("offline"));
+    await goTo("program");
+    await press("Start first workout");
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't save your program");
+    expect(db.completeOnboarding).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("goes nowhere, with an alert, when finishing can't be saved, and can be tried again", async () => {
@@ -209,13 +259,11 @@ describe("Onboarding — your program", () => {
     expect(router.push).toHaveBeenCalledWith("/workout?week=1&day=0");
   });
 
-  it("offers only Home while the program hasn't loaded", async () => {
-    program = [];
+  it("offers just starting with none when no programs are available", async () => {
+    db.getPrograms.mockResolvedValue([]);
     await goTo("program");
-    expect(screen.queryByRole("button", { name: "Start first workout" })).toBeNull();
-    expect(screen.queryByText(/workouts$/)).toBeNull();
-    await press("Go to Home");
-    expect(router.push).toHaveBeenCalledWith("/");
+    expect(screen.getAllByRole("radio")).toHaveLength(1);
+    expect(option(/No program for now/)).toHaveAttribute("aria-checked", "true");
   });
 });
 

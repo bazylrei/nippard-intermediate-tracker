@@ -3,7 +3,12 @@ import { render, screen, fireEvent, within, act, waitFor } from "@testing-librar
 import type { BuilderProgram, ProgramRow } from "@/lib/types";
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router, useParams: () => ({ programId: "prog-1" }) }));
+const search = vi.hoisted(() => ({ params: new URLSearchParams() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => router, useParams: () => ({ programId: "prog-1" }), useSearchParams: () => search.params,
+}));
+const followed = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
+vi.mock("@/context/ProgramContext", () => ({ useProgramContext: () => followed.value }));
 vi.mock("@/lib/auth", () => ({ getSignedInUser: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 
 const db = vi.hoisted(() => ({ getPrograms: vi.fn(), getBuilderProgram: vi.fn(), createProgram: vi.fn(), newProgramId: () => "new-id" }));
@@ -38,6 +43,8 @@ const program: BuilderProgram = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
+  search.params = new URLSearchParams();
+  followed.value = { programId: null, followProgram: vi.fn().mockResolvedValue([]) };
   db.getPrograms.mockResolvedValue([]);
   db.getBuilderProgram.mockResolvedValue(program);
   db.createProgram.mockResolvedValue(undefined);
@@ -139,6 +146,14 @@ describe("My programs — creating a program", () => {
     expect(db.createProgram).not.toHaveBeenCalled();
   });
 
+  it("arrives with the sheet open from a \"Create your own\" link, and closing it tidies the address", async () => {
+    search.params = new URLSearchParams("new=1");
+    render(<ProgramsPage />);
+    expect(await screen.findByRole("form", { name: "New program" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(router.replace).toHaveBeenCalledWith("/programs", { scroll: false });
+  });
+
   it("offers it even before I have any programs", async () => {
     render(<ProgramsPage />);
     expect(await screen.findByText("No programs yet.")).toBeInTheDocument();
@@ -220,5 +235,51 @@ describe("Program preview", () => {
     db.getBuilderProgram.mockRejectedValue(new Error("offline"));
     render(<ProgramPreviewPage />);
     expect(await screen.findByText(/Couldn.t load this program/)).toBeInTheDocument();
+  });
+});
+
+describe("My programs — the program followed", () => {
+  it("marks the program I follow as current", async () => {
+    followed.value = { ...followed.value, programId: "theirs" };
+    db.getPrograms.mockResolvedValue([row({ id: "mine", name: "Mine" }), row({ id: "theirs", name: "Theirs", createdBy: "user-2", isPublic: true })]);
+    render(<ProgramsPage />);
+    expect(within(await screen.findByRole("link", { name: /Theirs/ })).getByText("Current")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /Mine/ })).queryByText("Current")).toBeNull();
+  });
+});
+
+describe("Program preview — following", () => {
+  it("follows the program, then opens it on My program", async () => {
+    render(<ProgramPreviewPage />);
+    const follow = await screen.findByRole("button", { name: /Follow this program/ });
+    await act(async () => { fireEvent.click(follow); });
+    expect(followed.value.followProgram).toHaveBeenCalledWith("prog-1");
+    expect(router.push).toHaveBeenCalledWith("/program");
+  });
+
+  it("says so when it's the program I follow, and can stop following it", async () => {
+    followed.value = { ...followed.value, programId: "prog-1" };
+    render(<ProgramPreviewPage />);
+    expect(await screen.findByText("You're following this program")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Follow this program/ })).toBeNull();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Stop following" })); });
+    expect(followed.value.followProgram).toHaveBeenCalledWith(null);
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("stays, with an alert, when following can't be saved", async () => {
+    followed.value = { ...followed.value, followProgram: vi.fn().mockRejectedValue(new Error("offline")) };
+    render(<ProgramPreviewPage />);
+    const follow = await screen.findByRole("button", { name: /Follow this program/ });
+    await act(async () => { fireEvent.click(follow); });
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't switch programs");
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("isn't offered for a program with no workouts yet", async () => {
+    db.getBuilderProgram.mockResolvedValue({ ...program, totalWeeks: 0, days: [] });
+    render(<ProgramPreviewPage />);
+    expect(await screen.findByText("This program has no workouts yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Follow this program/ })).toBeNull();
   });
 });

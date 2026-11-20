@@ -325,6 +325,7 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          active_program_id: string | null
           alternate_selections: Json
           created_at: string
           exercise_notes: Json
@@ -337,6 +338,7 @@ export type Database = {
           week_starts_on: number
         }
         Insert: {
+          active_program_id?: string | null
           alternate_selections?: Json
           created_at?: string
           exercise_notes?: Json
@@ -349,6 +351,7 @@ export type Database = {
           week_starts_on?: number
         }
         Update: {
+          active_program_id?: string | null
           alternate_selections?: Json
           created_at?: string
           exercise_notes?: Json
@@ -360,7 +363,15 @@ export type Database = {
           user_id?: string
           week_starts_on?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_active_program_id_fkey"
+            columns: ["active_program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warmup_protocols: {
         Row: {
@@ -539,7 +550,9 @@ export type Database = {
           weight_reps: number
         }[]
       }
-      workout_overview: { Args: never; Returns: Json }
+      workout_overview:
+        | { Args: never; Returns: Json }
+        | { Args: { p_program_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

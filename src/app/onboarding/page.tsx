@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
-import { getTotalSessions, programRun } from "@/lib/program-data";
+import { programRun } from "@/lib/program-data";
+import { NEW_PROGRAM_HREF } from "@/lib/program-routes";
 import { startWorkoutHref } from "@/lib/workout-history";
 import { useProgramContext } from "@/context/ProgramContext";
 import { ONBOARDING_STEPS, useOnboarding } from "@/hooks/useOnboarding";
@@ -16,18 +16,26 @@ import ProgramStep from "@/components/onboarding/ProgramStep";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { program } = useProgramContext();
+  const { followProgram } = useProgramContext();
   const flow = useOnboarding();
 
   if (flow.status === "error") return <FullScreenMessage message="Couldn't load. Check your connection and try again." />;
   if (flow.status === "loading") return <FullScreenMessage message="Loading…" />;
 
-  const firstWorkout = programRun([], program).next;
-  const summary = program.length ? { weeks: program.length, workouts: getTotalSessions(program) } : null;
-
   /** Finishes onboarding and goes on; stays here, with the error shown, if finishing fails. */
   async function finishAnd(destination: string) {
     if (await flow.finish()) router.push(destination);
+  }
+
+  /** Follows the chosen program (or none), then opens its first workout — or Home, following none. */
+  async function choose(programId: string | null) {
+    let schedule: Awaited<ReturnType<typeof followProgram>> = [];
+    const followed = await flow.saveError.attempt(async () => {
+      schedule = await followProgram(programId);
+    }, "Couldn't save your program. Try again.");
+    if (!followed) return;
+    const first = programRun([], schedule).next;
+    await finishAnd(first ? startWorkoutHref(first) : "/");
   }
 
   return (
@@ -55,13 +63,7 @@ export default function OnboardingPage() {
       )}
       {flow.step === "weight" && <BodyWeightStep unit={flow.unit} onSave={flow.saveBodyWeight} onSkip={flow.next} />}
       {flow.step === "program" && (
-        <ProgramStep
-          name={ACTIVE_PROGRAM_NAME}
-          summary={summary}
-          canStart={!!firstWorkout}
-          onStart={() => finishAnd(firstWorkout ? startWorkoutHref(firstWorkout) : "/")}
-          onHome={() => finishAnd("/")}
-        />
+        <ProgramStep programs={flow.programs} onChoose={choose} onBuild={() => finishAnd(NEW_PROGRAM_HREF)} />
       )}
     </div>
   );

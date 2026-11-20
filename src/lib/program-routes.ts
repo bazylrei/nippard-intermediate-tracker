@@ -9,3 +9,6 @@ export function programHref(id: string): string {
 export function editProgramHref(id: string): string {
   return `${programHref(id)}/edit`;
 }
+
+/** My programs with the "New program" sheet already open. */
+export const NEW_PROGRAM_HREF = `${PROGRAMS_PATH}?new=1`;

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth";
 import { requireSignedInUser, SIGN_IN_PATH } from "@/lib/require-user";
-import { ACTIVE_PROGRAM_NAME } from "@/lib/program-db";
 import { getTotalSessions } from "@/lib/program-data";
 import { useProgramContext } from "@/context/ProgramContext";
 import SaveErrorAlert from "@/components/widgets/SaveErrorAlert";
@@ -19,7 +18,7 @@ import { PROGRAMS_PATH } from "@/lib/program-routes";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { program } = useProgramContext();
+  const { program, programName } = useProgramContext();
   const [email, setEmail] = useState("");
   const saveError = useSaveError();
 
@@ -40,10 +39,10 @@ export default function ProfilePage() {
 
       <ProfileSection title="Current program">
         <ProfileRow
-          href="/program"
+          href={programName ? "/program" : PROGRAMS_PATH}
           icon={ClipboardList}
-          title={ACTIVE_PROGRAM_NAME}
-          subtitle={`${program.length} weeks · ${getTotalSessions(program)} workouts`}
+          title={programName ?? "No program"}
+          subtitle={programName ? `${program.length} weeks · ${getTotalSessions(program)} workouts` : "Choose a ready-made program or build your own"}
         />
       </ProfileSection>
 

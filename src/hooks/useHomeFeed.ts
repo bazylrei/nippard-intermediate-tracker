@@ -29,17 +29,19 @@ export interface HomeFeed {
 /** `failed` is true only when loading failed and there is no cached feed to show. */
 export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
   const router = useRouter();
-  const { program } = useProgramContext();
+  const { program, programId, ready, failed: programFailed } = useProgramContext();
   const [data, setData] = useState<FeedData | null>(() => cacheGet<FeedData>(CACHE_KEY));
   const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
+    // Wait for the followed program, so the overview is of the right one.
+    if (!ready) return;
     async function load() {
       const user = await requireSignedInUser(router);
       if (!user) return;
 
       const [{ unfinished, completed }, recent] = await Promise.all([
-        getWorkoutOverview(),
+        getWorkoutOverview(programId),
         getRecentWorkouts(user.id, FEED_LIMIT),
       ]);
       const fresh: FeedData = {
@@ -51,7 +53,7 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
       cacheSet(CACHE_KEY, fresh);
     }
     load().catch((error) => { console.error(error); setLoadFailed(true); });
-  }, [router]);
+  }, [router, programId, ready]);
 
   const feed = useMemo<HomeFeed | null>(() => data && {
     nextSession: data.resume ?? programRun(data.completed, program).next,
@@ -59,5 +61,5 @@ export function useHomeFeed(): { feed: HomeFeed | null; failed: boolean } {
     items: data.items,
   }, [data, program]);
 
-  return { feed, failed: loadFailed && !data };
+  return { feed, failed: (loadFailed || programFailed) && !data };
 }
